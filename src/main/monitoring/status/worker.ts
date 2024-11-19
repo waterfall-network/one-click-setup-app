@@ -158,4 +158,4 @@ const appEnv = new AppEnv({
   userData: workerData.userData,
   version: workerData.version
 })
-new StatusMonitoring(appEnv, 4000)
+new StatusMonitoring(appEnv, 12000)

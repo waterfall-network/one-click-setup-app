@@ -32,7 +32,7 @@ import {
 import LocalNode from '../node/local'
 import ProviderNode from '../node/provider'
 import crypto from 'crypto'
-import { getRPC, getStakeAmount, Network } from '../libs/env'
+import { getRPC, getStakeAmount } from '../libs/env'
 import { readJSON } from '../libs/fs'
 import { validateDelegateRules, validateDepositData } from '../helpers/worker'
 import { getWeb3 } from '../libs/web3'
@@ -58,6 +58,7 @@ export interface Response<T> {
   message?: ErrorResults
   data?: T
 }
+
 export interface Key {
   depositData: GetDepositDataResponse
   coordinatorKey: GetCoordinatorKeyStoreResponseType
@@ -130,8 +131,8 @@ class Worker {
     this.ipcMain.handle('worker:sendActionTx', (_event: IpcMainInvokeEvent, action, ids, pk) =>
       this._sendActionTx(action, ids, pk)
     )
-    this.ipcMain.handle('worker:getBalance', (_event: IpcMainInvokeEvent, address) =>
-      this._getBalance(address)
+    this.ipcMain.handle('worker:getBalance', (_event: IpcMainInvokeEvent, nodeId, address) =>
+      this._getBalance(nodeId, address)
     )
 
     return true
@@ -367,6 +368,7 @@ class Worker {
     }
     return results
   }
+
   private async _sendActionTx(
     action: ActionTxType,
     ids: number[] | bigint[],
@@ -540,33 +542,56 @@ class Worker {
       return ErrorResults.NODE_NOT_FOUND
     }
 
-    const node =
-      worker.node.type === NodeType.local
-        ? new LocalNode(worker.node, this.appEnv)
-        : new ProviderNode(worker.node, this.appEnv)
-
-    if (!node || !node.web3) {
+    const web3 = getWeb3(getRPC(worker.node.network))
+    if (!web3 || !web3.currentProvider) {
+      log.error('no web3 currentProvider')
       return ErrorResults.NODE_NOT_FOUND
+    }
+    let delegating_stake
+    if (worker.delegate) {
+      try {
+        delegating_stake = worker.delegate as unknown as DelegatingStakeType
+        if (!delegating_stake.trial_period) {
+          delegating_stake.trial_period = '0x0'
+        }
+        if (!delegating_stake.trial_rules) {
+          delegating_stake.trial_rules = delegating_stake.rules
+        }
+      } catch (e) {
+        log.error('depositData error', e)
+        return ErrorResults.DELEGATE_RULES_INVALID
+      }
     }
 
     let hexData, value
+    let from = `0x${worker.withdrawalAddress}`
     if (action === ActionTxType.activate) {
-      hexData = await node.web3.wat.validator.depositData({
+      value = getStakeAmount(worker.node.network)
+      const depositData: DepositDataType = {
         pubkey: worker.coordinatorPublicKey,
         creator_address: worker.validatorAddress,
         withdrawal_address: worker.withdrawalAddress,
         signature: worker.signature
-      })
-      value = getStakeAmount(worker.node.network)
+      }
+      if (delegating_stake) {
+        depositData.delegating_stake = delegating_stake
+      }
+      hexData = await web3.wat.validator.depositData(depositData)
     } else if (action === ActionTxType.deActivate) {
       value = 0
-      hexData = await node.web3.wat.validator.exitData({
+      if (delegating_stake) {
+        from = delegating_stake.rules.exit.join(', ')
+      }
+      hexData = await web3.wat.validator.exitData({
         pubkey: worker.coordinatorPublicKey,
         creator_address: worker.validatorAddress
       })
     } else if (action === ActionTxType.withdraw) {
       value = 0
-      hexData = await node.web3.wat.validator.withdrawalData({
+      if (delegating_stake) {
+        from = delegating_stake.rules.withdrawal.join(', ')
+      }
+      hexData = await web3.wat.validator.withdrawalData({
         creator_address: worker.validatorAddress,
         amount: Web3.utils.toWei(`${amount || '0'}`, 'ether')
       })
@@ -575,8 +600,8 @@ class Worker {
     return {
       hexData,
       value,
-      to: await node.web3.wat.validator.depositAddress(),
-      from: `0x${worker.withdrawalAddress}`
+      to: await web3.wat.validator.depositAddress(),
+      from
     }
   }
 
@@ -599,13 +624,18 @@ class Worker {
       return {}
     }
   }
-  private async _getBalance(address: string): Promise<string> {
-    const web3 = getWeb3(getRPC(Network.mainnet))
+
+  private async _getBalance(nodeId: number, address: string): Promise<Response<string>> {
+    const nodeModel = this.nodeModel.getById(nodeId)
+    if (!nodeModel) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const web3 = getWeb3(getRPC(nodeModel.network))
     if (!web3 || !web3.currentProvider) {
-      return ''
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
     }
     const balance = await web3.eth.getBalance(address)
-    return balance ? web3.utils.fromWei(balance, 'ether') : ''
+    return { status: 'success', data: balance ? web3.utils.fromWei(balance, 'ether') : '' }
   }
 }
 
@@ -626,6 +656,7 @@ interface DelegatingStakeType {
     withdrawal: string[]
   }
 }
+
 interface DepositDataType {
   pubkey: string
   creator_address: string

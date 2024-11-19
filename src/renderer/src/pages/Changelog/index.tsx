@@ -28,6 +28,16 @@ const items = [
   {
     children: (
       <>
+        <Text size="sm">0.4.3 beta - 14.11.2024</Text>
+        <p>New: Support testnet9</p>
+        <p>Fix: Generate data for Metamask with delegate rules</p>
+        <p>Update: Updating the node to the latest version</p>
+      </>
+    )
+  },
+  {
+    children: (
+      <>
         <Text size="sm">0.4.2 beta - 20.09.2024</Text>
         <p>New: Display the global validator index</p>
         <p>New: Display the amount of rewards</p>

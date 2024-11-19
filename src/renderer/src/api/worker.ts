@@ -66,6 +66,6 @@ export const getDelegateRules = async (path: string) => {
   return await window.worker.getDelegateRules(path)
 }
 
-export const getBalance = async (address: string) => {
-  return await window.worker.getBalance(address)
+export const getBalance = async (nodeId: number | bigint, address: string) => {
+  return await window.worker.getBalance(nodeId, address)
 }

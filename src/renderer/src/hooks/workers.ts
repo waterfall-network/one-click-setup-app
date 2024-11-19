@@ -324,7 +324,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     setStatus(false)
   }
 
-  const onChangePk = async (key: string) => {
+  const onChangePk = async (key: string, nodeId: number | bigint | null) => {
     let address = ''
     let isCorrect = false
     try {
@@ -339,8 +339,11 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       console.error(e)
     }
     let balance = ''
-    if (address) {
-      balance = await getBalance(address)
+    if (address && nodeId) {
+      const data = await getBalance(nodeId, address)
+      if (data.status === 'success' && data.data) {
+        balance = data.data
+      }
     }
     setPk({ key, address, isCorrect, balance })
   }

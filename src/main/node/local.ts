@@ -32,15 +32,19 @@ import {
 } from '../libs/fs'
 import AppEnv from '../libs/appEnv'
 import {
+  Network,
   getLocationPath,
   getCoordinatorNetwork,
   getCoordinatorPath,
   getCoordinatorWalletPath,
   getCoordinatorKeysPath,
+  getCoordinatorBootnode,
   getLogPath,
   getValidatorNetwork,
   getValidatorPath,
   getValidatorPasswordPath,
+  getValidatorAddress,
+  getValidatorBootnode,
   getCoordinatorWalletPasswordPath,
   getCoordinatorKeyPath,
   getValidatorKeystorePath,
@@ -258,17 +262,21 @@ class LocalNode extends EventEmitter {
       return null
     }
     try {
-      const response = await this.runCoordinatorCommand('/eth/v1/node/peer_count')
-      if (response && response?.data) {
-        results.coordinatorPeersCount = response.data.connected
+      if (this.model.coordinatorStatus !== NodeCoordinatorStatus.stopped) {
+        const response = await this.runCoordinatorCommand('/eth/v1/node/peer_count')
+        if (response && response?.data) {
+          results.coordinatorPeersCount = response.data.connected
+        }
       }
     } catch (error) {
       log.debug(error)
     }
     try {
-      const response = (await this.runValidatorCommand('admin.peers.length')) as string
-      if (response !== '') {
-        results.validatorPeersCount = parseInt(response)
+      if (this.model.validatorStatus !== NodeValidatorStatus.stopped) {
+        const response = (await this.runValidatorCommand('admin.peers.length')) as string
+        if (response !== '') {
+          results.validatorPeersCount = parseInt(response)
+        }
       }
     } catch (error) {
       log.debug(error)
@@ -581,27 +589,32 @@ class LocalNode extends EventEmitter {
     if (this.model === null || this.coordinatorBeacon !== null) {
       return false
     }
+    const args = [
+      '--accept-terms-of-use',
+      '--disable-peer-scorer',
+      `${getCoordinatorNetwork(this.model.network)}`,
+      `--datadir=${getCoordinatorPath(this.model.locationDir)}`,
+      // `--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`,
+      // `--genesis-state=${this.appEnv.getCoordinatorBeaconGenesisPath(this.model.network)}`,
+      // `--chain-id=${getChainId(this.model.network)}`,
+      // `--network-id=${getChainId(this.model.network)}`,
+      // '--contract-deployment-block=0',
+      // `--deposit-contract=${getValidatorAddress(this.model.network)}`,
+      `--enable-upnp`,
+      `--p2p-host-ip=${this.ip}`,
+      `--p2p-tcp-port=${this.model.coordinatorP2PTcpPort}`,
+      `--p2p-udp-port=${this.model.coordinatorP2PUdpPort}`,
+      `--grpc-gateway-port=${this.model.coordinatorHttpApiPort}`,
+      `--rpc-port=${this.model.coordinatorHttpValidatorApiPort}`,
+      `--http-web3provider=${this.appEnv.getValidatorSocket(this.model.id.toString())}`
+    ]
+    if (this.model.network !== Network.mainnet) {
+      args.push(`--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`)
+      args.push(`--deposit-contract=${getValidatorAddress(this.model.network)}`)
+    }
     this.coordinatorBeacon = new Child({
       binPath: this.appEnv.getCoordinatorBeaconBinPath(this.model.network),
-      args: [
-        '--accept-terms-of-use',
-        '--disable-peer-scorer',
-        `${getCoordinatorNetwork(this.model.network)}`,
-        `--datadir=${getCoordinatorPath(this.model.locationDir)}`,
-        // `--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`,
-        // `--genesis-state=${this.appEnv.getCoordinatorBeaconGenesisPath(this.model.network)}`,
-        // `--chain-id=${getChainId(this.model.network)}`,
-        // `--network-id=${getChainId(this.model.network)}`,
-        // '--contract-deployment-block=0',
-        // `--deposit-contract=${getValidatorAddress(this.model.network)}`,
-        `--enable-upnp`,
-        `--p2p-host-ip=${this.ip}`,
-        `--p2p-tcp-port=${this.model.coordinatorP2PTcpPort}`,
-        `--p2p-udp-port=${this.model.coordinatorP2PUdpPort}`,
-        `--grpc-gateway-port=${this.model.coordinatorHttpApiPort}`,
-        `--rpc-port=${this.model.coordinatorHttpValidatorApiPort}`,
-        `--http-web3provider=${this.appEnv.getValidatorSocket(this.model.id.toString())}`
-      ],
+      args: args,
       logPath: getLogPath(this.model.locationDir),
       logName: 'coordinator-beacon.log'
     })
@@ -616,19 +629,23 @@ class LocalNode extends EventEmitter {
     if (this.model === null || this.validator !== null) {
       return false
     }
+    const args = [
+      `${getValidatorNetwork(this.model.network)}`,
+      `--datadir=${getValidatorPath(this.model.locationDir)}`,
+      // `--bootnodes=${getValidatorBootnode(this.model.network)}`,
+      // `--networkid=${getChainId(this.model.network)}`,
+      '--nat=any',
+      '--syncmode=full',
+      `--port=${this.model.validatorP2PPort}`,
+      `--ipcpath=${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
+      `--password=${getValidatorPasswordPath(this.model.locationDir)}`
+    ]
+    if (this.model.network !== Network.mainnet) {
+      args.push(`--bootnodes=${getValidatorBootnode(this.model.network)}`)
+    }
     this.validator = new Child({
       binPath: this.appEnv.getValidatorBinPath(this.model.network),
-      args: [
-        `${getValidatorNetwork(this.model.network)}`,
-        `--datadir=${getValidatorPath(this.model.locationDir)}`,
-        // `--bootnodes=${getValidatorBootnode(this.model.network)}`,
-        // `--networkid=${getChainId(this.model.network)}`,
-        '--nat=any',
-        '--syncmode=full',
-        `--port=${this.model.validatorP2PPort}`,
-        `--ipcpath=${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
-        `--password=${getValidatorPasswordPath(this.model.locationDir)}`
-      ],
+      args: args,
       logPath: getLogPath(this.model.locationDir),
       logName: 'validator.log'
     })

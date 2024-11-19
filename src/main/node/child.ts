@@ -107,7 +107,7 @@ class Child extends EventEmitter {
       }
       this.child.once('close', (code) => {
         log.debug(`spawn child process exited with code ${code}`)
-        this.child = null
+        // this.child = null
         resolve(StatusResult.success)
       })
       this.child.kill()

@@ -91,7 +91,8 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
     }
   }, [type, ids, onRemove, handleClose, count])
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => onChangePk(e.target.value)
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChangePk(e.target.value, workers && workers.length > 0 ? workers[0].nodeId : null)
 
   if (!type || !ids || ids.length === 0) {
     return null

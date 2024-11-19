@@ -118,6 +118,14 @@ export const useAddNode = (type: Type.local | Type.provider, network) => {
       setValues(() => getInitialValues(value as Type.local | Type.provider, network))
       return
     }
+    if (field === AddNodeFields.network && value && snapshots) {
+      setValues((prev) => ({
+        ...prev,
+        [AddNodeFields.downloadUrl]: snapshots[value].url,
+        [AddNodeFields.downloadHash]: snapshots[value].hash,
+        [AddNodeFields.downloadSize]: snapshots[value].size
+      }))
+    }
     setValues((prev) => ({ ...prev, [field]: value }))
   }
 

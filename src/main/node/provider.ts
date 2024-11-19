@@ -207,7 +207,7 @@ class ProviderNode extends EventEmitter {
       return results
     }
 
-    const batchSize = 50
+    const batchSize = this.model.network === Network.mainnet ? 50 : 1
     try {
       for (let i = 0; i < workers.length; i += batchSize) {
         const batch = workers.slice(i, i + batchSize)
@@ -490,7 +490,7 @@ class ProviderNode extends EventEmitter {
       }
       return await response.json()
     } catch (error) {
-      // log.debug(error)
+      log.debug(error)
     }
     return {}
   }
