@@ -192,6 +192,8 @@ class ProviderNode extends EventEmitter {
 
   public async getWorkerStatuses(workers: WorkerModelType[]) {
     const results: WorkerStatus[] = workers.map((worker) => ({
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,
@@ -221,8 +223,12 @@ class ProviderNode extends EventEmitter {
           `/eth/v1/beacon/states/head/validators?${queryString}`
         )
         if (coordinatorResponse?.data) {
-          coordinatorResponse.data.forEach((coordinator, index) => {
-            const resultIndex = i + index
+          coordinatorResponse.data.forEach((coordinator) => {
+            const resultIndex = results.findIndex(
+              (worker) =>
+                `0x${worker.coordinatorPublicKey.toLowerCase()}` ===
+                coordinator.validator.pubkey.toLowerCase()
+            )
             results[resultIndex].coordinatorStatus = coordinator.status
             results[resultIndex].coordinatorBalanceAmount = Web3.utils.fromWei(
               Web3.utils.toWei(coordinator.balance, 'gwei'),
@@ -291,7 +297,8 @@ class ProviderNode extends EventEmitter {
           ).catch(() => null)
           for (let index = 0; index < batch.length; index++) {
             const validatorResponse = validatorResponses[index]
-            const resultIndex = i + index // Adjust the index to match the original array
+            const resultIndex = i + index
+
             try {
               const validatorBalanceAmount = validatorsBalanceAmount
                 ? validatorsBalanceAmount[index]
@@ -355,6 +362,8 @@ class ProviderNode extends EventEmitter {
   }
   public async getWorkerStatus(worker: WorkerModelType) {
     const results: WorkerStatus = {
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,

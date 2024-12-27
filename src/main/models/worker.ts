@@ -41,6 +41,8 @@ export enum ValidatorStatus {
 }
 
 export interface WorkerStatus {
+  coordinatorPublicKey: string
+  validatorAddress: string
   coordinatorStatus: CoordinatorStatus
   coordinatorBalanceAmount: string
   coordinatorActivationEpoch: string

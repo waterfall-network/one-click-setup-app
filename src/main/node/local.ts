@@ -352,6 +352,8 @@ class LocalNode extends EventEmitter {
   }
   public async getWorkerStatus(worker: WorkerModelType) {
     const results: WorkerStatus = {
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,
