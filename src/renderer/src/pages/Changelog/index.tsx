@@ -28,11 +28,12 @@ const items = [
   {
     children: (
       <>
-        <Text size="sm">0.4.6 beta - 13.01.2025</Text>
+        <Text size="sm">0.4.6 beta - 28.01.2025</Text>
         <p>New: Add filters for Validators</p>
         <p>Update: Updating the node to the latest version</p>
         <p>Fix: Check local node status</p>
         <p>Fix: Gas price per transaction</p>
+        <p>Fix: Monitoring</p>
       </>
     )
   },
