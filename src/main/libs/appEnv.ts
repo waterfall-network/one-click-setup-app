@@ -81,11 +81,18 @@ class AppEnv {
   }
 
   getValidatorBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./verifier-${network}`))
+    path.resolve(path.join(this.getBinariesPath(), `./verifier-${network ? 'mainnet' : 'mainnet'}`))
   getCoordinatorBeaconBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./coordinator-beacon-${network}`))
+    path.resolve(
+      path.join(this.getBinariesPath(), `./coordinator-beacon-${network ? 'mainnet' : 'mainnet'}`)
+    )
   getCoordinatorValidatorBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./coordinator-validator-${network}`))
+    path.resolve(
+      path.join(
+        this.getBinariesPath(),
+        `./coordinator-validator-${network ? 'mainnet' : 'mainnet'}`
+      )
+    )
 
   getCoordinatorBeaconGenesisPath = (network: Network) =>
     path.resolve(path.join(this.getGenesisPath(), `./coordinator-genesis-${network}.ssz`))

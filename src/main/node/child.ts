@@ -56,10 +56,10 @@ class Child extends EventEmitter {
 
   public async start(): Promise<StatusResult> {
     const logStream = rfs.createStream(this.logName, {
-      size: '50M',
+      size: '1000M',
       interval: '1d',
       compress: 'gzip',
-      maxFiles: 10,
+      maxFiles: 20,
       path: this.logPath
     })
 

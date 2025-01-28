@@ -178,7 +178,7 @@ export const getAddWorkerSteps = (node?: Node, mode: 'add' | 'import' = 'add') =
   }
 }
 
-const StatusLabels = {
+export const StatusLabels = {
   [Status.pending_initialized]: 'Pending Initialized',
   [Status.pending_activation]: 'Pending Activation',
   [Status.active]: 'Active',
@@ -187,7 +187,7 @@ const StatusLabels = {
 }
 
 export const getStatusLabel = (worker: Worker) => {
-  return StatusLabels[getStatus(worker)]
+  return StatusLabels[getStatus(worker)] || StatusLabels[Status.pending_initialized]
 }
 export const getStatus = (worker: Worker) => {
   if (

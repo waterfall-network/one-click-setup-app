@@ -28,6 +28,17 @@ const items = [
   {
     children: (
       <>
+        <Text size="sm">0.4.6 beta - 13.01.2025</Text>
+        <p>New: Add filters for Validators</p>
+        <p>Update: Updating the node to the latest version</p>
+        <p>Fix: Check local node status</p>
+        <p>Fix: Gas price per transaction</p>
+      </>
+    )
+  },
+  {
+    children: (
+      <>
         <Text size="sm">0.4.5 beta - 27.12.2024</Text>
         <p>Fix: Get mass status of validators</p>
       </>

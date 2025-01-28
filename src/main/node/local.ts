@@ -145,7 +145,7 @@ class LocalNode extends EventEmitter {
     this._setCoordinatorValidator()
 
     this.monitoringLogStream = rfs.createStream('monitoring.log', {
-      size: '50M',
+      size: '100M',
       interval: '1d',
       compress: 'gzip',
       maxFiles: 10,
@@ -262,21 +262,17 @@ class LocalNode extends EventEmitter {
       return null
     }
     try {
-      if (this.model.coordinatorStatus !== NodeCoordinatorStatus.stopped) {
-        const response = await this.runCoordinatorCommand('/eth/v1/node/peer_count')
-        if (response && response?.data) {
-          results.coordinatorPeersCount = response.data.connected
-        }
+      const response = await this.runCoordinatorCommand('/eth/v1/node/peer_count')
+      if (response && response?.data) {
+        results.coordinatorPeersCount = response.data.connected
       }
     } catch (error) {
       log.debug(error)
     }
     try {
-      if (this.model.validatorStatus !== NodeValidatorStatus.stopped) {
-        const response = (await this.runValidatorCommand('admin.peers.length')) as string
-        if (response !== '') {
-          results.validatorPeersCount = parseInt(response)
-        }
+      const response = (await this.runValidatorCommand('admin.peers.length')) as string
+      if (response !== '') {
+        results.validatorPeersCount = parseInt(response)
       }
     } catch (error) {
       log.debug(error)

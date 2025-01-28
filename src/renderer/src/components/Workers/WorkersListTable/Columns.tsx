@@ -15,6 +15,7 @@
  *
  */
 import { Flex, TableColumnsType, Popover } from 'antd'
+import { ColumnFilterItem } from 'antd/es/table/interface'
 import {
   WorkersListDataFields,
   WorkersListDataTypes,
@@ -48,6 +49,10 @@ type getColumnsProps = {
   deactivate: (id?: string) => void
   withdraw: (id?: string) => void
   remove: (id?: string) => void
+  filters: {
+    status: ColumnFilterItem[]
+    node: ColumnFilterItem[]
+  }
   rewardAmount: number
 }
 
@@ -56,6 +61,7 @@ export const columns = ({
   activate,
   withdraw,
   remove,
+  filters,
   rewardAmount
 }: getColumnsProps): TableColumnsType<DataType> => [
   {
@@ -66,7 +72,11 @@ export const columns = ({
   {
     title: 'Index',
     dataIndex: WorkersListDataFields.validatorIndex,
-    key: WorkersListDataFields.validatorIndex
+    key: WorkersListDataFields.validatorIndex,
+    sorter: (a, b) =>
+      !a[WorkersListDataFields.validatorIndex]
+        ? Number.MAX_VALUE
+        : a[WorkersListDataFields.validatorIndex] - b[WorkersListDataFields.validatorIndex]
   },
   {
     title: 'Node',
@@ -79,13 +89,17 @@ export const columns = ({
       >
         {node.name}
       </Link>
-    )
+    ),
+    filters: filters.node,
+    onFilter: (value, worker) => worker.node.name === value
   },
   {
     title: 'Status',
     dataIndex: WorkersListDataFields.status,
     key: WorkersListDataFields.status,
-    render: (_, worker) => getStatusLabel(worker)
+    render: (_, worker) => getStatusLabel(worker),
+    filters: filters.status,
+    onFilter: (value, worker) => getStatusLabel(worker) === value
   },
 
   {

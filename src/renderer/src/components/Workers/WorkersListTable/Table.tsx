@@ -15,10 +15,11 @@
  *
  */
 import { Table } from '@renderer/ui-kit/Table'
-import React from 'react'
+import { ColumnFilterItem } from 'antd/es/table/interface'
+import React, { useState, useMemo } from 'react'
 import { columns } from './Columns'
 import { ActionTxType, Worker, Status } from '../../../types/workers'
-import { getStatus } from '@renderer/helpers/workers'
+import { getStatus, getStatusLabel } from '@renderer/helpers/workers'
 
 type WorkersListTablePropsT = {
   data: Worker[]
@@ -33,26 +34,84 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
   onAction,
   onSelect
 }) => {
-  const dataSource = data ? data.map((item) => ({ ...item, key: `${item.id}` })) : []
+  const [tableParamsData, setTableParamsData] = useState<{
+    pagination: any
+    filters: { status: string[]; node: string[] }
+    sorter: any
+  }>({ pagination: {}, filters: { status: [], node: [] }, sorter: {} })
+  const dataSource = useMemo(
+    () => (data ? data.map((item) => ({ ...item, key: `${item.id}` })) : []),
+    [data]
+  )
+  const filters = useMemo(() => {
+    const results: { status: ColumnFilterItem[]; node: ColumnFilterItem[] } = {
+      status: [],
+      node: []
+    }
+    const filters = dataSource.reduce(
+      (cur, worker) => {
+        const label = getStatusLabel(worker)
+        const nodeName = worker?.node?.name
+        if (cur.status[label] === undefined) cur.status[label] = 0
+        cur.status[label]++
+        if (nodeName) {
+          if (cur.node[nodeName] === undefined) cur.node[nodeName] = 0
+          cur.node[nodeName]++
+        }
+        return cur
+      },
+      {
+        status: [],
+        node: []
+      }
+    )
+    Object.keys(filters).forEach((key) => {
+      Object.keys(filters[key]).forEach((k) => {
+        results[key].push({
+          text: `${k}(${filters[key][k]})`,
+          value: k
+        })
+      })
+    })
+    return results
+  }, [dataSource])
   const onActivate = (id?: string) => onAction(ActionTxType.activate, id)
   const onDeactivate = (id?: string) => onAction(ActionTxType.deActivate, id)
   const onWithdraw = (id?: string) => onAction(ActionTxType.withdraw, id)
   const onRemove = (id?: string) => onAction(ActionTxType.remove, id)
 
-  const rewardAmount = data.reduce((cur, worker) => {
-    const status = getStatus(worker)
-    const amount =
-      status === Status.active
-        ? parseFloat(worker.coordinatorBalanceAmount) - parseFloat(worker.stakeAmount)
-        : parseFloat(worker.coordinatorBalanceAmount)
-    return cur + amount
-  }, 0)
+  const rewardAmount = useMemo(() => {
+    return dataSource.reduce((cur, worker) => {
+      const status = getStatus(worker)
+      const label = getStatusLabel(worker)
+      const nodeName = worker?.node?.name
+      if (status === Status.pending_initialized) return cur
+      if (
+        tableParamsData?.filters?.status &&
+        tableParamsData?.filters?.status.length > 0 &&
+        !tableParamsData.filters.status.includes(label)
+      )
+        return cur
+      if (
+        tableParamsData?.filters?.node &&
+        tableParamsData?.filters?.node.length > 0 &&
+        (!nodeName || !tableParamsData.filters.node.includes(nodeName))
+      )
+        return cur
+      const amount =
+        status === Status.active
+          ? parseFloat(worker.coordinatorBalanceAmount) - parseFloat(worker.stakeAmount)
+          : parseFloat(worker.coordinatorBalanceAmount)
+      return cur + amount
+    }, 0)
+  }, [tableParamsData, dataSource])
 
   const getColumns = columns({
     activate: onActivate,
     deactivate: onDeactivate,
     withdraw: onWithdraw,
     remove: onRemove,
+    filters,
     rewardAmount
   })
 
@@ -61,6 +120,9 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
       onSelect?.(selectedRows)
     }
   }
+
+  const handleTableChange = (pagination, filters, sorter) =>
+    setTableParamsData({ pagination, filters, sorter })
 
   return (
     <Table
@@ -78,6 +140,7 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
           onRowClick(record.id)
         }
       })}
+      onChange={handleTableChange}
     />
   )
 }

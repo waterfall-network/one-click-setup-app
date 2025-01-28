@@ -382,7 +382,7 @@ class Worker {
       return ErrorResults.WORKER_NOT_FOUND
     }
     const results = ids.map(() => false)
-
+    // let nonce
     for (const id of ids) {
       const worker = this.workerModel.getById(id, { withNode: true })
       if (!worker || !worker.node) {
@@ -441,13 +441,27 @@ class Worker {
           })
         }
         const nonce = await web3.eth.getTransactionCount(account.address, 'pending')
+        // const nonce = await web3.eth.getTransactionCount(account.address)
+        // if(!nonce) {
+        //   nonce = await web3.eth.getTransactionCount(account.address)
+        //   nonce--
+        // }
+        // nonce++
         log.debug('nonce', nonce)
+        const currentGasPrice = await web3.eth.getGasPrice()
+        // const gasPrice = Math.floor(currentGasPrice * 1.1)
+        const addMore = web3.utils.toBN(currentGasPrice).div(web3.utils.toBN(10))
+        const gasPrice = web3.utils.toBN(currentGasPrice).add(addMore).toString()
+        console.log('currentGasPrice', currentGasPrice.toString())
+        console.log('addMore', addMore.toString())
+        console.log('gasPrice', gasPrice.toString())
         const tx: TransactionConfig = {
           from: account.address,
           to: depositAddress,
           value,
           data,
-          nonce
+          nonce,
+          gasPrice
         }
         tx.gas = await web3.eth.estimateGas(tx)
         const signedTx = await web3.eth.accounts.signTransaction(tx, pk)
