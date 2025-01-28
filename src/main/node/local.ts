@@ -1009,11 +1009,13 @@ class LocalNode extends EventEmitter {
     this.monitoringLogStream?.write(
       `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} c_distance=${sync?.coordinatorSyncDistance} c_head=${sync?.coordinatorHeadSlot} c_previous_justified=${sync?.coordinatorPreviousJustifiedEpoch} c_current_justified=${sync?.coordinatorCurrentJustifiedEpoch} c_finalized=${sync?.coordinatorFinalizedEpoch} v_distance=${sync?.validatorSyncDistance} v_head=${sync?.validatorHeadSlot} v_finalized=${sync?.validatorFinalizedSlot} ip=${ip} \n`
     )
-    if (ip !== this.ip) {
+    if (ip && ip !== this.ip) {
       this.monitoringLogStream?.write(
         `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} new=${ip} old=${this.ip} restart change ip\n`
       )
       await this.restart()
+      this.ip = ip
+      return
     }
     const fiveMinutesAgo = new Date(now.getTime() - 300000)
     if (
@@ -1029,7 +1031,6 @@ class LocalNode extends EventEmitter {
       await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
       await this.start()
     }
-    this.ip = ip
   }
 }
 
