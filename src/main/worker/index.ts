@@ -164,7 +164,6 @@ class Worker {
       }
     }
 
-    log.debug(data)
     if (data.depositData && data.delegateRules) {
       return this._addDelegate(data.nodeId, data.depositData, data.delegateRules)
     }

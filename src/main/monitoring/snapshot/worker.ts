@@ -19,7 +19,7 @@ import log from 'electron-log/node'
 import { getMain } from '../../libs/db'
 import AppEnv from '../../libs/appEnv'
 import { EventName, Event } from '../../libs/EventBus'
-import NodeModel, { DownloadStatus } from '../../models/node'
+import NodeModel, { Type as NodeType, DownloadStatus } from '../../models/node'
 import LocalNode from '../../node/local'
 import { delay } from '../../helpers/common'
 
@@ -158,6 +158,9 @@ class SnapshotMonitoring {
     this.isStart = true
     const nodes = this.nodeModel.getAll()
     for (const nodeModel of nodes) {
+      if (nodeModel.type !== NodeType.local) {
+        continue
+      }
       try {
         if (
           this.nodes[nodeModel.id.toString()] &&

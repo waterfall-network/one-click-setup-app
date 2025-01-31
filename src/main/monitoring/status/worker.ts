@@ -89,6 +89,7 @@ class StatusMonitoring {
       return
     }
     this.isStart = true
+    log.debug('status start')
     const nodes = this.nodeModel.getAll()
 
     for (const nodeModel of nodes) {
@@ -99,9 +100,27 @@ class StatusMonitoring {
           nodeModel.type === NodeType.local
             ? new LocalNode(nodeModel, this.appEnv)
             : new ProviderNode(nodeModel, this.appEnv)
-        const peers = await node.getPeers()
-        const sync = await node.getSync()
-
+        if (nodeModel.type === NodeType.local) {
+          log.debug('status', 1)
+        }
+        let peers
+        let sync
+        try {
+          peers = await node.getPeers()
+        } catch (e) {
+          log.error('peers', e)
+        }
+        if (nodeModel.type === NodeType.local) {
+          log.debug('status', 2)
+        }
+        try {
+          sync = await node.getSync()
+        } catch (e) {
+          log.error('sync', e)
+        }
+        if (nodeModel.type === NodeType.local) {
+          log.debug(JSON.stringify(peers))
+        }
         if (peers) {
           data = {
             ...data,
@@ -126,8 +145,8 @@ class StatusMonitoring {
 
         if (
           sync?.coordinatorFinalizedEpoch &&
-          nodeModel.coordinatorFinalizedEpoch.toString() !==
-            sync.coordinatorFinalizedEpoch.toString()
+          nodeModel?.coordinatorFinalizedEpoch.toString() !==
+            sync?.coordinatorFinalizedEpoch.toString()
         ) {
           const workers = this.workerModel.getByNodeId(nodeModel.id)
           const statuses = await node.getWorkerStatuses(workers)

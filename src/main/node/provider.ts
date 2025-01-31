@@ -25,7 +25,6 @@ import Web3 from 'web3'
 import { isSyncInfo, isWatInfo } from '../helpers/node'
 import { EraInfo, isEraInfo, isValidatorInfo } from '../helpers/worker'
 import { PublicKey } from '../worker'
-import { getWeb3 } from '../libs/web3'
 import { getRPC, Network } from '../libs/env'
 
 export enum StatusResult {
@@ -47,13 +46,11 @@ export type removeWorkersResponse = {
 class ProviderNode extends EventEmitter {
   private readonly appEnv: AppEnv
   private readonly model: Node | null
-  public readonly web3: Web3 | null
 
   constructor(model: Node | undefined, appEnv: AppEnv) {
     super()
     this.appEnv = appEnv
     this.model = model || null
-    this.web3 = getWeb3(getRPC(model ? model.network : Network.mainnet))
   }
 
   public async initialize(): Promise<StatusResults> {
@@ -499,7 +496,7 @@ class ProviderNode extends EventEmitter {
       }
       return await response.json()
     } catch (error) {
-      log.debug(error)
+      log.error('runCoordinatorCommand', command, error)
     }
     return {}
   }
@@ -532,6 +529,7 @@ class ProviderNode extends EventEmitter {
       return result.map((r) => r.result)
     } catch (error) {
       // log.debug(error)
+      log.error('runValidatorCommands', req, error)
     }
     return []
   }
@@ -563,6 +561,7 @@ class ProviderNode extends EventEmitter {
       return result.result
     } catch (error) {
       // log.debug(error)
+      log.error('runValidatorCommand', method, params, error)
     }
     return {}
   }

@@ -210,6 +210,30 @@ class Node {
         coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
       })
     })
+
+    node.on('start', () => {
+      if (nodeModel.type === NodeType.local) {
+        const pids = node.getPids()
+        this.nodeModel.update(nodeModel.id, {
+          coordinatorPid: pids.coordinatorBeacon,
+          coordinatorStatus: pids.coordinatorBeacon
+            ? CoordinatorStatus.running
+            : CoordinatorStatus.stopped,
+          validatorPid: pids.validator,
+          validatorStatus: pids.validator ? ValidatorStatus.running : ValidatorStatus.stopped,
+          coordinatorValidatorPid: pids.coordinatorValidator,
+          coordinatorValidatorStatus: pids.coordinatorValidator
+            ? CoordinatorValidatorStatus.running
+            : CoordinatorValidatorStatus.stopped
+        })
+        return
+      }
+      this.nodeModel.update(nodeModel.id, {
+        coordinatorStatus: CoordinatorStatus.running,
+        validatorStatus: ValidatorStatus.running,
+        coordinatorValidatorStatus: CoordinatorValidatorStatus.running
+      })
+    })
     if (
       initNodeStatus.coordinatorBeacon === StatusResult.success &&
       initNodeStatus.validator === StatusResult.success &&

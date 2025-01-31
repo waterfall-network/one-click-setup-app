@@ -64,13 +64,12 @@ import { isValidatorInfo, isEraInfo } from '../helpers/worker'
 
 import Web3 from 'web3'
 import { Key, PublicKey } from '../worker'
-import { isWatInfo } from '../helpers/node'
+import { isSyncInfo, isWatInfo } from '../helpers/node'
 import { getCurrentDateUTC } from '../helpers/common'
 
 import DownloadFile from '../libs/downloadFile'
 import { clearInterval } from 'node:timers'
 import * as rfs from 'rotating-file-stream'
-import { getWeb3 } from '../libs/web3'
 
 export { StatusResult }
 
@@ -88,7 +87,6 @@ export type removeWorkersResponse = {
 class LocalNode extends EventEmitter {
   private readonly appEnv: AppEnv
   private readonly model: Node | null
-  public readonly web3: Web3 | null
 
   private coordinatorBeacon: Child | null
   private coordinatorValidator: Child | null
@@ -98,6 +96,7 @@ class LocalNode extends EventEmitter {
   private startTime: Date | null = null
   private monitoringInterval: NodeJS.Timeout | null = null
   private monitoringLogStream: rfs.RotatingFileStream | null = null
+  private monitoringWorking = false
 
   constructor(model: Node | undefined, appEnv: AppEnv) {
     super()
@@ -106,8 +105,6 @@ class LocalNode extends EventEmitter {
     this.coordinatorBeacon = null
     this.coordinatorValidator = null
     this.validator = null
-    this.web3 =
-      this.model === null ? null : getWeb3(this.appEnv.getValidatorSocket(this.model.id.toString()))
   }
 
   public async initialize(): Promise<StatusResults> {
@@ -160,7 +157,7 @@ class LocalNode extends EventEmitter {
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
+    log.debug(`start`)
     if (this.validator && !this.validator.isRunning()) {
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
@@ -176,7 +173,6 @@ class LocalNode extends EventEmitter {
       log.debug(`start valid: ${results.coordinatorValidator}`)
     }
 
-    this.startTime = new Date()
     this._startMonitoring()
     return results
   }
@@ -187,7 +183,7 @@ class LocalNode extends EventEmitter {
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
+    log.debug(`stop`)
     if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
       results.coordinatorBeacon = await this.coordinatorBeacon.stop()
       log.debug(`stop coord: ${results.coordinatorBeacon}`)
@@ -202,7 +198,6 @@ class LocalNode extends EventEmitter {
       results.validator = await this.validator.stop()
       log.debug(`stop gwat: ${results.validator}`)
     }
-    this.startTime = null
     this._stopMonitoring()
     return results
   }
@@ -213,21 +208,25 @@ class LocalNode extends EventEmitter {
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
-    if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
-      await this.coordinatorBeacon.stop()
-      log.debug(`stop coord`)
+    if (this.model === null) {
+      return results
+    }
+    log.debug(`restart`)
+    if (this.coordinatorValidator && this.coordinatorValidator.isRunning()) {
+      const res = await this.coordinatorValidator.stop()
+      log.debug(`stop valid: ${res}`)
     }
 
-    if (this.coordinatorValidator && this.coordinatorValidator.isRunning()) {
-      await this.coordinatorValidator.stop()
-      log.debug(`stop valid`)
+    if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
+      const res = await this.coordinatorBeacon.stop()
+      log.debug(`stop coord: ${res}`)
     }
 
     if (this.validator && this.validator.isRunning()) {
-      await this.validator.stop()
-      log.debug(`stop gwat`)
+      const res = await this.validator.stop()
+      log.debug(`stop gwat: ${res}`)
     }
+    await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
     if (this.validator) {
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
@@ -317,13 +316,11 @@ class LocalNode extends EventEmitter {
     }
 
     try {
-      const response = (await this.runValidatorCommand('eth.syncing')) as string
+      const response = await this.runValidatorCommand('eth.syncing', 'json')
 
-      if (response !== 'false' && response !== '') {
-        const currentSlot = (await this.runValidatorCommand('eth.syncing.currentSlot')) as string
-        const finalizedSlot = (await this.runValidatorCommand(
-          'eth.syncing.finalizedSlot'
-        )) as string
+      if (response && isSyncInfo(response)) {
+        const currentSlot = response.currentSlot
+        const finalizedSlot = response.finalizedSlot
         results.validatorHeadSlot = BigInt(finalizedSlot)
         results.validatorSyncDistance = BigInt(currentSlot) - BigInt(finalizedSlot)
         results.validatorFinalizedSlot = BigInt(finalizedSlot)
@@ -619,6 +616,9 @@ class LocalNode extends EventEmitter {
     this.coordinatorBeacon.on('stop', () => {
       this.emit('stop', 'coordinatorBeacon')
     })
+    this.coordinatorBeacon.on('start', () => {
+      this.emit('start', 'coordinatorBeacon')
+    })
 
     return true
   }
@@ -650,6 +650,9 @@ class LocalNode extends EventEmitter {
     this.validator.on('stop', () => {
       this.emit('stop', 'validator')
     })
+    this.validator.on('start', () => {
+      this.emit('start', 'validator')
+    })
     return true
   }
 
@@ -671,6 +674,9 @@ class LocalNode extends EventEmitter {
     })
     this.coordinatorValidator.on('stop', () => {
       this.emit('stop', 'coordinatorValidator')
+    })
+    this.coordinatorValidator.on('start', () => {
+      this.emit('start', 'coordinatorValidator')
     })
     return true
   }
@@ -868,6 +874,7 @@ class LocalNode extends EventEmitter {
       return await response.json()
     } catch (error) {
       // log.debug(error)
+      log.error('runCoordinatorCommand', command, error)
     }
     return {}
   }
@@ -891,7 +898,7 @@ class LocalNode extends EventEmitter {
         `${this.appEnv.getValidatorBinPath(this.model.network)} --verbosity 0 --exec "${execCommand}" attach ${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
         (err, stdout, stderr) => {
           if (err) {
-            log.error(err)
+            log.error('runValidatorCommand', command, err)
             return reject(err)
           }
           if (stdout) {
@@ -912,7 +919,7 @@ class LocalNode extends EventEmitter {
             return resolve(stdout.replaceAll('\n', '').replaceAll('"', '').trim())
           }
           if (stderr) {
-            log.error(stderr)
+            log.error('runValidatorCommand', command, stderr)
             return reject(stderr)
           }
         }
@@ -981,9 +988,11 @@ class LocalNode extends EventEmitter {
     if (this.monitoringInterval) {
       return
     }
+    this.startTime = new Date()
     this.monitoringInterval = setInterval(this._monitoring.bind(this), 4000)
   }
   private _stopMonitoring() {
+    this.startTime = null
     if (!this.monitoringInterval) {
       return
     }
@@ -991,9 +1000,13 @@ class LocalNode extends EventEmitter {
     this.monitoringInterval = null
   }
   private async _monitoring() {
+    log.debug('_monitoring start')
     if (this.model === null) {
       return
     }
+    if (this.monitoringWorking) return
+    this.monitoringWorking = true
+    log.debug('monitoringWorking', this.monitoringWorking)
     let ip = ''
     try {
       ip = await getPublicIP()
@@ -1001,36 +1014,41 @@ class LocalNode extends EventEmitter {
       log.debug('_monitoring', e)
     }
 
-    const now = new Date()
-    const time = getCurrentDateUTC()
+    try {
+      const now = new Date()
+      const time = getCurrentDateUTC()
 
-    const [peers, sync] = await Promise.all([this.getPeers(), this.getSync()])
+      const [peers, sync] = await Promise.all([this.getPeers(), this.getSync()])
 
-    this.monitoringLogStream?.write(
-      `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} c_distance=${sync?.coordinatorSyncDistance} c_head=${sync?.coordinatorHeadSlot} c_previous_justified=${sync?.coordinatorPreviousJustifiedEpoch} c_current_justified=${sync?.coordinatorCurrentJustifiedEpoch} c_finalized=${sync?.coordinatorFinalizedEpoch} v_distance=${sync?.validatorSyncDistance} v_head=${sync?.validatorHeadSlot} v_finalized=${sync?.validatorFinalizedSlot} ip=${ip} \n`
-    )
-    if (ip && ip !== this.ip) {
       this.monitoringLogStream?.write(
-        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} new=${ip} old=${this.ip} restart change ip\n`
+        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} c_distance=${sync?.coordinatorSyncDistance} c_head=${sync?.coordinatorHeadSlot} c_previous_justified=${sync?.coordinatorPreviousJustifiedEpoch} c_current_justified=${sync?.coordinatorCurrentJustifiedEpoch} c_finalized=${sync?.coordinatorFinalizedEpoch} v_distance=${sync?.validatorSyncDistance} v_head=${sync?.validatorHeadSlot} v_finalized=${sync?.validatorFinalizedSlot} ip=${ip} \n`
       )
-      await this.restart()
-      this.ip = ip
-      return
+      if (ip && ip !== this.ip) {
+        this.monitoringLogStream?.write(
+          `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} new=${ip} old=${this.ip} restart change ip\n`
+        )
+        await this.restart()
+        this.ip = ip
+        this.monitoringWorking = false
+      } else {
+        const tenMinutesAgo = new Date(now.getTime() - 600000)
+        if (
+          this.startTime &&
+          this.startTime < tenMinutesAgo &&
+          peers &&
+          (peers.coordinatorPeersCount === 0 || peers.validatorPeersCount === 0)
+        ) {
+          this.monitoringLogStream?.write(
+            `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} restart none peers\n`
+          )
+          await this.restart()
+        }
+      }
+    } catch (e) {
+      log.error('_monitoring', e)
     }
-    const fiveMinutesAgo = new Date(now.getTime() - 300000)
-    if (
-      this.startTime &&
-      this.startTime < fiveMinutesAgo &&
-      peers &&
-      (peers.coordinatorPeersCount === 0 || peers.validatorPeersCount === 0)
-    ) {
-      this.monitoringLogStream?.write(
-        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} restart none peers\n`
-      )
-      await this.stop()
-      await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
-      await this.start()
-    }
+    this.monitoringWorking = false
+    log.debug('monitoringWorking', this.monitoringWorking)
   }
 }
 

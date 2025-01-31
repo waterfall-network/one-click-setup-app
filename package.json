@@ -2,7 +2,7 @@
   "name": "waterfall",
   "productName": "Waterfall",
   "license": "Apache-2.0",
-  "version": "0.4.6-beta",
+  "version": "0.4.7-beta",
   "description": "Waterfall Node App",
   "main": "./out/main/index.js",
   "author": "Waterfall",
