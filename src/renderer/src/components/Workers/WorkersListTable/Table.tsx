@@ -26,6 +26,7 @@ type WorkersListTablePropsT = {
   onRowClick: (id: number) => void
   onAction: (action: null | ActionTxType, workerId: undefined | string) => void
   onSelect?: (workers: Worker[]) => void
+  pagination?: boolean
 }
 
 export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
