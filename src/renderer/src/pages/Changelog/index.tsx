@@ -28,7 +28,7 @@ const items = [
   {
     children: (
       <>
-        <Text size="sm">0.4.8 beta - 14.02.2025</Text>
+        <Text size="sm">0.4.8 beta - 17.02.2025</Text>
         <p>Update: Updating the node to the latest version</p>
       </>
     )
