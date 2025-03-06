@@ -31,7 +31,7 @@ import {
 } from '@ant-design/icons'
 import { Link } from '@renderer/ui-kit/Link'
 import { getViewLink } from '@renderer/helpers/navigation'
-import { getStatusLabel, getStatus } from '@renderer/helpers/workers'
+import { getStatusLabel, getStatus, getStakeAmount } from '@renderer/helpers/workers'
 import { routes } from '@renderer/constants/navigation'
 import React from 'react'
 import { getActions } from '../../../helpers/workers'
@@ -115,7 +115,7 @@ export const columns = ({
       const status = getStatus(worker)
       return (
         status === Status.active
-          ? parseFloat(worker.coordinatorBalanceAmount) - parseFloat(worker.stakeAmount)
+          ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
           : parseFloat(worker.coordinatorBalanceAmount)
       ).toFixed(2)
     }

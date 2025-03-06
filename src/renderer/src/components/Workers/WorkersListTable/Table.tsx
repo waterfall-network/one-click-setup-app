@@ -19,7 +19,7 @@ import { ColumnFilterItem } from 'antd/es/table/interface'
 import React, { useState, useMemo } from 'react'
 import { columns } from './Columns'
 import { ActionTxType, Worker, Status } from '../../../types/workers'
-import { getStatus, getStatusLabel } from '@renderer/helpers/workers'
+import { getStatus, getStatusLabel, getStakeAmount } from '@renderer/helpers/workers'
 
 type WorkersListTablePropsT = {
   data: Worker[]
@@ -101,7 +101,7 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
         return cur
       const amount =
         status === Status.active
-          ? parseFloat(worker.coordinatorBalanceAmount) - parseFloat(worker.stakeAmount)
+          ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
           : parseFloat(worker.coordinatorBalanceAmount)
       return cur + amount
     }, 0)

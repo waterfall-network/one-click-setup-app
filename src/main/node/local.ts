@@ -632,6 +632,7 @@ class LocalNode extends EventEmitter {
       `--datadir=${getValidatorPath(this.model.locationDir)}`,
       // `--bootnodes=${getValidatorBootnode(this.model.network)}`,
       // `--networkid=${getChainId(this.model.network)}`,
+      '--creator',
       '--nat=any',
       '--syncmode=full',
       `--port=${this.model.validatorP2PPort}`,

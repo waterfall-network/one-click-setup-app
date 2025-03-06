@@ -321,3 +321,7 @@ function getCommonInnerArray(arr: string[][]): string[] | null {
   }
   return firstArray
 }
+
+export const getStakeAmount = (): number => {
+  return parseFloat('32000')
+}
