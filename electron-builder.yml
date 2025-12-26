@@ -29,7 +29,6 @@ extraFiles:
 #  - resources/**
 win:
   executableName: waterfall
-  certificateSubjectName: 'Fuente Labs LLC'
 nsis:
   artifactName: ${name}-setup-${version}-${arch}.${ext}
   shortcutName: ${productName}
@@ -44,11 +43,11 @@ mac:
     - dmg
     - zip
   extendInfo:
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   artifactName: ${name}-${version}-${arch}.${ext}
-  notarize:
-    teamId: 'BR22ZLPXU8'
+  hardenedRuntime: true
+  notarize: true
 linux:
   target:
     - AppImage
