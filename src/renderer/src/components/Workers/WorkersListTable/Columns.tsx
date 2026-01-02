@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import { Flex, TableColumnsType, Popover } from 'antd'
+import { Flex, TableColumnsType, Popover, Input, Button, Space } from 'antd'
 import { ColumnFilterItem } from 'antd/es/table/interface'
 import {
   WorkersListDataFields,
@@ -54,6 +54,12 @@ type getColumnsProps = {
     node: ColumnFilterItem[]
   }
   rewardAmount: number
+  filteredValues?: {
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }
+  onRewardFilterChange?: (reward: { min?: number; max?: number }) => void
 }
 
 export const columns = ({
@@ -62,7 +68,9 @@ export const columns = ({
   withdraw,
   remove,
   filters,
-  rewardAmount
+  rewardAmount,
+  filteredValues,
+  onRewardFilterChange
 }: getColumnsProps): TableColumnsType<DataType> => [
   {
     title: '#',
@@ -91,6 +99,7 @@ export const columns = ({
       </Link>
     ),
     filters: filters.node,
+    filteredValue: filteredValues?.node,
     onFilter: (value, worker) => worker.node.name === value
   },
   {
@@ -99,6 +108,7 @@ export const columns = ({
     key: WorkersListDataFields.status,
     render: (_, worker) => getStatusLabel(worker),
     filters: filters.status,
+    filteredValue: filteredValues?.status,
     onFilter: (value, worker) => getStatusLabel(worker) === value
   },
 
@@ -118,7 +128,83 @@ export const columns = ({
           ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
           : parseFloat(worker.coordinatorBalanceAmount)
       ).toFixed(2)
-    }
+    },
+    filterDropdown: ({ confirm }) => {
+      const [minValue, setMinValue] = React.useState<string>('')
+      const [maxValue, setMaxValue] = React.useState<string>('')
+
+      React.useEffect(() => {
+        const rewardFilter = filteredValues?.reward
+        if (rewardFilter) {
+          setMinValue(rewardFilter.min?.toString() || '')
+          setMaxValue(rewardFilter.max?.toString() || '')
+        } else {
+          setMinValue('')
+          setMaxValue('')
+        }
+      }, [filteredValues?.reward])
+
+      const hasActiveFilter =
+        filteredValues?.reward &&
+        [filteredValues.reward.min, filteredValues.reward.max].filter((v) => v !== undefined)
+          .length > 0
+
+      const handleFilter = () => {
+        const min = minValue ? parseFloat(minValue) : undefined
+        const max = maxValue ? parseFloat(maxValue) : undefined
+        if (onRewardFilterChange) {
+          onRewardFilterChange({ min, max })
+        }
+        confirm()
+      }
+
+      const handleReset = () => {
+        // Only reset local input values, don't apply changes
+        // User needs to click OK to apply the reset
+        setMinValue('')
+        setMaxValue('')
+      }
+
+      return (
+        <div style={{ padding: 8 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Input
+              placeholder="Min"
+              value={minValue}
+              onChange={(e) => setMinValue(e.target.value)}
+              onPressEnter={handleFilter}
+              style={{ marginBottom: 8 }}
+            />
+            <Input
+              placeholder="Max"
+              value={maxValue}
+              onChange={(e) => setMaxValue(e.target.value)}
+              onPressEnter={handleFilter}
+              style={{ marginBottom: 8 }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <Button
+                type="link"
+                onClick={handleReset}
+                disabled={!hasActiveFilter}
+                style={{ padding: 0 }}
+              >
+                Reset
+              </Button>
+              <Button type="primary" onClick={handleFilter} size="small">
+                OK
+              </Button>
+            </div>
+          </Space>
+        </div>
+      )
+    },
+    filteredValue:
+      filteredValues?.reward &&
+      [filteredValues.reward.min, filteredValues.reward.max].filter((v) => v !== undefined).length >
+        0
+        ? ['active']
+        : null
   },
   {
     title: 'Actions',

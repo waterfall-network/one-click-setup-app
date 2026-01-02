@@ -26,9 +26,29 @@ import { useGetAll } from '@renderer/hooks/workers'
 import { useGetAll as useGetAllNode } from '@renderer/hooks/node'
 import { SearchKeys } from '../../constants/navigation'
 import { addParams } from '@renderer/helpers/navigation'
+import { useState } from 'react'
 
 export const WorkersListPage = () => {
-  const { isLoading, data, error } = useGetAll({ refetchInterval: 5000 })
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(100)
+  const [filters, setFilters] = useState<{
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }>({})
+  // Store active filter values (status and node names) for table display
+  const [activeFilterValues, setActiveFilterValues] = useState<{
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }>({})
+  const { isLoading, data, total, error } = useGetAll({
+    refetchInterval: 5000,
+    page,
+    limit: pageSize,
+    filters
+  })
   const { data: nodes } = useGetAllNode()
 
   const breadcrumb = [
@@ -36,6 +56,28 @@ export const WorkersListPage = () => {
       title: 'Validators'
     }
   ]
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleFiltersChange = (newFilters: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }) => {
+    setFilters(newFilters)
+    setPage(1) // Reset to first page when filters change
+  }
+
+  const handleActiveFilterValuesChange = (newActiveFilterValues: {
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }) => {
+    setActiveFilterValues(newActiveFilterValues)
+  }
 
   return (
     <Layout>
@@ -64,7 +106,19 @@ export const WorkersListPage = () => {
       />
       <PageBody isLoading={isLoading}>
         {error && <Alert message={error.message} type="error" />}
-        <WorkersList shouldAddNode={nodes && nodes.length === 0} data={data} />
+        <WorkersList
+          shouldAddNode={nodes && nodes.length === 0}
+          data={data}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onDataChange={handleFiltersChange}
+          onActiveFilterValuesChange={handleActiveFilterValuesChange}
+          activeFilterValues={activeFilterValues}
+          filters={filters}
+          nodes={nodes}
+        />
       </PageBody>
     </Layout>
   )

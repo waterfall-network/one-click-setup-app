@@ -23,10 +23,10 @@ extraFiles:
     to: 'Resources/genesis'
     filter:
       - '**/*'
-#asarUnpack:
-#  - node_modules/better-sqlite3
-#  - node_modules/bcrypto
-#  - resources/**
+asarUnpack:
+  - node_modules/better-sqlite3
+  - node_modules/bcrypto
+  - resources/**
 win:
   executableName: waterfall
 nsis:

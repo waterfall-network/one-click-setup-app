@@ -20,16 +20,76 @@ export const genMnemonic = async (): Promise<string> => {
   return await window.worker.genMnemonic()
 }
 
-export const getAll = async (): Promise<Worker[]> => {
-  return await window.worker.getAll()
+export const getAll = async (
+  page?: number,
+  limit?: number,
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+): Promise<{ data: Worker[]; total: number }> => {
+  const [data, total] = await Promise.all([
+    window.worker.getAll({ page, limit, filters }),
+    window.worker.getCount({ filters })
+  ])
+  return { data, total: total || 0 }
 }
 
 export const getById = async (id: number | bigint): Promise<Worker> => {
   return await window.worker.getById(id)
 }
 
-export const getAllByNodeId = async (id: number | bigint): Promise<Worker[]> => {
-  return await window.worker.getAllByNodeId(id)
+export const getAllByNodeId = async (
+  id: number | bigint,
+  page?: number,
+  limit?: number,
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+): Promise<{ data: Worker[]; total: number }> => {
+  const [data, total] = await Promise.all([
+    window.worker.getAllByNodeId(id, { page, limit, filters }),
+    window.worker.getCount({ nodeId: id, filters })
+  ])
+  return { data, total: total || 0 }
+}
+
+export const getCount = async (options?: {
+  nodeId?: number | bigint
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}): Promise<number> => {
+  const count = await window.worker.getCount(options)
+  return count || 0
+}
+
+export interface WorkersStats {
+  filters: {
+    status: { [key: string]: number }
+    node: { [key: string]: number }
+  }
+  rewardAmount: number
+}
+
+export const getStats = async (options?: {
+  nodeId?: number | bigint
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}): Promise<WorkersStats | null> => {
+  return await window.worker.getStats(options)
 }
 
 export const add = async (data: {

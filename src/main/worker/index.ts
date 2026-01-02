@@ -112,12 +112,51 @@ class Worker {
     this.ipcMain.handle('worker:genMnemonic', () => this._genMnemonic())
     this.ipcMain.handle('worker:add', (_event: IpcMainInvokeEvent, data) => this._add(data))
     this.ipcMain.handle('worker:delete', (_event: IpcMainInvokeEvent, ids) => this._delete(ids))
-    this.ipcMain.handle('worker:getAll', () => this.workerModel.getAll({ withNode: true }))
+    this.ipcMain.handle(
+      'worker:getAll',
+      (
+        _event: IpcMainInvokeEvent,
+        params?: {
+          page?: number
+          limit?: number
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getAll({ withNode: true, ...params })
+    )
     this.ipcMain.handle('worker:getById', (_event: IpcMainInvokeEvent, id) =>
       this.workerModel.getById(id, { withNode: true })
     )
-    this.ipcMain.handle('worker:getAllByNodeId', (_event: IpcMainInvokeEvent, id) =>
-      this.workerModel.getByNodeId(id, { withNode: true })
+    this.ipcMain.handle(
+      'worker:getAllByNodeId',
+      (
+        _event: IpcMainInvokeEvent,
+        id,
+        params?: {
+          page?: number
+          limit?: number
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getByNodeId(id, { withNode: true, ...params })
+    )
+    this.ipcMain.handle(
+      'worker:getCount',
+      (
+        _event: IpcMainInvokeEvent,
+        options?: {
+          nodeId?: number | bigint
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getCount(options)
+    )
+    this.ipcMain.handle(
+      'worker:getStats',
+      (
+        _event: IpcMainInvokeEvent,
+        options?: {
+          nodeId?: number | bigint
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getStats(options)
     )
     this.ipcMain.handle('worker:getActionTx', (_event: IpcMainInvokeEvent, action, id, amount) =>
       this._getActionTx(action, id, amount)
@@ -145,6 +184,8 @@ class Worker {
     this.ipcMain.removeHandler('worker:getAll')
     this.ipcMain.removeHandler('worker:getById')
     this.ipcMain.removeHandler('worker:getAllByNodeId')
+    this.ipcMain.removeHandler('worker:getCount')
+    this.ipcMain.removeHandler('worker:getStats')
     this.ipcMain.removeHandler('worker:getActionTx')
     this.ipcMain.removeHandler('worker:getDepositDataCount')
     this.ipcMain.removeHandler('worker:getDelegateRules')

@@ -19,10 +19,10 @@ import React from 'react'
 import { styled } from 'styled-components'
 
 export { type TableProps }
-export const Table: React.FC<TableProps> = ({ ...props }) => {
+export const Table: React.FC<TableProps> = ({ pagination, ...props }) => {
   return (
     <TableWrapper>
-      <StyledTable pagination={false} {...props} />
+      <StyledTable pagination={pagination !== undefined ? pagination : false} {...props} />
     </TableWrapper>
   )
 }

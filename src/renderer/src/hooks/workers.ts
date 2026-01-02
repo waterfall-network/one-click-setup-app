@@ -31,6 +31,7 @@ import {
   getAll,
   getById,
   getAllByNodeId,
+  getStats,
   getActionTx,
   remove,
   sendActionTx,
@@ -185,29 +186,85 @@ export const useGoWorker = () => {
   const goView = (id: number) => navigate(getViewLink(routes.workers.view, { id: id.toString() }))
   return { goView }
 }
-export const useGetAll = (options?: { refetchInterval?: number }) => {
+export const useGetAll = (options?: {
+  refetchInterval?: number
+  page?: number
+  limit?: number
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}) => {
   const { isLoading, data, error } = useQuery({
-    queryKey: ['workers:all'],
-    queryFn: getAll,
+    queryKey: ['workers:all', options?.page, options?.limit, options?.filters],
+    queryFn: () => getAll(options?.page, options?.limit, options?.filters),
     refetchInterval: options?.refetchInterval
   })
 
-  return { isLoading, data, error }
+  return {
+    isLoading,
+    data: data?.data,
+    total: data?.total || 0,
+    error
+  }
 }
 
-export const useGetAllByNodeId = (id?: string, options?: { refetchInterval?: number }) => {
+export const useGetAllByNodeId = (
+  id?: string,
+  options?: {
+    refetchInterval?: number
+    page?: number
+    limit?: number
+    filters?: {
+      status?: string[]
+      nodeId?: (number | bigint)[]
+      rewardMin?: number
+      rewardMax?: number
+    }
+  }
+) => {
   const { isLoading, data, error } = useQuery({
-    queryKey: ['workers:node', id],
+    queryKey: ['workers:node', id, options?.page, options?.limit, options?.filters],
     queryFn: async () => {
       if (id) {
-        return await getAllByNodeId(parseInt(id))
+        return await getAllByNodeId(parseInt(id), options?.page, options?.limit, options?.filters)
       }
       return undefined
     },
     refetchInterval: options?.refetchInterval
   })
 
-  return { isLoading, data, error }
+  return {
+    isLoading,
+    data: data?.data,
+    total: data?.total || 0,
+    error
+  }
+}
+
+export const useGetStats = (options?: {
+  refetchInterval?: number
+  nodeId?: number | bigint
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}) => {
+  const { isLoading, data, error } = useQuery({
+    queryKey: ['workers:stats', options?.nodeId, options?.filters],
+    queryFn: () => getStats({ nodeId: options?.nodeId, filters: options?.filters }),
+    refetchInterval: options?.refetchInterval
+  })
+
+  return {
+    isLoading,
+    data,
+    error
+  }
 }
 
 export const useGetById = (id?: string, options?: { refetchInterval?: number }) => {
@@ -239,8 +296,9 @@ export const useActionTx = (action: ActionTxType | null, id?: string, amount?: s
       if (id && action) {
         return await getActionTx(action, parseInt(id), amount)
       }
-      return undefined
-    }
+      return null
+    },
+    enabled: !!(id && action)
   })
 
   const mutation = useMutation({

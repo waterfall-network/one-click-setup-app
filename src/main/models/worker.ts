@@ -17,6 +17,7 @@
 import log from 'electron-log/node'
 import Database from 'better-sqlite3'
 import NodeModel, { Node } from './node'
+import { getStakeAmount } from '../libs/env'
 
 type Database = ReturnType<typeof Database>
 
@@ -103,12 +104,74 @@ export interface Options {
   withNode?: boolean
 }
 
+export interface PaginationOptions {
+  page?: number
+  limit?: number
+}
+
 export interface WhereOptions {
   nodeId?: number | bigint
 }
 
-interface CountResult {
-  count: number
+export interface FilterOptions {
+  status?: string[] // Computed status labels: 'Pending Initialized', 'Pending Activation', 'Active', 'Exiting', 'Exited'
+  nodeId?: (number | bigint)[] // Filter by node IDs
+  rewardMin?: number // Minimum reward amount (inclusive)
+  rewardMax?: number // Maximum reward amount (inclusive)
+}
+
+// Helper function to compute status from coordinator and validator statuses
+// Matches the logic from frontend helpers/workers.ts getStatus()
+function computeStatus(
+  coordinatorStatus: CoordinatorStatus,
+  validatorStatus: ValidatorStatus
+): string {
+  if (
+    coordinatorStatus === CoordinatorStatus.pending_initialized &&
+    validatorStatus === ValidatorStatus.pending_initialized
+  ) {
+    return 'Pending Initialized'
+  } else if (
+    coordinatorStatus === CoordinatorStatus.pending_queued ||
+    validatorStatus === ValidatorStatus.pending_initialized ||
+    validatorStatus === ValidatorStatus.pending_activation
+  ) {
+    return 'Pending Activation'
+  } else if (
+    coordinatorStatus === CoordinatorStatus.active_ongoing ||
+    coordinatorStatus === CoordinatorStatus.active_slashed ||
+    validatorStatus === ValidatorStatus.active
+  ) {
+    return 'Active'
+  } else if (
+    coordinatorStatus === CoordinatorStatus.active_exiting ||
+    coordinatorStatus === CoordinatorStatus.exited_unslashed ||
+    coordinatorStatus === CoordinatorStatus.exited_slashed
+  ) {
+    return 'Exiting'
+  }
+  return 'Exited'
+}
+
+// Helper function to compute reward amount from worker balance and status
+// Matches the logic from frontend components/Workers/WorkersListTable/Columns.tsx
+function computeReward(
+  coordinatorBalanceAmount: string,
+  coordinatorStatus: CoordinatorStatus,
+  validatorStatus: ValidatorStatus,
+  stakeAmount: number
+): number {
+  const status = computeStatus(coordinatorStatus, validatorStatus)
+  const balance = parseFloat(coordinatorBalanceAmount || '0')
+  return status === 'Active' ? balance - stakeAmount : balance
+}
+
+interface StatsResult {
+  filters: {
+    status: { [key: string]: number }
+    node: { [key: string]: number }
+  }
+  rewardAmount: number
 }
 
 class WorkerModel {
@@ -200,12 +263,18 @@ class WorkerModel {
 
     return worker
   }
-  getByNodeId(nodeId: number | bigint, options?: Options): Worker[] {
+  getByNodeId(
+    nodeId: number | bigint,
+    options?: Options & PaginationOptions & { filters?: FilterOptions }
+  ): Worker[] {
     if (!this.db) {
       return []
     }
-    const res = this.db.prepare('SELECT * FROM workers WHERE nodeId = ?')
-    let workers = res.all(nodeId) as Worker[]
+    const query = 'SELECT * FROM workers WHERE nodeId = ?'
+    const params: (number | bigint)[] = [nodeId]
+
+    const res = this.db.prepare(query)
+    let workers = res.all(...params) as Worker[]
 
     try {
       workers = workers.map((worker) => ({
@@ -214,6 +283,18 @@ class WorkerModel {
       }))
     } catch (e) {
       log.error(e)
+    }
+
+    // Apply filters
+    if (options?.filters) {
+      workers = this.applyFilters(workers, options.filters)
+    }
+
+    // Apply pagination after filtering
+    if (options?.limit !== undefined) {
+      const limit = options.limit
+      const offset = options.page !== undefined ? (options.page - 1) * limit : 0
+      workers = workers.slice(offset, offset + limit)
     }
 
     if (options?.withNode && workers.length > 0) {
@@ -237,13 +318,22 @@ class WorkerModel {
     return res.get(nodeId) as Worker
   }
 
-  getAll(options?: Options): Worker[] {
+  getAll(options?: Options & PaginationOptions & { filters?: FilterOptions }): Worker[] {
     if (!this.db) {
       return []
     }
-    const res = this.db.prepare('SELECT * FROM workers')
+    let query = 'SELECT * FROM workers'
+    const params: (number | bigint)[] = []
 
-    let workers = res.all() as Worker[]
+    // Apply nodeId filter in SQL if provided
+    if (options?.filters?.nodeId && options.filters.nodeId.length > 0) {
+      const placeholders = options.filters.nodeId.map(() => '?').join(',')
+      query += ` WHERE nodeId IN (${placeholders})`
+      params.push(...options.filters.nodeId)
+    }
+
+    const res = this.db.prepare(query)
+    let workers = res.all(...params) as Worker[]
 
     try {
       workers = workers.map((worker) => ({
@@ -252,6 +342,55 @@ class WorkerModel {
       }))
     } catch (e) {
       log.error(e)
+    }
+
+    // Apply status filter (computed status)
+    if (options?.filters?.status && options.filters.status.length > 0) {
+      const statusFilters = options.filters.status
+      workers = workers.filter((worker) => {
+        const computedStatus = computeStatus(worker.coordinatorStatus, worker.validatorStatus)
+        return statusFilters.includes(computedStatus)
+      })
+    }
+
+    // Apply reward filter if provided
+    if (options?.filters?.rewardMin !== undefined || options?.filters?.rewardMax !== undefined) {
+      // Load nodes to get stakeAmount for reward calculation
+      const nodeModel = new NodeModel(this.db)
+      const nodeIds = [...new Set(workers.map((w) => w.nodeId))]
+      const nodes = nodeModel.getAllByIds(nodeIds)
+      const nodesMap = {}
+      nodes.forEach((node) => {
+        nodesMap[node.id.toString()] = node
+      })
+
+      workers = workers.filter((worker) => {
+        const node = nodesMap[worker.nodeId.toString()]
+        if (!node) return false
+
+        const stakeAmount = getStakeAmount(node.network)
+        const reward = computeReward(
+          worker.coordinatorBalanceAmount,
+          worker.coordinatorStatus,
+          worker.validatorStatus,
+          stakeAmount
+        )
+
+        if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+          return false
+        }
+        if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+          return false
+        }
+        return true
+      })
+    }
+
+    // Apply pagination after filtering
+    if (options?.limit !== undefined) {
+      const limit = options.limit
+      const offset = options.page !== undefined ? (options.page - 1) * limit : 0
+      workers = workers.slice(offset, offset + limit)
     }
 
     if (options?.withNode && workers.length > 0) {
@@ -270,16 +409,129 @@ class WorkerModel {
 
     return workers
   }
-  getCount(options?: WhereOptions): number | null {
+
+  private applyFilters(workers: Worker[], filters: FilterOptions): Worker[] {
+    let filtered = workers
+
+    // Apply status filter
+    if (filters.status && filters.status.length > 0) {
+      const statusFilters = filters.status
+      filtered = filtered.filter((worker) => {
+        const computedStatus = computeStatus(worker.coordinatorStatus, worker.validatorStatus)
+        return statusFilters.includes(computedStatus)
+      })
+    }
+
+    // Apply nodeId filter (if not already applied in SQL)
+    if (filters.nodeId && filters.nodeId.length > 0) {
+      const nodeIdFilters = filters.nodeId
+      filtered = filtered.filter((worker) => nodeIdFilters.includes(worker.nodeId))
+    }
+
+    return filtered
+  }
+  getCount(options?: WhereOptions & { filters?: FilterOptions }): number | null {
     if (!this.db) {
       return null
     }
-    let query = 'SELECT COUNT(*) AS count FROM workers'
+    let query = 'SELECT * FROM workers'
     const params: (number | bigint | string)[] = []
     const conditions: string[] = []
+
     if (options?.nodeId !== undefined) {
       conditions.push('nodeId = ?')
       params.push(options.nodeId)
+    }
+
+    if (options?.filters?.nodeId && options.filters.nodeId.length > 0) {
+      const placeholders = options.filters.nodeId.map(() => '?').join(',')
+      if (conditions.length > 0) {
+        conditions.push(`nodeId IN (${placeholders})`)
+      } else {
+        conditions.push(`nodeId IN (${placeholders})`)
+      }
+      params.push(...options.filters.nodeId)
+    }
+
+    if (conditions.length > 0) {
+      query = query.replace('SELECT *', 'SELECT *') + ' WHERE ' + conditions.join(' AND ')
+    }
+
+    try {
+      const stmt = this.db.prepare(query)
+      let workers = stmt.all(...params) as Worker[]
+
+      // Apply status filter if provided
+      if (options?.filters?.status && options.filters.status.length > 0) {
+        const statusFilters = options.filters.status
+        workers = workers.filter((worker) => {
+          const computedStatus = computeStatus(worker.coordinatorStatus, worker.validatorStatus)
+          return statusFilters.includes(computedStatus)
+        })
+      }
+
+      // Apply reward filter if provided
+      if (options?.filters?.rewardMin !== undefined || options?.filters?.rewardMax !== undefined) {
+        // Load nodes to get stakeAmount for reward calculation
+        const nodeModel = new NodeModel(this.db)
+        const nodeIds = [...new Set(workers.map((w) => w.nodeId))]
+        const nodes = nodeModel.getAllByIds(nodeIds)
+        const nodesMap = {}
+        nodes.forEach((node) => {
+          nodesMap[node.id.toString()] = node
+        })
+
+        workers = workers.filter((worker) => {
+          const node = nodesMap[worker.nodeId.toString()]
+          if (!node) return false
+
+          const stakeAmount = getStakeAmount(node.network)
+          const reward = computeReward(
+            worker.coordinatorBalanceAmount,
+            worker.coordinatorStatus,
+            worker.validatorStatus,
+            stakeAmount
+          )
+
+          if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+            return false
+          }
+          if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+            return false
+          }
+          return true
+        })
+      }
+
+      return workers.length
+    } catch (error) {
+      log.error(error)
+      return null
+    }
+  }
+
+  getStats(options?: WhereOptions & { filters?: FilterOptions }): StatsResult | null {
+    if (!this.db) {
+      return null
+    }
+
+    let query = 'SELECT * FROM workers'
+    const params: (number | bigint)[] = []
+    const conditions: string[] = []
+
+    if (options?.nodeId !== undefined) {
+      conditions.push('nodeId = ?')
+      params.push(options.nodeId)
+    }
+
+    if (options?.filters?.nodeId && options.filters.nodeId.length > 0) {
+      const placeholders = options.filters.nodeId.map(() => '?').join(',')
+      if (conditions.length > 0) {
+        conditions.push(`nodeId IN (${placeholders})`)
+      } else {
+        conditions.push(`nodeId IN (${placeholders})`)
+      }
+      params.push(...options.filters.nodeId)
     }
 
     if (conditions.length > 0) {
@@ -288,8 +540,86 @@ class WorkerModel {
 
     try {
       const stmt = this.db.prepare(query)
-      const row = stmt.get(...params) as CountResult
-      return row.count
+      let workers = stmt.all(...params) as Worker[]
+
+      // Parse delegate JSON
+      workers = workers.map((worker) => ({
+        ...worker,
+        delegate: worker.delegate ? JSON.parse(worker.delegate) : null
+      }))
+
+      // Load nodes for filtering and reward calculation
+      const nodeModel = new NodeModel(this.db)
+      const nodeIds = [...new Set(workers.map((w) => w.nodeId))]
+      const nodes = nodeModel.getAllByIds(nodeIds)
+      const nodesMap = {}
+      nodes.forEach((node) => {
+        nodesMap[node.id.toString()] = node
+      })
+
+      // Apply status filter if provided
+      if (options?.filters?.status && options.filters.status.length > 0) {
+        const statusFilters = options.filters.status
+        workers = workers.filter((worker) => {
+          const computedStatus = computeStatus(worker.coordinatorStatus, worker.validatorStatus)
+          return statusFilters.includes(computedStatus)
+        })
+      }
+
+      // Apply reward filter if provided
+      if (options?.filters?.rewardMin !== undefined || options?.filters?.rewardMax !== undefined) {
+        workers = workers.filter((worker) => {
+          const node = nodesMap[worker.nodeId.toString()]
+          if (!node) return false
+
+          const stakeAmount = getStakeAmount(node.network)
+          const reward = computeReward(
+            worker.coordinatorBalanceAmount,
+            worker.coordinatorStatus,
+            worker.validatorStatus,
+            stakeAmount
+          )
+
+          if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+            return false
+          }
+          if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+            return false
+          }
+          return true
+        })
+      }
+
+      // Calculate statistics
+      const statusCounts: { [key: string]: number } = {}
+      const nodeCounts: { [key: string]: number } = {}
+      let rewardAmount = 0
+
+      workers.forEach((worker) => {
+        const computedStatus = computeStatus(worker.coordinatorStatus, worker.validatorStatus)
+        statusCounts[computedStatus] = (statusCounts[computedStatus] || 0) + 1
+
+        const node = nodesMap[worker.nodeId.toString()]
+        if (node) {
+          nodeCounts[node.name] = (nodeCounts[node.name] || 0) + 1
+
+          // Calculate reward amount
+          if (computedStatus !== 'Pending Initialized') {
+            const stakeAmount = getStakeAmount(node.network)
+            const balance = parseFloat(worker.coordinatorBalanceAmount || '0')
+            const reward = computedStatus === 'Active' ? balance - stakeAmount : balance
+            rewardAmount += reward
+          }
+        }
+      })
+
+      return {
+        filters: {
+          status: statusCounts,
+          node: nodeCounts
+        },
+        rewardAmount
+      }
     } catch (error) {
       log.error(error)
       return null

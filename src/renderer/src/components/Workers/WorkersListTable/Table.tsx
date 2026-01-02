@@ -16,114 +16,132 @@
  */
 import { Table } from '@renderer/ui-kit/Table'
 import { ColumnFilterItem } from 'antd/es/table/interface'
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { columns } from './Columns'
-import { ActionTxType, Worker, Status } from '../../../types/workers'
-import { getStatus, getStatusLabel, getStakeAmount } from '@renderer/helpers/workers'
+import { ActionTxType, Worker } from '../../../types/workers'
 
 type WorkersListTablePropsT = {
   data: Worker[]
+  filters?: {
+    status: ColumnFilterItem[]
+    node: ColumnFilterItem[]
+  }
+  rewardAmount?: number
   onRowClick: (id: number) => void
   onAction: (action: null | ActionTxType, workerId: undefined | string) => void
-  onSelect?: (workers: Worker[]) => void
-  pagination?: boolean
+  onSelect?: (selectedRowKeys: (number | bigint)[]) => void
+  pagination?: {
+    current: number
+    pageSize: number
+    total: number
+    onChange: (page: number, pageSize: number) => void
+  }
+  selectedRowKeys?: (number | bigint)[]
+  onFiltersChange?: (filters: {
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }) => void
+  activeFilters?: { status?: string[]; node?: string[]; reward?: { min?: number; max?: number } } // Active filters from parent to sync
 }
 
 export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
   data,
+  filters: filtersProp,
+  rewardAmount: rewardAmountProp,
   onRowClick,
   onAction,
-  onSelect
+  onSelect,
+  pagination,
+  selectedRowKeys,
+  onFiltersChange,
+  activeFilters
 }) => {
-  const [tableParamsData, setTableParamsData] = useState<{
-    pagination: any
-    filters: { status: string[]; node: string[] }
-    sorter: any
-  }>({ pagination: {}, filters: { status: [], node: [] }, sorter: {} })
+  // Use activeFilters from parent as source of truth - no local state
+  // This ensures filters persist across component remounts
+  const currentFilters = activeFilters || {}
   const dataSource = useMemo(
     () => (data ? data.map((item) => ({ ...item, key: `${item.id}` })) : []),
     [data]
   )
-  const filters = useMemo(() => {
-    const results: { status: ColumnFilterItem[]; node: ColumnFilterItem[] } = {
-      status: [],
-      node: []
-    }
-    const filters = dataSource.reduce(
-      (cur, worker) => {
-        const label = getStatusLabel(worker)
-        const nodeName = worker?.node?.name
-        if (cur.status[label] === undefined) cur.status[label] = 0
-        cur.status[label]++
-        if (nodeName) {
-          if (cur.node[nodeName] === undefined) cur.node[nodeName] = 0
-          cur.node[nodeName]++
-        }
-        return cur
-      },
-      {
-        status: [],
-        node: []
-      }
-    )
-    Object.keys(filters).forEach((key) => {
-      Object.keys(filters[key]).forEach((k) => {
-        results[key].push({
-          text: `${k}(${filters[key][k]})`,
-          value: k
-        })
-      })
-    })
-    return results
-  }, [dataSource])
   const onActivate = (id?: string) => onAction(ActionTxType.activate, id)
   const onDeactivate = (id?: string) => onAction(ActionTxType.deActivate, id)
   const onWithdraw = (id?: string) => onAction(ActionTxType.withdraw, id)
   const onRemove = (id?: string) => onAction(ActionTxType.remove, id)
 
-  const rewardAmount = useMemo(() => {
-    return dataSource.reduce((cur, worker) => {
-      const status = getStatus(worker)
-      const label = getStatusLabel(worker)
-      const nodeName = worker?.node?.name
-      if (status === Status.pending_initialized) return cur
-      if (
-        tableParamsData?.filters?.status &&
-        tableParamsData?.filters?.status.length > 0 &&
-        !tableParamsData.filters.status.includes(label)
-      )
-        return cur
-      if (
-        tableParamsData?.filters?.node &&
-        tableParamsData?.filters?.node.length > 0 &&
-        (!nodeName || !tableParamsData.filters.node.includes(nodeName))
-      )
-        return cur
-      const amount =
-        status === Status.active
-          ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
-          : parseFloat(worker.coordinatorBalanceAmount)
-      return cur + amount
-    }, 0)
-  }, [tableParamsData, dataSource])
+  // Use provided filters and rewardAmount from server
+  const filters = filtersProp || { status: [], node: [] }
+  const rewardAmount = rewardAmountProp || 0
 
-  const getColumns = columns({
-    activate: onActivate,
-    deactivate: onDeactivate,
-    withdraw: onWithdraw,
-    remove: onRemove,
-    filters,
-    rewardAmount
-  })
+  // Memoize columns to prevent recreation on every render
+  const getColumns = useMemo(
+    () =>
+      columns({
+        activate: onActivate,
+        deactivate: onDeactivate,
+        withdraw: onWithdraw,
+        remove: onRemove,
+        filters,
+        rewardAmount,
+        filteredValues: currentFilters,
+        onRewardFilterChange: (reward) => {
+          if (onFiltersChange) {
+            onFiltersChange({
+              ...currentFilters,
+              reward
+            })
+          }
+        }
+      }),
+    [
+      onActivate,
+      onDeactivate,
+      onWithdraw,
+      onRemove,
+      filters,
+      rewardAmount,
+      currentFilters,
+      onFiltersChange
+    ]
+  )
 
   const rowSelection = {
-    onChange: (_, selectedRows: Worker[]) => {
-      onSelect?.(selectedRows)
+    selectedRowKeys: selectedRowKeys?.map((key) => key.toString()),
+    onChange: (selectedKeys: React.Key[]) => {
+      const keys = selectedKeys.map((key) => {
+        const numKey = typeof key === 'string' ? parseInt(key, 10) : key
+        return typeof numKey === 'number' && !isNaN(numKey) ? numKey : BigInt(key.toString())
+      })
+      onSelect?.(keys as (number | bigint)[])
     }
   }
 
-  const handleTableChange = (pagination, filters, sorter) =>
-    setTableParamsData({ pagination, filters, sorter })
+  const handleTableChange = (paginationData, filtersData) => {
+    // Note: reward filter is handled separately via onRewardFilterChange in columns
+    const newFilters = {
+      status: filtersData?.status || [],
+      node: filtersData?.node || [],
+      reward: currentFilters?.reward // Keep existing reward filter
+    }
+
+    if (onFiltersChange) {
+      onFiltersChange(newFilters)
+    }
+
+    if (pagination && paginationData) {
+      pagination.onChange(paginationData.current || 1, paginationData.pageSize || 100)
+    }
+  }
+
+  const paginationConfig = pagination
+    ? {
+        current: pagination.current,
+        pageSize: pagination.pageSize,
+        total: pagination.total,
+        showSizeChanger: false,
+        showTotal: (total: number) => `Total ${total} items`
+      }
+    : false
 
   return (
     <Table
@@ -133,6 +151,7 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
         type: 'checkbox',
         ...rowSelection
       }}
+      pagination={paginationConfig}
       onRow={(record) => ({
         style: {
           cursor: 'pointer'

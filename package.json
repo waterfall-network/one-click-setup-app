@@ -2,7 +2,7 @@
   "name": "waterfall",
   "productName": "Waterfall",
   "license": "Apache-2.0",
-  "version": "0.4.10-beta",
+  "version": "0.5.0-beta",
   "description": "Waterfall Node App",
   "main": "./out/main/index.js",
   "author": "Waterfall",
@@ -33,7 +33,11 @@
     "node-gyp": "^9.0.0",
     "rotating-file-stream": "^3.2.1",
     "tar": "^7.0.1",
-    "web3": "git+https://gitlab.waterfall.network/npm/web3js.git"
+    "web3": "git+https://gitlab.waterfall.network/npm/web3js.git",
+    "webidl-conversions": "^3.0.1",
+    "whatwg-url": "^5.0.0",
+    "quick-lru": "^5.1.1",
+    "resolve-alpn": "^1.2.0"
   },
   "devDependencies": {
     "@ant-design/colors": "^7.0.2",

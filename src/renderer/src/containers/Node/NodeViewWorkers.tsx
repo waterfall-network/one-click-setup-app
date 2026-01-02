@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import React from 'react'
+import React, { useState } from 'react'
 import { NodeViewTabProps, Type as NodeType } from '@renderer/types/node'
 import { TabContent } from '@renderer/ui-kit/Tabs'
 import { Flex, Spin } from 'antd'
@@ -28,10 +28,48 @@ import { styled } from 'styled-components'
 import { SearchKeys } from '../../constants/navigation'
 
 export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
-  const { isLoading, data, error } = useGetAllByNodeId(item?.id.toString(), {
-    refetchInterval: 5000
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(100)
+  const [filters, setFilters] = useState<{
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }>({})
+  const [activeFilterValues, setActiveFilterValues] = useState<{
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }>({})
+  const { isLoading, data, total, error } = useGetAllByNodeId(item?.id.toString(), {
+    refetchInterval: 5000,
+    page,
+    limit: pageSize,
+    filters
   })
   const shouldAddNode = false
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleFiltersChange = (newFilters: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }) => {
+    setFilters(newFilters)
+    setPage(1) // Reset to first page when filters change
+  }
+
+  const handleActiveFilterValuesChange = (newActiveFilterValues: {
+    status?: string[]
+    node?: string[]
+    reward?: { min?: number; max?: number }
+  }) => {
+    setActiveFilterValues(newActiveFilterValues)
+  }
 
   if (isLoading)
     return (
@@ -70,7 +108,19 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
         </Actions>
       )}
       {error && <Alert message={error.message} type="error" />}
-      <WorkersList shouldAddNode={shouldAddNode} data={data} />
+      <WorkersList
+        shouldAddNode={shouldAddNode}
+        data={data}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        nodeId={item?.id}
+        onDataChange={handleFiltersChange}
+        onActiveFilterValuesChange={handleActiveFilterValuesChange}
+        activeFilterValues={activeFilterValues}
+        filters={filters}
+      />
     </TabContent>
   )
 }
