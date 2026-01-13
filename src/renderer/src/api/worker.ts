@@ -129,3 +129,14 @@ export const getDelegateRules = async (path: string) => {
 export const getBalance = async (nodeId: number | bigint, address: string) => {
   return await window.worker.getBalance(nodeId, address)
 }
+
+export const getTransactionCount = async (
+  nodeId: number | bigint,
+  address: string
+): Promise<{
+  status: 'success' | 'error'
+  message?: string
+  data?: { pending: number; latest: number }
+}> => {
+  return await window.worker.getTransactionCount(nodeId, address)
+}

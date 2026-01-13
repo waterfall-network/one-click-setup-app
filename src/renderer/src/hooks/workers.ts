@@ -37,7 +37,8 @@ import {
   sendActionTx,
   getDepositDataCount,
   getDelegateRules,
-  getBalance
+  getBalance,
+  getTransactionCount
 } from '../api/worker'
 import { saveTextFile } from '../api/os'
 import { Node } from '../types/node'
@@ -46,7 +47,19 @@ import { ActionTxType } from '../types/workers'
 import { selectFile } from '../api/os'
 import { chunkArray } from '../helpers/common'
 import { ethers } from 'ethers'
-const chunkSize = 10
+
+// Calculate chunk size based on total number of workers
+// For small batches (up to 200) use small chunks for progress visibility
+// For larger batches use bigger chunks for better performance
+const getChunkSize = (totalCount: number): number => {
+  if (totalCount <= 200) {
+    return 10
+  } else if (totalCount <= 500) {
+    return 50
+  } else {
+    return 100
+  }
+}
 
 const addInitialValues = {
   [AddWorkerFields.mnemonic]: [],
@@ -365,11 +378,13 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     address: string
     isCorrect: boolean | null
     balance: string
+    hasPendingTransactions: boolean
   }>({
     key: '',
     address: '',
     isCorrect: null,
-    balance: ''
+    balance: '',
+    hasPendingTransactions: false
   })
   const [status, setStatus] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
@@ -378,7 +393,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
   const onClear = () => {
     setError('')
     setCount({ success: 0, failed: 0 })
-    setPk({ key: '', address: '', isCorrect: null, balance: '' })
+    setPk({ key: '', address: '', isCorrect: null, balance: '', hasPendingTransactions: false })
     setStatus(false)
   }
 
@@ -397,13 +412,20 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       console.error(e)
     }
     let balance = ''
+    let hasPendingTransactions = false
     if (address && nodeId) {
-      const data = await getBalance(nodeId, address)
-      if (data.status === 'success' && data.data) {
-        balance = data.data
+      const [balanceData, nonceData] = await Promise.all([
+        getBalance(nodeId, address),
+        getTransactionCount(nodeId, address)
+      ])
+      if (balanceData.status === 'success' && balanceData.data) {
+        balance = balanceData.data
+      }
+      if (nonceData.status === 'success' && nonceData.data) {
+        hasPendingTransactions = nonceData.data.pending !== nonceData.data.latest
       }
     }
-    setPk({ key, address, isCorrect, balance })
+    setPk({ key, address, isCorrect, balance, hasPendingTransactions })
   }
   const removeMutation = useMutation({
     mutationFn: async ({ ids }: { ids: (number | bigint)[] }) => {
@@ -415,7 +437,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       return
     }
     setStatus(true)
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await removeMutation.mutateAsync({ ids: chunk })
       if (res?.error) {
@@ -447,7 +469,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       return
     }
     setStatus(true)
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await activateMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {
@@ -473,7 +495,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     }
     setStatus(true)
 
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await deActivateMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {
@@ -498,7 +520,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     }
     setStatus(true)
 
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await withdrawMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {

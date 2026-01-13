@@ -32,6 +32,7 @@ const items = [
         <p>Improve: Validator list page optimization</p>
         <p>Update: Added balance filter</p>
         <p>Update: Updating the node to the latest version</p>
+        <p>Fix: Check TX pool before send mass tx</p>
       </>
     )
   },

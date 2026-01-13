@@ -107,4 +107,18 @@ export const getStakeAmount = (network: Network): number => {
   return 32000
 }
 
-export const getRPC = (network: Network): string => ENV[`VITE_RPC_${network.toUpperCase()}`]
+export const getRPCs = (network: Network): string[] => {
+  const rpcEnv = ENV[`VITE_RPC_${network.toUpperCase()}`]
+  if (!rpcEnv) {
+    return []
+  }
+  return rpcEnv
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0)
+}
+
+export const getRPC = (network: Network): string => {
+  const rpcs = getRPCs(network)
+  return rpcs.length > 0 ? rpcs[0] : ''
+}

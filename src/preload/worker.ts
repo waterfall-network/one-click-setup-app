@@ -71,5 +71,7 @@ export const worker = {
   getDepositDataCount: (path: string) => ipcRenderer.invoke('worker:getDepositDataCount', path),
   getDelegateRules: (path: string) => ipcRenderer.invoke('worker:getDelegateRules', path),
   getBalance: (nodeId: number, address: string) =>
-    ipcRenderer.invoke('worker:getBalance', nodeId, address)
+    ipcRenderer.invoke('worker:getBalance', nodeId, address),
+  getTransactionCount: (nodeId: number, address: string) =>
+    ipcRenderer.invoke('worker:getTransactionCount', nodeId, address)
 }

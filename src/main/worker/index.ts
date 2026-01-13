@@ -32,7 +32,7 @@ import {
 import LocalNode from '../node/local'
 import ProviderNode from '../node/provider'
 import crypto from 'crypto'
-import { getRPC, getStakeAmount } from '../libs/env'
+import { getRPC, getRPCs, getStakeAmount } from '../libs/env'
 import { readJSON } from '../libs/fs'
 import { validateDelegateRules, validateDepositData } from '../helpers/worker'
 import { getWeb3 } from '../libs/web3'
@@ -173,6 +173,10 @@ class Worker {
     this.ipcMain.handle('worker:getBalance', (_event: IpcMainInvokeEvent, nodeId, address) =>
       this._getBalance(nodeId, address)
     )
+    this.ipcMain.handle(
+      'worker:getTransactionCount',
+      (_event: IpcMainInvokeEvent, nodeId, address) => this._getTransactionCount(nodeId, address)
+    )
 
     return true
   }
@@ -191,6 +195,7 @@ class Worker {
     this.ipcMain.removeHandler('worker:getDelegateRules')
     this.ipcMain.removeHandler('worker:sendActionTx')
     this.ipcMain.removeHandler('worker:getBalance')
+    this.ipcMain.removeHandler('worker:getTransactionCount')
   }
 
   private _genMnemonic() {
@@ -421,27 +426,63 @@ class Worker {
     if (!ids || ids.length == 0 || !pk) {
       return ErrorResults.WORKER_NOT_FOUND
     }
-    const results = ids.map(() => false)
-    // let nonce
-    for (const id of ids) {
+
+    // Load all workers and validate
+    const workersData: Array<{ id: number | bigint; worker: WorkerModelType; index: number }> = []
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i]
       const worker = this.workerModel.getById(id, { withNode: true })
       if (!worker || !worker.node) {
         log.error('no worker', worker)
         continue
       }
-      log.debug(id)
-      try {
-        const web3 = getWeb3(getRPC(worker.node.network))
-        if (!web3 || !web3.currentProvider) {
-          log.error('no web3 currentProvider')
-          continue
-        }
-        const depositAddress = await web3.wat.validator.depositAddress()
-        const account = web3.eth.accounts.privateKeyToAccount(pk)
+      workersData.push({ id, worker, index: i })
+    }
 
+    if (workersData.length === 0) {
+      return ErrorResults.WORKER_NOT_FOUND
+    }
+
+    // All workers should be from the same network (assuming single network)
+    const network = workersData[0].worker.node!.network
+    const rpcEndpoints = getRPCs(network)
+    if (rpcEndpoints.length === 0) {
+      log.error('no RPC endpoints found')
+      return ErrorResults.NODE_NOT_FOUND
+    }
+
+    const primaryWeb3 = getWeb3(getRPC(network))
+    if (!primaryWeb3 || !primaryWeb3.currentProvider) {
+      log.error('no web3 currentProvider')
+      return ErrorResults.NODE_NOT_FOUND
+    }
+
+    const account = primaryWeb3.eth.accounts.privateKeyToAccount(pk)
+    const senderAddress = account.address
+
+    // Get common data once: depositAddress, gasPrice, and initial nonce
+    const [depositAddress, currentGasPrice, baseNonce] = await Promise.all([
+      primaryWeb3.wat.validator.depositAddress(),
+      primaryWeb3.eth.getGasPrice(),
+      primaryWeb3.eth.getTransactionCount(senderAddress, 'pending')
+    ])
+
+    const addMore = primaryWeb3.utils.toBN(currentGasPrice).div(primaryWeb3.utils.toBN(10))
+    const gasPrice = primaryWeb3.utils.toBN(currentGasPrice).add(addMore).toString()
+    log.debug('baseNonce', baseNonce)
+    log.debug('gasPrice', gasPrice)
+
+    // Prepare all transactions in parallel
+    const prepareTx = async (
+      item: { id: number | bigint; worker: WorkerModelType; index: number },
+      nonce: number
+    ) => {
+      try {
+        const { worker } = item
         let data, value
+
         if (action === ActionTxType.activate) {
-          value = web3.utils.toWei(getStakeAmount(worker.node.network).toString(), 'ether')
+          value = primaryWeb3.utils.toWei(getStakeAmount(network).toString(), 'ether')
           log.debug('value', value)
           const depositData: DepositDataType = {
             pubkey: worker.coordinatorPublicKey,
@@ -461,119 +502,111 @@ class Worker {
               }
             } catch (e) {
               log.error('depositData error', e)
-              continue
+              return null
             }
           }
           log.debug('depositData2', depositData)
-          data = await web3.wat.validator.depositData(depositData)
+          data = await primaryWeb3.wat.validator.depositData(depositData)
           log.debug('depositData2', data)
         } else if (action === ActionTxType.deActivate) {
           value = 0
-          data = await web3.wat.validator.exitData({
+          data = await primaryWeb3.wat.validator.exitData({
             pubkey: worker.coordinatorPublicKey,
             creator_address: worker.validatorAddress
           })
         } else if (action === ActionTxType.withdraw) {
           value = 0
-          data = await web3.wat.validator.withdrawalData({
+          data = await primaryWeb3.wat.validator.withdrawalData({
             creator_address: `0x${worker.validatorAddress}`,
             amount: '0'
           })
         }
-        const nonce = await web3.eth.getTransactionCount(account.address, 'pending')
-        // const nonce = await web3.eth.getTransactionCount(account.address)
-        // if(!nonce) {
-        //   nonce = await web3.eth.getTransactionCount(account.address)
-        //   nonce--
-        // }
-        // nonce++
-        log.debug('nonce', nonce)
-        const currentGasPrice = await web3.eth.getGasPrice()
-        // const gasPrice = Math.floor(currentGasPrice * 1.1)
-        const addMore = web3.utils.toBN(currentGasPrice).div(web3.utils.toBN(10))
-        const gasPrice = web3.utils.toBN(currentGasPrice).add(addMore).toString()
-        console.log('currentGasPrice', currentGasPrice.toString())
-        console.log('addMore', addMore.toString())
-        console.log('gasPrice', gasPrice.toString())
+
         const tx: TransactionConfig = {
-          from: account.address,
+          from: senderAddress,
           to: depositAddress,
           value,
           data,
           nonce,
           gasPrice
         }
-        tx.gas = await web3.eth.estimateGas(tx)
-        const signedTx = await web3.eth.accounts.signTransaction(tx, pk)
-        log.debug(tx)
+        tx.gas = await primaryWeb3.eth.estimateGas(tx)
+
+        return { ...item, tx }
+      } catch (e) {
+        log.error(`Error preparing tx for worker ${item.id}`, e)
+        return null
+      }
+    }
+
+    const txDataPromises = workersData.map((item, index) => prepareTx(item, baseNonce + index))
+    const preparedTxs = await Promise.all(txDataPromises)
+
+    // Send transaction to all RPC endpoints in parallel
+    const sendTransactionToRPC = async (rpcUrl: string, rawTx: string): Promise<string> => {
+      try {
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_sendRawTransaction',
+            params: [rawTx],
+            id: Date.now()
+          })
+        })
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const result = await response.json()
+        if (result.error) {
+          throw new Error(result.error.message || 'RPC error')
+        }
+        log.debug(`tx-hash from ${rpcUrl}`, result.result)
+        return result.result
+      } catch (error) {
+        log.error(`Failed to send transaction to ${rpcUrl}`, error)
+        throw error
+      }
+    }
+
+    // Send transactions sequentially to maintain correct nonce order
+    const results = ids.map(() => false)
+    for (const preparedTx of preparedTxs) {
+      if (!preparedTx) continue
+
+      try {
+        const signedTx = await primaryWeb3.eth.accounts.signTransaction(preparedTx.tx, pk)
+        log.debug('tx', preparedTx.tx)
         if (!signedTx?.rawTransaction) {
           log.error('no signedTx', signedTx)
           continue
         }
-        const sendTransaction = (rawTransaction: string) => {
-          log.debug(rawTransaction)
-          return new Promise((resolve, reject) => {
-            if (!web3.currentProvider) {
-              log.error('No web3 provider')
-              reject('No web3 provider')
-              return
-            }
-            const provider: any = web3.currentProvider
-            if (typeof provider.send === 'function') {
-              provider.send(
-                {
-                  jsonrpc: '2.0',
-                  method: 'eth_sendRawTransaction',
-                  params: [rawTransaction],
-                  id: Date.now()
-                },
-                (error: any, result: any) => {
-                  if (error) {
-                    log.error('send eth_sendRawTransaction', error)
-                    reject(error)
-                  } else {
-                    log.debug('send', result)
-                    if (result.error) {
-                      return reject(result.error)
-                    }
-                    resolve(result.result)
-                  }
-                }
-              )
-            } else if (typeof provider.sendAsync === 'function') {
-              provider.sendAsync(
-                {
-                  jsonrpc: '2.0',
-                  method: 'eth_sendRawTransaction',
-                  params: [rawTransaction],
-                  id: Date.now()
-                },
-                (error: any, result: any) => {
-                  if (error) {
-                    log.error('sendAsync eth_sendRawTransaction', error)
-                    reject(error)
-                  } else {
-                    log.debug('sendAsync', result)
-                    if (result.error) {
-                      return reject(result.error)
-                    }
-                    resolve(result.result)
-                  }
-                }
-              )
-            } else {
-              reject(new Error('Unsupported provider'))
-            }
+        const rawTransaction = signedTx.rawTransaction
+
+        const sendPromises = rpcEndpoints.map((rpcUrl) =>
+          sendTransactionToRPC(rpcUrl, rawTransaction).catch((error) => {
+            log.error(`Error sending to ${rpcUrl}`, error)
+            return null
           })
+        )
+
+        const sendResults = await Promise.all(sendPromises)
+        const successful = sendResults.filter((hash) => hash !== null)
+        log.debug(
+          `Sent transaction for worker ${preparedTx.id} to ${successful.length}/${rpcEndpoints.length} RPC endpoints`
+        )
+
+        if (successful.length > 0) {
+          results[preparedTx.index] = true
+        } else {
+          log.error(`Failed to send transaction for worker ${preparedTx.id} to all RPC endpoints`)
         }
-        const hash = await sendTransaction(signedTx.rawTransaction)
-        log.debug('tx-hash', hash)
       } catch (e) {
-        log.error(e)
-        continue
+        log.error(`Error sending transaction for worker ${preparedTx.id}`, e)
       }
-      const index = ids.findIndex((id) => id === worker.id)
-      results[index] = true
     }
 
     log.debug(results)
@@ -690,6 +723,25 @@ class Worker {
     }
     const balance = await web3.eth.getBalance(address)
     return { status: 'success', data: balance ? web3.utils.fromWei(balance, 'ether') : '' }
+  }
+
+  private async _getTransactionCount(
+    nodeId: number,
+    address: string
+  ): Promise<Response<{ pending: number; latest: number }>> {
+    const nodeModel = this.nodeModel.getById(nodeId)
+    if (!nodeModel) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const web3 = getWeb3(getRPC(nodeModel.network))
+    if (!web3 || !web3.currentProvider) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const [pending, latest] = await Promise.all([
+      web3.eth.getTransactionCount(address, 'pending'),
+      web3.eth.getTransactionCount(address)
+    ])
+    return { status: 'success', data: { pending, latest } }
   }
 }
 

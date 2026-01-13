@@ -376,10 +376,10 @@ class WorkerModel {
           stakeAmount
         )
 
-        if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+        if (options.filters?.rewardMin !== undefined && reward < options.filters?.rewardMin) {
           return false
         }
-        if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+        if (options.filters?.rewardMax !== undefined && reward > options.filters?.rewardMax) {
           return false
         }
         return true
@@ -493,10 +493,10 @@ class WorkerModel {
             stakeAmount
           )
 
-          if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+          if (options.filters?.rewardMin !== undefined && reward < options.filters.rewardMin) {
             return false
           }
-          if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+          if (options.filters?.rewardMax !== undefined && reward > options.filters.rewardMax) {
             return false
           }
           return true
@@ -580,10 +580,10 @@ class WorkerModel {
             stakeAmount
           )
 
-          if (options.filters.rewardMin !== undefined && reward < options.filters.rewardMin) {
+          if (options.filters?.rewardMin !== undefined && reward < options.filters.rewardMin) {
             return false
           }
-          if (options.filters.rewardMax !== undefined && reward > options.filters.rewardMax) {
+          if (options.filters?.rewardMax !== undefined && reward > options.filters.rewardMax) {
             return false
           }
           return true

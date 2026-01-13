@@ -80,7 +80,10 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
   const handleOk = useCallback(async () => {
     if (count.success + count.failed === ids.length) {
       handleClose()
-    } else if (type === ActionTxType.remove) {
+      return
+    }
+
+    if (type === ActionTxType.remove) {
       await onRemove(handleClose, ids)
     } else if (type === ActionTxType.activate) {
       await onActivate(ids)
@@ -89,7 +92,7 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
     } else if (type === ActionTxType.withdraw) {
       await onWithdraw(ids)
     }
-  }, [type, ids, onRemove, handleClose, count])
+  }, [type, ids, onRemove, onActivate, onDeActivate, onWithdraw, handleClose, count])
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     onChangePk(e.target.value, workers && workers.length > 0 ? workers[0].nodeId : null)
@@ -105,9 +108,9 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
     if (pk) {
       try {
         if (type === ActionTxType.withdraw || type === ActionTxType.deActivate) {
-          disabled = !from || !from.includes(pk.address.toLowerCase())
+          disabled = !from || !from.includes(pk.address.toLowerCase()) || pk.hasPendingTransactions
         } else {
-          disabled = false
+          disabled = pk.hasPendingTransactions
         }
       } catch (e) {
         disabled = true
@@ -158,6 +161,11 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
               )}
               {pk.address && <TextRow label="Address" value={pk.address} type="small" />}
               {pk.balance && <TextRow label="Balance" value={`${pk.balance} WATER`} type="small" />}
+              {pk.hasPendingTransactions && (
+                <WarningText color="red" size="sm">
+                  Please wait for previous transactions to complete before sending new ones
+                </WarningText>
+              )}
             </PKStyle>
           )}
           {(count.success > 0 || count.failed > 0 || status) && (
@@ -214,4 +222,8 @@ const StyledInput = styled(Input)`
 const PKStyle = styled(Flex).attrs({ vertical: true })`
   margin-top: 20px;
   margin-bottom: 20px;
+`
+
+const WarningText = styled(Text)`
+  margin-top: 5px;
 `
