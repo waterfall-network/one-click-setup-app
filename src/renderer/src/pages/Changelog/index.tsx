@@ -28,11 +28,18 @@ const items = [
   {
     children: (
       <>
+        <Text size="sm">0.5.1 beta - 15.01.2026</Text>
+        <p>Update: Updating the node to the latest version</p>
+        <p>Fix: Check TX pool before send mass tx</p>
+      </>
+    )
+  },
+  {
+    children: (
+      <>
         <Text size="sm">0.5.0 beta - 29.12.2025</Text>
         <p>Improve: Validator list page optimization</p>
         <p>Update: Added balance filter</p>
-        <p>Update: Updating the node to the latest version</p>
-        <p>Fix: Check TX pool before send mass tx</p>
       </>
     )
   },
