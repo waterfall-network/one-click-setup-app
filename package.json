@@ -40,7 +40,7 @@
     "whatwg-url": "^5.0.0"
   },
   "devDependencies": {
-    "@ant-design/colors": "^7.0.2",
+    "@ant-design/colors": "^8.0.0",
     "@canvasjs/react-charts": "^1.0.2",
     "@canvasjs/react-stockcharts": "^1.0.2",
     "@canvasjs/stockcharts": "^1.15.0",
@@ -70,7 +70,7 @@
     "prettier": "^3.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^6.30.0",
+    "react-router-dom": "^7.0.0",
     "styled-components": "^6.3.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.0"
