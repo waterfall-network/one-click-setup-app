@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  */
+import React from 'react'
 import { AppLayout } from './containers/Layout'
 import { AppNavigator } from './containers/Navigator/AppNavigator'
 import { ThemeProvider } from 'styled-components'
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
     }
   }
 })
-function App(): JSX.Element {
+function App(): React.JSX.Element {
   return (
     <HashRouter>
       <ThemeProvider theme={theme}>
