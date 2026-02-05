@@ -41,9 +41,9 @@
   },
   "devDependencies": {
     "@ant-design/colors": "^7.0.2",
-    "@canvasjs/react-charts": "^1.0.0",
-    "@canvasjs/react-stockcharts": "^1.0.0",
-    "@canvasjs/stockcharts": "^1.7.39",
+    "@canvasjs/react-charts": "^1.0.2",
+    "@canvasjs/react-stockcharts": "^1.0.2",
+    "@canvasjs/stockcharts": "^1.15.0",
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@electron-toolkit/eslint-config-ts": "^1.0.1",
     "@electron-toolkit/tsconfig": "^1.0.1",
@@ -63,7 +63,7 @@
     "electron-vite": "^2.1.0",
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint-config-prettier": "^9.1.2",
     "globals": "^15.14.0",
     "typescript-eslint": "^8.0.0",
     "eslint-plugin-react": "^7.33.2",
@@ -72,7 +72,7 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.30.0",
     "styled-components": "^6.3.0",
-    "typescript": "^5.9.0",
+    "typescript": "^5.9.3",
     "vite": "^5.4.0"
   }
 }
