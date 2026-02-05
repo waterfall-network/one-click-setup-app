@@ -23,11 +23,11 @@ export const StepsWithActiveContent: React.FC<StepsProps> = ({ ...props }) => {
 }
 
 const StyledSteps = styled(Steps)`
-  .ant-steps-item-description {
+  .ant-steps-item-content {
     display: none !important;
   }
   .ant-steps-item-active {
-    .ant-steps-item-content .ant-steps-item-description {
+    .ant-steps-item-content {
       display: block !important;
     }
   }

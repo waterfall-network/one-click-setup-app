@@ -44,7 +44,7 @@ export const NodeListPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <NodesList data={data} onRowClick={goView} />
       </PageBody>
     </Layout>

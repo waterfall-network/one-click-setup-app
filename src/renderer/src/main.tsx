@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-import '@ant-design/v5-patch-for-react-19'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './ui-kit/assets/index.css'

@@ -167,7 +167,7 @@ export const columns = ({
 
       return (
         <div style={{ padding: 8 }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Input
               placeholder="Min"
               value={minValue}

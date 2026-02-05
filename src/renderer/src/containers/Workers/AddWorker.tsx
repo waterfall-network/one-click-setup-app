@@ -197,13 +197,13 @@ export const AddWorker: React.FC<AddWorkerPropsT> = ({ mode }) => {
     const activeStep = index === step
     return {
       title: el?.title,
-      description: activeStep ? currentKey && StepComponent[currentKey] : null
+      content: activeStep ? currentKey && StepComponent[currentKey] : null
     }
   })
   return (
     <>
       <StepsWithActiveContent
-        direction="vertical"
+        orientation="vertical"
         current={step}
         onChange={onChangeStep}
         items={stepsWithContent}

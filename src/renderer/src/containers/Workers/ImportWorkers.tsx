@@ -15,7 +15,7 @@
  *
  */
 import React from 'react'
-import { Flex, Input, Select, StepProps } from 'antd'
+import { Flex, Input, Select, StepsProps } from 'antd'
 import { ImportWorkersStepKeys } from '@renderer/helpers/workers'
 import { useImportWorker } from '@renderer/hooks/workers'
 import { StepsWithActiveContent } from '@renderer/ui-kit/Steps/Steps'
@@ -30,9 +30,10 @@ import { WorkerKeysTable } from '@renderer/components/Workers/AddWorker/WorkerKe
 import { WorkerTransactionTable } from '@renderer/components/Workers/AddWorker/WorkerTransactionTable'
 import { MnemonicInput } from '@renderer/ui-kit/Mnemonic/MnemonicInput'
 
+type StepItem = NonNullable<StepsProps['items']>[number]
 type ImportWorkerPropsT = {
-  steps: Partial<StepProps>[]
-  stepsWithKeys: Partial<StepProps & { key: string }>[]
+  steps: Partial<StepItem>[]
+  stepsWithKeys: Partial<StepItem & { key: string }>[]
   step: number
   onChangeStep: (value: number) => void
   goNextStep: () => void
@@ -88,13 +89,13 @@ export const ImportWorkers: React.FC<ImportWorkerPropsT> = ({
     const activeStep = index === step
     return {
       title: el?.title,
-      description: activeStep ? currentKey && StepComponent[currentKey] : null
+      content: activeStep ? currentKey && StepComponent[currentKey] : null
     }
   })
   return (
     <>
       <StepsWithActiveContent
-        direction="vertical"
+        orientation="vertical"
         current={step}
         onChange={onChangeStep}
         items={stepsWithContent}

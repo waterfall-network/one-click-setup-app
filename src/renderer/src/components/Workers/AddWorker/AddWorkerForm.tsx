@@ -45,7 +45,7 @@ export const AddWorkerForm: React.FC<FormPropsT> = ({
   return (
     <StyledCard type="inner" title={title} extra={extra}>
       <Body>{children}</Body>
-      {error && <Alert type="error" message={error} />}
+      {error && <Alert type="error" title={error} />}
       <Actions>
         <ButtonPrimary onClick={goPrev} ghost={!goPrev} disabled={!goPrev}>
           Back

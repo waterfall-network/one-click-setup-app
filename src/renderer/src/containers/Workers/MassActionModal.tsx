@@ -131,14 +131,14 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
       width={800}
     >
       {error ? (
-        <Alert message={error} type="error" />
+        <Alert title={error} type="error" />
       ) : (
         <div>
           {type === ActionTxType.remove && (
-            <Alert message="Are you sure you want to remove this Validators?" type="error" />
+            <Alert title="Are you sure you want to remove this Validators?" type="error" />
           )}
           {from === null && (
-            <Alert message="You have selected incompatible Validators" type="error" />
+            <Alert title="You have selected incompatible Validators" type="error" />
           )}
 
           {from !== null && type !== ActionTxType.remove && type !== ActionTxType.activate && (

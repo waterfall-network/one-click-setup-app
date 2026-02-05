@@ -107,7 +107,7 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
           )}
         </Actions>
       )}
-      {error && <Alert message={error.message} type="error" />}
+      {error && <Alert title={error.message} type="error" />}
       <WorkersList
         shouldAddNode={shouldAddNode}
         data={data}

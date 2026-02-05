@@ -48,7 +48,7 @@ export const NodeTypeInput: React.FC<{
   const onChange = (e: RadioChangeEvent) => handleChange(e.target.value)
   return (
     <Radio.Group onChange={onChange} value={value}>
-      <Space direction="vertical">
+      <Space orientation="vertical">
         {node_type_options.map((item) => (
           <Radio value={item.value} key={item.value} disabled={item?.disabled}>
             {item.label}
@@ -66,7 +66,7 @@ export const NodeNetworkInput: React.FC<{
   const onChange = (e: RadioChangeEvent) => handleChange(e.target.value)
   return (
     <Radio.Group onChange={onChange} value={value}>
-      <Space direction="vertical">
+      <Space orientation="vertical">
         {NetworkOptions.map((item) => (
           <Radio value={item.value} key={item.value} disabled={item?.disabled}>
             {item.label}

@@ -291,7 +291,7 @@ export const ChangelogPage = () => {
     <Layout>
       <PageHeader breadcrumb={breadcrumb} />
       <PageBody>
-        <Timeline items={items} mode="left" />
+        <Timeline items={items} mode="start" />
       </PageBody>
     </Layout>
   )

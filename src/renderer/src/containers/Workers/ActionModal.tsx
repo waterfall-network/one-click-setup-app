@@ -95,11 +95,11 @@ export const ActionModal: React.FC<ActionModalProps> = ({ type, id, onClose }) =
           <div className="content" />
         </Spin>
       ) : error ? (
-        <Alert message={error.message} type="error" />
+        <Alert title={error.message} type="error" />
       ) : (
         <div>
           {type === ActionTxType.remove && (
-            <Alert message="Are you sure you want to remove this Validator?" type="error" />
+            <Alert title="Are you sure you want to remove this Validator?" type="error" />
           )}
 
           {type === ActionTxType.withdraw && (

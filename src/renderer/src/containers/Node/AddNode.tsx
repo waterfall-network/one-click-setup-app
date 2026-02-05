@@ -139,13 +139,13 @@ export const AddNode: React.FC = () => {
     const activeStep = index === step
     return {
       title: el?.title,
-      description: activeStep ? currentKey && StepComponent[currentKey] : null
+      content: activeStep ? currentKey && StepComponent[currentKey] : null
     }
   })
 
   return (
     <StepsWithActiveContent
-      direction="vertical"
+      orientation="vertical"
       current={step}
       onChange={onChangeStep}
       items={stepsWithComponents}

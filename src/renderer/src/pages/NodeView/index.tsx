@@ -172,7 +172,7 @@ export const NodeViewPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <Tabs items={tabs} onChange={onTabChange} activeKey={activeKey} />
         <RemoveModal
           id={removeId}

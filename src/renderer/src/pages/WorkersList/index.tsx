@@ -105,7 +105,7 @@ export const WorkersListPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <WorkersList
           shouldAddNode={nodes && nodes.length === 0}
           data={data}
