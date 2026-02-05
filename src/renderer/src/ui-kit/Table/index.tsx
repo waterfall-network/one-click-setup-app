@@ -19,10 +19,14 @@ import React from 'react'
 import { styled } from 'styled-components'
 
 export { type TableProps }
-export const Table: React.FC<TableProps> = ({ pagination, ...props }) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accept any record type for columns compatibility with antd Table
+export const Table: React.FC<TableProps<any>> = ({ pagination, ...props }) => {
   return (
     <TableWrapper>
-      <StyledTable pagination={pagination !== undefined ? pagination : false} {...props} />
+      <StyledTable
+        pagination={pagination !== undefined ? pagination : false}
+        {...(props as React.ComponentProps<typeof StyledTable>)}
+      />
     </TableWrapper>
   )
 }

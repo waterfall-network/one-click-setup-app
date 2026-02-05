@@ -88,8 +88,8 @@ class FileDownloader extends EventEmitter {
     this.status = Status.verify
     this.verifyStream = createReadStream(this.filePath)
     const hash = crypto.createHash('sha256')
-    this.verifyStream.on('data', (data: Buffer) => {
-      hash.update(data as unknown as crypto.BinaryLike)
+    this.verifyStream.on('data', (chunk: string | Buffer) => {
+      hash.update(chunk)
     })
     this.verifyStream.on('end', async () => {
       const calculatedHash = hash.digest('hex')

@@ -43,14 +43,14 @@ export const palette = {
     lightGray: grayScale._2,
     gray: grayScale._4,
     darkGray: grayScale._6,
-    blue: blue.primary,
+    blue: blue.primary ?? '#1677ff',
     black: grayScale._12
   },
   text: {
     white: grayScale._0,
     lightGray: grayScale._2,
     gray: grayScale._5,
-    blue: blue.primary,
+    blue: blue.primary ?? '#1677ff',
     black: grayScale._12,
     red: '#f5222d'
   },
