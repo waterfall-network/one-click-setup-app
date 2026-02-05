@@ -247,7 +247,7 @@ const SaveMnemonic: React.FC<BasePropsT & { phrase: string[]; onSaveFile: () => 
     setCopy(true)
   }
   useEffect(() => {
-    copy && setTimeout(() => setCopy(false), 2500)
+    if (copy) setTimeout(() => setCopy(false), 2500)
   }, [copy])
   return (
     <AddWorkerForm

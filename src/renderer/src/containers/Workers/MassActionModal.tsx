@@ -112,7 +112,7 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
         } else {
           disabled = pk.hasPendingTransactions
         }
-      } catch (e) {
+      } catch {
         disabled = true
       }
     }

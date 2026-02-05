@@ -92,9 +92,9 @@ type OptionalNewWorkerFields = Partial<
   >
 >
 
-export interface NewWorker extends RequiredNewWorkerFields, OptionalNewWorkerFields {}
+export type NewWorker = RequiredNewWorkerFields & OptionalNewWorkerFields
 
-export interface UpdateWorker extends Partial<Omit<Worker, 'id' | 'createdAt' | 'updatedAt'>> {}
+export type UpdateWorker = Partial<Omit<Worker, 'id' | 'createdAt' | 'updatedAt'>>
 
 export enum WorkersListDataFields {
   id = 'id',

@@ -19,7 +19,7 @@ import React from 'react'
 import { styled } from 'styled-components'
 
 export { type TableProps }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accept any record type for columns compatibility with antd Table
+ 
 export const Table: React.FC<TableProps<any>> = ({ pagination, ...props }) => {
   return (
     <TableWrapper>

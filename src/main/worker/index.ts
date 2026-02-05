@@ -343,7 +343,7 @@ class Worker {
         }))
       const workers = this.workerModel.insert(newWorkers, nodeModel)
       return { status: 'success', data: workers }
-    } catch (err) {
+    } catch {
       return { status: 'error', data: [], message: ErrorResults.ADD_WORKER_FAILED }
     }
   }
@@ -697,7 +697,7 @@ class Worker {
       const data = await readJSON(path)
       const jsonData = JSON.parse(data)
       return jsonData.length
-    } catch (err) {
+    } catch {
       return 0
     }
   }
@@ -707,7 +707,7 @@ class Worker {
       const data = await readJSON(path)
       const jsonData = JSON.parse(data)
       return jsonData
-    } catch (err) {
+    } catch {
       return {}
     }
   }

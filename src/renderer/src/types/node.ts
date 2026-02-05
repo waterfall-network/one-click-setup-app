@@ -116,8 +116,8 @@ type OptionalNewNodeFields = Partial<
     | 'downloadBytes'
   >
 >
-export interface NewNode extends RequiredNewNodeFields, OptionalNewNodeFields {}
-export interface UpdateNode extends Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>> {}
+export type NewNode = RequiredNewNodeFields & OptionalNewNodeFields
+export type UpdateNode = Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>>
 export enum NodesListDataFields {
   id = 'id',
   name = 'name',

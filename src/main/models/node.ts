@@ -121,8 +121,8 @@ type OptionalNewNodeFields = Partial<
     | 'downloadBytes'
   >
 >
-export interface NewNode extends RequiredNewNodeFields, OptionalNewNodeFields {}
-export interface UpdateNode extends Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>> {}
+export type NewNode = RequiredNewNodeFields & OptionalNewNodeFields
+export type UpdateNode = Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>>
 
 export interface WhereOptions {
   downloadStatus?: Condition<DownloadStatus>

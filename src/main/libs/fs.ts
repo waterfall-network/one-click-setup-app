@@ -42,7 +42,7 @@ export const checkOrCreateDir = async (dirPath: string): Promise<boolean> => {
       try {
         await mkdir(dirPath, { recursive: true })
         return true
-      } catch (mkdirError) {
+      } catch {
         log.error('Not permissions to create dir:', dirPath)
         return false
       }
@@ -77,7 +77,7 @@ export const checkFile = async (filePath: string): Promise<boolean> => {
   try {
     await readFile(filePath, { encoding: 'utf-8' })
     return true
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -86,7 +86,7 @@ export const appendToFile = async (filePath: string, data: string): Promise<bool
   try {
     await appendFile(filePath, data)
     return true
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -267,7 +267,7 @@ export const getPublicIP = async (): Promise<string> => {
 export const readJSON = async (filePath: string): Promise<string> => {
   try {
     return await readFile(filePath, { encoding: 'utf-8' })
-  } catch (error) {
+  } catch {
     return ''
   }
 }

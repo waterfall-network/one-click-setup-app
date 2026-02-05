@@ -64,13 +64,10 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // Fallback when context isolation is disabled (legacy)
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
   window.node = node
-  // @ts-ignore (define in dts)
   window.worker = worker
-  // @ts-ignore (define in dts)
   window.os = {
     platform: getPlatform(),
     homedir: getHomeDir(),
@@ -81,7 +78,6 @@ if (process.contextIsolated) {
     path,
     fetchJSON
   }
-  // @ts-ignore (define in dts)
   window.app = { quit, fetchState }
 }
 

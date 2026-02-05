@@ -29,6 +29,12 @@ asarUnpack:
   - resources/**
 win:
   executableName: waterfall
+  signtoolOptions:
+    certificateSha1: "384bb4405b099e15a1d249a1ec07bf5d06b2ac05"
+    signingHashAlgorithms:
+      - sha1
+      - sha256
+    rfc3161TimeStampServer: "http://timestamp.sectigo.com"
 nsis:
   artifactName: ${name}-setup-${version}-${arch}.${ext}
   shortcutName: ${productName}

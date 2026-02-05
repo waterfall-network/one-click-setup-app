@@ -27,7 +27,7 @@ export const useCopy = (text?: string): [boolean, () => void] => {
     return false
   }
   useEffect(() => {
-    status && setTimeout(() => setStatus(false), 2500)
+    if (status) setTimeout(() => setStatus(false), 2500)
   }, [status])
   return [status, handleCopy]
 }

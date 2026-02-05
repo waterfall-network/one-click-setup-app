@@ -87,7 +87,7 @@ class FsHandle {
         await writeFile(filePath, text)
         return true
       }
-    } catch (err) {
+    } catch {
       return false
     }
     return false

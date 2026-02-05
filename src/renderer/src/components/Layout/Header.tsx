@@ -37,7 +37,9 @@ export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightA
         <AppTitle>{title}</AppTitle>
       </Part>
       <Part justify={'space-between'} align={'center'} order={isWindows ? 1 : 3}>
-        {rightActions?.map((el) => <Button icon={el.icon} key={el.key} onClick={el.onClick} />)}
+        {rightActions?.map((el) => (
+          <Button icon={el.icon} key={el.key} onClick={el.onClick} />
+        ))}
       </Part>
     </AppHeader>
   )
