@@ -184,8 +184,8 @@ if (!gotTheLock) {
     })
 
     if (appEnv.getPlatform() === 'mac') {
-      //   app.dock.hide()
-      app.dock.setIcon(icon)
+      //   app.dock?.hide()
+      app.dock?.setIcon(icon)
     }
     createUpdateWindow()
 
