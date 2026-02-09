@@ -13,6 +13,13 @@ files:
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!resources/{bin,genesis}/**/*'
+  # Native modules: exclude build artifacts and sources (keep only .node + lib)
+  - '!node_modules/better-sqlite3/{deps,src,binding.gyp}/**'
+  - '!node_modules/better-sqlite3/build/Release/{obj,.deps}/**'
+  - '!node_modules/better-sqlite3/build/**/*.{mk,Makefile}'
+  - '!node_modules/bcrypto/{deps,src,binding.gyp,CMakeLists.txt}/**'
+  - '!node_modules/bcrypto/build/Release/{obj.target,.deps}/**'
+  - '!node_modules/bcrypto/build/**/*.{mk,Makefile}'
 buildDependenciesFromSource: true
 extraFiles:
   - from: 'resources/bin/${os}/${arch}'
@@ -40,6 +47,10 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+# Compression: maximum = smaller size, longer build; ULFO = better DMG compression on macOS 10.11+
+compression: maximum
+dmg:
+  format: ULFO
 mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
