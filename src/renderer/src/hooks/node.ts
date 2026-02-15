@@ -222,12 +222,8 @@ export const useGetAll = (options?: { refetchInterval?: number }) => {
 export const useGetById = (id?: string, options?: { refetchInterval?: number }) => {
   const { isLoading, data, error } = useQuery({
     queryKey: ['node:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    },
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 
@@ -301,12 +297,8 @@ export const useRemove = (id?: string) => {
     error: errorNode
   } = useQuery({
     queryKey: ['node:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    }
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id
   })
 
   const removeMutation = useMutation({

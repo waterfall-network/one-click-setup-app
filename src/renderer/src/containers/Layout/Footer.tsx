@@ -39,6 +39,7 @@ export const Footer = () => {
 
   return (
     <FooterComponent
+      leftSide={<Text size="sm">{state?.version}</Text>}
       // leftSide={
       //   <Flex justify="space-around" align="center">
       //     <Text color="white" size="sm">
@@ -73,7 +74,6 @@ export const Footer = () => {
       // }
       rightSide={
         <RightInfo gap={20} align="center">
-          <Text size="sm">{state?.version}</Text>
           <Popover
             placement="topRight"
             title={'App Notifications'}

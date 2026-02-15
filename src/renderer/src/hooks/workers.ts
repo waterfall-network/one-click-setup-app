@@ -240,12 +240,9 @@ export const useGetAllByNodeId = (
 ) => {
   const { isLoading, data, error } = useQuery({
     queryKey: ['workers:node', id, options?.page, options?.limit, options?.filters],
-    queryFn: async () => {
-      if (id) {
-        return await getAllByNodeId(parseInt(id), options?.page, options?.limit, options?.filters)
-      }
-      return undefined
-    },
+    queryFn: async () =>
+      await getAllByNodeId(parseInt(id as string), options?.page, options?.limit, options?.filters),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 
@@ -283,12 +280,8 @@ export const useGetStats = (options?: {
 export const useGetById = (id?: string, options?: { refetchInterval?: number }) => {
   const { isLoading, data, error } = useQuery({
     queryKey: ['worker:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    },
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 

@@ -507,6 +507,9 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return []
     }
+    if (!Array.isArray(req) || req.length === 0) {
+      return []
+    }
     try {
       const response = await fetch(getRPC(this.model ? this.model.network : Network.mainnet), {
         headers: {
@@ -526,6 +529,10 @@ class ProviderNode extends EventEmitter {
         return []
       }
       const result = await response.json()
+      if (!Array.isArray(result)) {
+        log.error('runValidatorCommands invalid batch response', req, result)
+        return []
+      }
       return result.map((r) => r.result)
     } catch (error) {
       // log.debug(error)

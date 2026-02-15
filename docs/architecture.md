@@ -8,6 +8,7 @@
    - `Node`
    - `Worker`
    - `FsHandle`
+   - `Settings`
 4. Background monitors start:
    - Status monitor worker thread
    - Snapshot monitor worker thread

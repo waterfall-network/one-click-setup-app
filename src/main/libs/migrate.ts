@@ -24,6 +24,7 @@ import * as update_workers_number_trigger from '../migrations/1714068668_update_
 import * as add_download_to_nodes_table from '../migrations/1714416355_add_download_to_nodes_table'
 import * as add_delegate_to_workers_table from '../migrations/1722960792_add_delegate_to_workers_table'
 import * as add_global_index_to_workers_table from '../migrations/1726762138_add_global_index_to_workers_table'
+import * as create_settings_table from '../migrations/1771174763_create_settings_table'
 
 const migrations = {
   '1708512084_create_nodes_table': create_nodes_table,
@@ -31,7 +32,8 @@ const migrations = {
   '1714068668_update_workers_number_trigger': update_workers_number_trigger,
   '1714416355_add_download_to_nodes_table': add_download_to_nodes_table,
   '1722960792_add_delegate_to_workers_table': add_delegate_to_workers_table,
-  '1726762138_add_global_index_to_workers_table': add_global_index_to_workers_table
+  '1726762138_add_global_index_to_workers_table': add_global_index_to_workers_table,
+  '1771174763_create_settings_table': create_settings_table
 }
 export function runMigrations(): Promise<boolean> {
   return new Promise((resolve, reject) => {

@@ -30,6 +30,7 @@ From `package.json`:
 ## Database migration rules
 
 Follow `docs/migration-guidelines.md` for naming, registration, rollback policy, and verification checklist.
+For runtime DB operations, use model methods from `src/main/models/*` rather than direct SQL in services.
 
 ## Security requirements
 
@@ -56,6 +57,11 @@ Use `bd` as the project task tracker:
    - status/snapshot updates
 5. Run `npm run typecheck` and `npm run lint` before packaging.
 6. Before opening PR, go through `docs/pr-checklist.md`.
+
+## Frontend structure guardrail
+
+- Keep `pages/` and `containers/` focused on layout/composition.
+- Extract complex feature state and side-effect orchestration to hooks (`src/renderer/src/hooks/*`).
 
 ## Current test posture
 

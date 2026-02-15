@@ -125,7 +125,8 @@ const PhraseInput = styled(Input)`
   width: 90%;
   text-align: center;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid
+    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.1)')};
   border-radius: 0;
   outline: none;
   /* pointer-events: none; */
@@ -137,7 +138,8 @@ const DNDContainer = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.2);
+  border-top: 1px solid
+    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)')};
   padding-top: 20px;
   margin-top: 40px;
   margin-bottom: 20px;
@@ -145,14 +147,15 @@ const DNDContainer = styled.div`
 
 const DNDItem = styled.div<{ $disabled?: boolean }>`
   width: 10%;
-  color: #000;
+  color: ${({ theme }) => theme.palette.text.black};
   font-size: 10px;
   text-decoration: none;
   text-align: center;
   cursor: pointer;
   border-radius: 6px;
   padding: 4px 6px;
-  background: rgba(0, 0, 0, 0.05);
+  background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
   box-sizing: border-box;
   ${({ $disabled }) => $disabled && ` opacity: 0.5; pointer-events: none;`}
 `

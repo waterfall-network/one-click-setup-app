@@ -21,9 +21,18 @@ export const selectDirectory = async (defaultPath?: string): Promise<string | nu
 export const saveTextFile = async (
   text: string,
   title?: string,
-  fileName?: string
+  fileName?: string,
+  filters?: { name: string; extensions: string[] }[]
 ): Promise<boolean> => {
-  return await window.os.saveTextFile(text, title, fileName)
+  return await window.os.saveTextFile(text, title, fileName, filters)
+}
+
+export const selectSavePath = async (
+  title?: string,
+  fileName?: string,
+  filters?: { name: string; extensions: string[] }[]
+): Promise<string | null> => {
+  return await window.os.selectSavePath(title, fileName, filters)
 }
 
 export const openExternal = (url: string): void => window.os.openExternal(url)

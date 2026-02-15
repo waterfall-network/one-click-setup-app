@@ -56,11 +56,27 @@ Foreign key:
 
 - `workers.nodeId -> nodes.id` (`ON DELETE SET NULL`, `ON UPDATE CASCADE`)
 
+### `settings`
+
+Created in migration `1771174763_create_settings_table`.
+
+Key columns:
+
+- Singleton identity: `id` with `CHECK (id = 1)`
+- UI/runtime settings: `theme`, `autoStartApp`, `autoStartNodes`, `monitoringInterval`
+- Timestamps: `createdAt`, `updatedAt`
+
+Notes:
+
+- `theme` is constrained to `light`, `dark`, `system`.
+- Boolean values are stored as SQLite integers (`0/1`).
+
 ## Triggers
 
 - `update_nodes_trigger`: updates `nodes.updatedAt` on row updates.
 - `update_workers_trigger`: updates `workers.updatedAt` on row updates.
 - `update_workers_number_trigger`: sets worker sequence number and increments `nodes.workersCount` on insert.
+- `update_settings_trigger`: updates `settings.updatedAt` on row updates.
 
 Note:
 
@@ -80,3 +96,7 @@ Worker-related:
 - Coordinator status enum and validator status enum are stored as text and mapped in `WorkerModel`.
 - UI-level computed status labels are derived in model logic:
   `Pending Initialized`, `Pending Activation`, `Active`, `Exiting`, `Exited`.
+
+Settings-related:
+
+- Theme mode: `light`, `dark`, `system`

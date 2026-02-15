@@ -19,6 +19,7 @@ It also uses scoped one-way event channels for startup UI updates.
 
 - `os:selectDirectory(defaultPath?) -> string | null`
 - `os:selectFile(defaultPath?, filters?) -> string | null`
+- `os:selectSavePath(title?, fileName?, filters?) -> string | null`
 - `os:saveTextFile(text, title?, fileName?) -> boolean`
 - `os:openExternal(url) -> void`
 
@@ -50,12 +51,26 @@ It also uses scoped one-way event channels for startup UI updates.
 - `worker:getBalance(nodeId, address) -> { status, data? }`
 - `worker:getTransactionCount(nodeId, address) -> { status, data? }`
 
+## Settings channels
+
+- `settings:get() -> Settings | null`
+- `settings:update(data) -> Settings | null`
+- `settings:exportConfig(filePath) -> { saved, exportedNodes, exportedWorkers }`
+- `settings:importConfigFile(filePath) -> { settings, importedNodes, importedWorkers }`
+  - Import accepts only validated backup payloads (`version = 1`, valid `exportedAt`,
+    valid `settings` shape, and structurally valid `nodes`/`workers` arrays).
+  - On success, import restores `nodes` and `workers` records from backup and applies imported settings.
+- `settings:resetFactory() -> Settings | null`
+  - Clears local `nodes` and `workers` data and restores default settings.
+  - Does not perform running-node checks; UI is responsible for optional pre-reset stop confirmations.
+
 ## Bridge exposure in renderer
 
 Preload exposes:
 
 - `window.node`
 - `window.worker`
+- `window.settings`
 - `window.os`
 - `window.app`
 - `window.startup`

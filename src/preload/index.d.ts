@@ -18,6 +18,7 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 import path from 'node:path'
 import { node } from './node'
 import { worker } from './worker'
+import { settings } from './settings'
 
 type State = {
   version: string
@@ -34,20 +35,30 @@ type StartupStatus = {
   totalSteps: number
 }
 
+type FileFilter = { name: string; extensions: string[] }
+
 declare global {
   interface Window {
     electron: ElectronAPI
     node: node
     worker: worker
+    settings: settings
     os: {
       platform: 'linux' | 'mac' | 'win' | null
       homedir: string
       selectDirectory: (defaultPath?: string) => Promise<string | null>
-      selectFile: (
-        defaultPath?: string,
-        filters?: { name: string; extensions: string[] }[]
+      selectFile: (defaultPath?: string, filters?: FileFilter[]) => Promise<string | null>
+      selectSavePath: (
+        title?: string,
+        fileName?: string,
+        filters?: FileFilter[]
       ) => Promise<string | null>
-      saveTextFile: (text: string, title?: string, fileName?: string) => Promise<boolean>
+      saveTextFile: (
+        text: string,
+        title?: string,
+        fileName?: string,
+        filters?: FileFilter[]
+      ) => Promise<boolean>
       openExternal: (url: string) => void
       path: path
       fetchJSON: (url: string) => Promise<object>

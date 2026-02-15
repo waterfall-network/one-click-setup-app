@@ -39,8 +39,10 @@ export const FooterComponent: React.FC<PropsT> = ({ leftSide, centerSide, rightS
 
 const StyledFooter = styled(Layout.Footer)`
   height: ${FOOTER_HEIGHT}px;
-  background-color: ${({ theme }) => theme.palette.background.gray};
+  background-color: ${({ theme }) => theme.palette.background.lightGray};
   color: ${({ theme }) => theme.palette.text.black};
+  border-top: 1px solid
+    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.12)')};
   padding: 0 10px 0 0;
   box-sizing: border-box;
   display: flex;
@@ -48,9 +50,13 @@ const StyledFooter = styled(Layout.Footer)`
 `
 
 const SidePart = styled.div`
-  background-color: ${({ theme }) => theme.palette.background.blue};
+  background-color: ${({ theme }) => theme.palette.background.gray};
   width: 200px;
   height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  box-sizing: border-box;
 `
 
 const Main = styled.div`

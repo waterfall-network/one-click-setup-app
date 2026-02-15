@@ -37,6 +37,8 @@ Run:
   - Use function components.
   - Keep route/page composition in `containers/` and `pages/`.
   - Keep reusable UI pieces in `components/` or `ui-kit/`.
+  - Keep containers thin: UI composition and prop wiring only.
+  - Move non-trivial orchestration/stateful flows (async actions, modal flows, multi-step handlers) to feature hooks in `src/renderer/src/hooks/*`.
 
 ## Naming and file organization
 
@@ -55,6 +57,9 @@ Run:
 - For schema changes, follow `docs/migration-guidelines.md`.
 - Keep migration SQL deterministic and additive where possible.
 - Keep `updatedAt` maintenance via triggers.
+- Access SQLite through model classes in `src/main/models/*`.
+- Do not use direct SQL (`db.prepare`, `db.exec`, raw table mutations) in IPC/service orchestration modules.
+- If a new data operation is needed, add a method to the relevant model and call that method from the service.
 
 ## Logging and errors
 

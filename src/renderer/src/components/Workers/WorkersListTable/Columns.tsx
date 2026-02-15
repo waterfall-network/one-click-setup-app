@@ -99,7 +99,7 @@ export const columns = ({
       </Link>
     ),
     filters: filters.node,
-    filteredValue: filteredValues?.node,
+    filteredValue: filteredValues?.node ?? null,
     onFilter: (value, worker) => worker.node.name === value
   },
   {
@@ -108,7 +108,7 @@ export const columns = ({
     key: WorkersListDataFields.status,
     render: (_, worker) => getStatusLabel(worker),
     filters: filters.status,
-    filteredValue: filteredValues?.status,
+    filteredValue: filteredValues?.status ?? null,
     onFilter: (value, worker) => getStatusLabel(worker) === value
   },
 

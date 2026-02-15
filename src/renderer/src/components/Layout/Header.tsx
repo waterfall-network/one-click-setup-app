@@ -47,6 +47,23 @@ export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightA
 
 const Button = styled(IconButton)`
   -webkit-app-region: no-drag;
+  ${({ theme }) =>
+    theme.mode === 'dark'
+      ? `
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    .anticon {
+      color: ${theme.palette.text.white} !important;
+    }
+    &:hover,
+    &:focus,
+    &:active {
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: transparent !important;
+    }
+  `
+      : ''}
 `
 
 const AppHeader = styled(Layout.Header)`
@@ -59,8 +76,9 @@ const AppHeader = styled(Layout.Header)`
   padding: 0 10px;
 `
 
-const AppTitle = styled(Text)`
-  color: ${({ theme }) => theme.palette.text.white};
+const AppTitle = styled(Text).attrs({
+  color: 'white'
+})`
   padding: 0 8px;
 `
 const AppLogo = styled.img.attrs({ src: LogoSrc, width: 24, height: 24 })``

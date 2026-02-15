@@ -60,7 +60,8 @@ const PhraseInput = styled(Input)`
   width: 90%;
   text-align: center;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid
+    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)')};
   border-radius: 0;
   outline: none;
   box-shadow: unset !important;

@@ -47,6 +47,49 @@ const breadcrumb = [
 
 const changelogData: ChangelogVersion[] = [
   {
+    version: '0.6.0 beta',
+    date: '15.02.2026',
+    changes: [
+      { type: ChangeType.New, description: 'Added full Settings page' },
+      {
+        type: ChangeType.New,
+        description:
+          'Added startup preferences: open app at login and auto-start nodes on app launch'
+      },
+      {
+        type: ChangeType.New,
+        description: 'Added backup tools in Settings: export, import, and factory reset'
+      },
+      {
+        type: ChangeType.New,
+        description:
+          'Added progress dialogs for config import/export with imported/exported nodes and validators counters'
+      },
+      {
+        type: ChangeType.Improve,
+        description: 'Added application theme modes: Light, Dark, and System'
+      },
+      {
+        type: ChangeType.Improve,
+        description: 'Improved dark theme support across application pages and layout'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
+          'Refactored application startup flow and improved pre-launch startup window with step-by-step progress'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Improved stability of local node monitoring when endpoints are unavailable'
+      },
+      {
+        type: ChangeType.Fix,
+        description:
+          'Fixed page loader layout for large validator/node lists to prevent clipped loading indicator'
+      }
+    ]
+  },
+  {
     version: '0.5.1 beta',
     date: '14.01.2026',
     changes: [

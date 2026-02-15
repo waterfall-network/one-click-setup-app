@@ -18,32 +18,43 @@ import { parentPort, workerData } from 'worker_threads'
 import log from 'electron-log/node'
 import { getMain } from '../../libs/db'
 import AppEnv from '../../libs/appEnv'
-import NodeModel, { Type as NodeType, CoordinatorStatus, ValidatorStatus } from '../../models/node'
+import NodeModel, {
+  Type as NodeType,
+  CoordinatorStatus,
+  CoordinatorValidatorStatus,
+  ValidatorStatus
+} from '../../models/node'
 import WorkerModel from '../../models/worker'
+import SettingsModel from '../../models/settings'
 import LocalNode from '../../node/local'
 import ProviderNode from '../../node/provider'
 import { areObjectsEqual } from '../../helpers/common'
-import { Event, EventName } from '../../libs/EventBus'
+import { Event, EventName, SettingsUpdatedPayload } from '../../libs/EventBus'
 
 const port = parentPort
 if (!port) throw new Error('IllegalState')
 
 class StatusMonitoring {
-  private timeout: number = 4000
+  private timeout: number = 12000
   private appEnv: AppEnv
   private nodeModel: NodeModel
   private workerModel: WorkerModel
+  private settingsModel: SettingsModel
   private interval: NodeJS.Timeout | null = null
   private isStart = false
 
-  constructor(appEnv: AppEnv, timeout: number | undefined) {
+  constructor(appEnv: AppEnv) {
     this.appEnv = appEnv
     const db = getMain(this.appEnv.mainDB)
     this.nodeModel = new NodeModel(db)
     this.workerModel = new WorkerModel(db)
-    if (timeout) {
-      this.timeout = timeout
+    this.settingsModel = new SettingsModel(db)
+
+    const settings = this.settingsModel.get()
+    if (settings?.monitoringInterval) {
+      this.timeout = settings.monitoringInterval
     }
+
     this.onMessage = this.onMessage.bind(this)
     this.onListeners()
   }
@@ -53,7 +64,7 @@ class StatusMonitoring {
       return
     }
     this.interval = setInterval(() => this._start(), this.timeout)
-    log.debug('StatusMonitoring start')
+    log.debug('StatusMonitoring start', this.timeout)
   }
 
   public stop() {
@@ -82,7 +93,30 @@ class StatusMonitoring {
         this.stop()
         break
       }
+      case EventName.SettingsUpdated: {
+        const payload = event.payload as Pick<SettingsUpdatedPayload, 'monitoringInterval'>
+        this.updateTimeout(payload.monitoringInterval)
+        break
+      }
     }
+  }
+
+  private updateTimeout(timeout: number) {
+    if (
+      !Number.isInteger(timeout) ||
+      timeout < 5000 ||
+      timeout > 60000 ||
+      timeout === this.timeout
+    ) {
+      return
+    }
+
+    this.timeout = timeout
+    if (this.interval) {
+      clearInterval(this.interval)
+      this.interval = setInterval(() => this._start(), this.timeout)
+    }
+    log.debug('StatusMonitoring timeout updated', this.timeout)
   }
   private async _start() {
     if (this.isStart) {
@@ -94,6 +128,15 @@ class StatusMonitoring {
 
     for (const nodeModel of nodes) {
       try {
+        if (
+          nodeModel.type === NodeType.local &&
+          nodeModel.coordinatorStatus === CoordinatorStatus.stopped &&
+          nodeModel.validatorStatus === ValidatorStatus.stopped &&
+          nodeModel.coordinatorValidatorStatus === CoordinatorValidatorStatus.stopped
+        ) {
+          continue
+        }
+
         let data = {}
 
         const node =
@@ -177,4 +220,4 @@ const appEnv = new AppEnv({
   userData: workerData.userData,
   version: workerData.version
 })
-new StatusMonitoring(appEnv, 12000)
+new StatusMonitoring(appEnv)

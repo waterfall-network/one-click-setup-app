@@ -19,7 +19,7 @@ import React from 'react'
 import { styled } from 'styled-components'
 
 export { type TableProps }
- 
+
 export const Table: React.FC<TableProps<any>> = ({ pagination, ...props }) => {
   return (
     <TableWrapper>

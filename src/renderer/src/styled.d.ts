@@ -15,28 +15,11 @@
  *
  */
 import 'styled-components'
+import { ThemePalette } from './ui-kit/theme/palette'
 
 declare module 'styled-components' {
   export interface DefaultTheme {
-    palette: {
-      layout: { white: string; light: string; black: string }
-      background: {
-        white: string
-        lightGray: string
-        gray: string
-        darkGray: string
-        blue: string
-        black: string
-      }
-      text: {
-        white: string
-        lightGray: string
-        gray: string
-        blue: string
-        black: string
-        red: string
-      }
-      common: { white: string; gray: string; black: string }
-    }
+    mode: 'light' | 'dark'
+    palette: ThemePalette
   }
 }

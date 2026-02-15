@@ -14,13 +14,30 @@
  * limitations under the License.
  *
  */
-import { darkPalette, lightPalette } from './palette'
+export type ThemeMode = 'light' | 'dark' | 'system'
 
-export type ThemeMode = 'light' | 'dark'
+export interface Settings {
+  id: number
+  theme: ThemeMode
+  autoStartApp: boolean
+  autoStartNodes: boolean
+  monitoringInterval: number
+  createdAt: string
+  updatedAt: string
+}
 
-export const createTheme = (mode: ThemeMode = 'light') => ({
-  mode,
-  palette: mode === 'dark' ? darkPalette : lightPalette
-})
+export type UpdateSettings = Partial<
+  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval'>
+>
 
-export const theme = createTheme('light')
+export interface ExportConfigResult {
+  saved: boolean
+  exportedNodes: number
+  exportedWorkers: number
+}
+
+export interface ImportConfigResult {
+  settings: Settings | null
+  importedNodes: number
+  importedWorkers: number
+}

@@ -36,6 +36,7 @@ import NodeModel, {
   ValidatorStatus
 } from '../models/node'
 import WorkerModel from '../models/worker'
+import SettingsModel from '../models/settings'
 import { checkPort } from '../libs/fs'
 
 enum ErrorResults {
@@ -49,6 +50,7 @@ class Node {
   private eventBus: EventBus
   private nodeModel: NodeModel
   private workerModel: WorkerModel
+  private settingsModel: SettingsModel
 
   private nodes: {
     [key: string]: LocalNode | ProviderNode
@@ -59,8 +61,10 @@ class Node {
     this.appEnv = appEnv
     this.eventBus = eventBus
     this.nodes = {}
-    this.nodeModel = new NodeModel(getMain(this.appEnv.mainDB))
-    this.workerModel = new WorkerModel(getMain(this.appEnv.mainDB))
+    const db = getMain(this.appEnv.mainDB)
+    this.nodeModel = new NodeModel(db)
+    this.workerModel = new WorkerModel(db)
+    this.settingsModel = new SettingsModel(db)
     this._finishDownloadSnapshot = this._finishDownloadSnapshot.bind(this)
   }
 
@@ -87,10 +91,11 @@ class Node {
     )
 
     const nodeModels = this.nodeModel.getAll()
+    const shouldAutoStartNodes = this.settingsModel.get()?.autoStartNodes ?? true
 
     let status = true
     for (const _nodeModel of nodeModels) {
-      const statusAdd = await this._addNode(_nodeModel)
+      const statusAdd = await this._addNode(_nodeModel, shouldAutoStartNodes)
       if (!statusAdd && status) {
         status = false
       }
@@ -171,7 +176,7 @@ class Node {
     return ErrorResults.NODE_NOT_CREATED
   }
 
-  private async _addNode(nodeModel: NodeModelType) {
+  private async _addNode(nodeModel: NodeModelType, autoStart = true) {
     if (nodeModel === null) return false
     if (nodeModel.downloadStatus !== DownloadStatus.finish) return true
     if (!this.nodes[nodeModel.id.toString()]) {
@@ -239,6 +244,31 @@ class Node {
       initNodeStatus.validator === StatusResult.success &&
       initNodeStatus.coordinatorValidator === StatusResult.success
     ) {
+      if (!autoStart) {
+        if (nodeModel.type === NodeType.local) {
+          const pids = node.getPids()
+          this.nodeModel.update(nodeModel.id, {
+            coordinatorPid: pids.coordinatorBeacon,
+            coordinatorStatus: CoordinatorStatus.stopped,
+            coordinatorPeersCount: 0,
+            validatorPid: pids.validator,
+            validatorStatus: ValidatorStatus.stopped,
+            validatorPeersCount: 0,
+            coordinatorValidatorPid: pids.coordinatorValidator,
+            coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+          })
+        } else {
+          this.nodeModel.update(nodeModel.id, {
+            coordinatorStatus: CoordinatorStatus.stopped,
+            coordinatorPeersCount: 0,
+            validatorStatus: ValidatorStatus.stopped,
+            validatorPeersCount: 0,
+            coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+          })
+        }
+        return true
+      }
+
       await node.start()
       if (nodeModel.type === NodeType.local) {
         const pids = node.getPids()

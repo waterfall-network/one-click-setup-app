@@ -3,6 +3,7 @@ import type { StartupStep } from './types'
 interface CreateStartupStepsParams {
   runMigrations: () => Promise<unknown>
   checkForUpdates: () => void
+  initializeSettings: () => Promise<unknown>
   initializeNode: () => Promise<unknown>
   initializeWorker: () => Promise<unknown>
   initializeFsHandle: () => void
@@ -15,6 +16,7 @@ interface CreateStartupStepsParams {
 export const createStartupSteps = ({
   runMigrations,
   checkForUpdates,
+  initializeSettings,
   initializeNode,
   initializeWorker,
   initializeFsHandle,
@@ -34,6 +36,11 @@ export const createStartupSteps = ({
     run: () => {
       checkForUpdates()
     }
+  },
+  {
+    title: 'Initializing settings service',
+    detail: 'Registering settings IPC handlers.',
+    run: async () => await initializeSettings()
   },
   {
     title: 'Initializing node service',

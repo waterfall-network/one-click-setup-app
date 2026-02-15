@@ -38,6 +38,7 @@ import { runMigrations } from './libs/migrate'
 import StatusWorker from './monitoring/status'
 import SnapshotWorker from './monitoring/snapshot'
 import FsHandle from './libs/FsHandle'
+import Settings from './settings'
 import { createMainWindow } from './windows/createMainWindow'
 import { createUpdateWindow } from './windows/createUpdateWindow'
 import { createStartupSteps } from './startup/steps'
@@ -49,7 +50,7 @@ log.transports.file.level = 'debug'
 autoUpdater.logger = log
 
 const STARTUP_STATUS_CHANNEL = 'startup:status'
-const STARTUP_STEP_DELAY_MS = 200
+const STARTUP_STEP_DELAY_MS = 100
 
 const eventBus = new EventBus()
 let tray: null | Tray = null
@@ -66,6 +67,7 @@ const appEnv = new AppEnv({
 const node = new Node(ipcMain, appEnv, eventBus)
 const worker = new Worker(ipcMain, appEnv)
 const fsHandle = new FsHandle(ipcMain)
+const settings = new Settings(ipcMain, appEnv, eventBus)
 const statusWorker = new StatusWorker(appEnv, eventBus)
 const snapshotWorker = new SnapshotWorker(appEnv, eventBus)
 
@@ -174,6 +176,7 @@ if (!gotTheLock) {
     const startupSteps = createStartupSteps({
       runMigrations: async () => await runMigrations(),
       checkForUpdates,
+      initializeSettings: async () => await settings.initialize(),
       initializeNode: async () => await node.initialize(),
       initializeWorker: async () => await worker.initialize(),
       initializeFsHandle: () => {
@@ -252,6 +255,7 @@ const quit = async () => {
   await worker.destroy()
   await node.destroy()
   await fsHandle.destroy()
+  await settings.destroy()
 
   if (preventSleepId !== null) {
     powerSaveBlocker.stop(preventSleepId)

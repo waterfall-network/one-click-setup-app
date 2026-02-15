@@ -22,19 +22,39 @@ type PageBodyType = PropsWithChildren & {
   isLoading?: boolean
 }
 export const PageBody: React.FC<PageBodyType> = ({ isLoading, children }) => {
-  if (isLoading)
+  if (isLoading) {
     return (
       <StyledWrapper>
-        <Spin tip="Loading" size="large">
-          <div className="content" />
+        <Spin spinning tip="Loading" size="large">
+          <LoadingState />
         </Spin>
       </StyledWrapper>
     )
-  return <StyledWrapper>{children}</StyledWrapper>
+  }
+
+  return (
+    <StyledWrapper>
+      <Content>{children}</Content>
+    </StyledWrapper>
+  )
 }
 
 const StyledWrapper = styled.div`
   padding: 30px 40px 20px 40px;
   box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+`
+
+const Content = styled.div`
+  min-height: 240px;
+`
+
+const LoadingState = styled.div`
+  min-height: 320px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `

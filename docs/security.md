@@ -6,7 +6,7 @@ This document defines security expectations for the Waterfall desktop app.
 
 - Main process is trusted and has full OS access.
 - Renderer is untrusted by default and must access privileged actions only through preload IPC.
-- Preload bridge is the security gateway (`window.node`, `window.worker`, `window.os`, `window.app`).
+- Preload bridge is the security gateway (`window.node`, `window.worker`, `window.settings`, `window.os`, `window.app`).
 
 ## Sensitive data handled by the app
 

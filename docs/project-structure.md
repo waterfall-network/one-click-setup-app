@@ -34,7 +34,7 @@
 - `monitoring/`:
   Worker-thread based status and snapshot monitoring.
 - `models/`:
-  SQLite data access for nodes and workers.
+  SQLite data access for nodes, workers, and settings.
 - `migrations/`:
   SQL schema migration files.
 - `libs/`:

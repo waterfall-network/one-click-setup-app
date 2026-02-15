@@ -14,8 +14,15 @@
  * limitations under the License.
  *
  */
-import { Page } from '@renderer/components/ComingSoon/Page'
+import { Layout } from 'antd'
+import { PageHeader } from '@renderer/components/Page/Header'
+import { SettingsPageContent } from '@renderer/containers/Settings/SettingsPageContent'
 
 export const SettingsPage = () => {
-  return <Page title="Settings" />
+  return (
+    <Layout>
+      <PageHeader title="Settings" />
+      <SettingsPageContent />
+    </Layout>
+  )
 }

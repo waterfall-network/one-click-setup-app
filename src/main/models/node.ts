@@ -221,6 +221,121 @@ class NodeModel {
     const res = this.db.prepare(`SELECT * FROM nodes WHERE id IN (${placeholders})`)
     return res.all(...ids) as Node[]
   }
+
+  clearAll(): boolean {
+    if (!this.db) {
+      return false
+    }
+    try {
+      const res = this.db.prepare('DELETE FROM nodes').run()
+      return res.changes >= 0
+    } catch (error) {
+      log.error('nodes clearAll', error)
+      return false
+    }
+  }
+
+  insertManyForImport(nodes: Record<string, unknown>[]): boolean {
+    if (!this.db) {
+      return false
+    }
+    try {
+      const insertNode = this.db.prepare(`
+        INSERT INTO nodes (
+          id, name, network, type, locationDir, memoHash,
+          coordinatorHttpApiPort, coordinatorHttpValidatorApiPort, coordinatorP2PTcpPort, coordinatorP2PUdpPort,
+          validatorP2PPort, validatorHttpApiPort, validatorWsApiPort,
+          downloadStatus, downloadUrl, downloadHash, downloadSize, downloadBytes,
+          coordinatorStatus, coordinatorValidatorStatus, validatorStatus,
+          coordinatorPid, coordinatorValidatorPid, validatorPid,
+          coordinatorPeersCount, coordinatorHeadSlot, coordinatorSyncDistance,
+          coordinatorPreviousJustifiedEpoch, coordinatorCurrentJustifiedEpoch, coordinatorFinalizedEpoch,
+          validatorPeersCount, validatorHeadSlot, validatorSyncDistance, validatorFinalizedSlot,
+          workersCount,
+          createdAt, updatedAt
+        ) VALUES (
+          @id, @name, @network, @type, @locationDir, @memoHash,
+          @coordinatorHttpApiPort, @coordinatorHttpValidatorApiPort, @coordinatorP2PTcpPort, @coordinatorP2PUdpPort,
+          @validatorP2PPort, @validatorHttpApiPort, @validatorWsApiPort,
+          @downloadStatus, @downloadUrl, @downloadHash, @downloadSize, @downloadBytes,
+          @coordinatorStatus, @coordinatorValidatorStatus, @validatorStatus,
+          @coordinatorPid, @coordinatorValidatorPid, @validatorPid,
+          @coordinatorPeersCount, @coordinatorHeadSlot, @coordinatorSyncDistance,
+          @coordinatorPreviousJustifiedEpoch, @coordinatorCurrentJustifiedEpoch, @coordinatorFinalizedEpoch,
+          @validatorPeersCount, @validatorHeadSlot, @validatorSyncDistance, @validatorFinalizedSlot,
+          @workersCount,
+          @createdAt, @updatedAt
+        )
+      `)
+
+      for (const rawNode of nodes) {
+        insertNode.run({
+          id: rawNode.id,
+          name: rawNode.name,
+          network: rawNode.network,
+          type: rawNode.type,
+          locationDir: rawNode.locationDir,
+          memoHash: rawNode.memoHash ?? null,
+          coordinatorHttpApiPort: rawNode.coordinatorHttpApiPort,
+          coordinatorHttpValidatorApiPort: rawNode.coordinatorHttpValidatorApiPort,
+          coordinatorP2PTcpPort: rawNode.coordinatorP2PTcpPort,
+          coordinatorP2PUdpPort: rawNode.coordinatorP2PUdpPort,
+          validatorP2PPort: rawNode.validatorP2PPort,
+          validatorHttpApiPort: rawNode.validatorHttpApiPort,
+          validatorWsApiPort: rawNode.validatorWsApiPort,
+          downloadStatus: rawNode.downloadStatus ?? 'finish',
+          downloadUrl: rawNode.downloadUrl ?? null,
+          downloadHash: rawNode.downloadHash ?? null,
+          downloadSize: rawNode.downloadSize ?? 0,
+          downloadBytes: rawNode.downloadBytes ?? 0,
+          coordinatorStatus: 'stopped',
+          coordinatorValidatorStatus: 'stopped',
+          validatorStatus: 'stopped',
+          coordinatorPid: null,
+          coordinatorValidatorPid: null,
+          validatorPid: null,
+          coordinatorPeersCount: 0,
+          coordinatorHeadSlot: 0,
+          coordinatorSyncDistance: 0,
+          coordinatorPreviousJustifiedEpoch: 0,
+          coordinatorCurrentJustifiedEpoch: 0,
+          coordinatorFinalizedEpoch: 0,
+          validatorPeersCount: 0,
+          validatorHeadSlot: 0,
+          validatorSyncDistance: 0,
+          validatorFinalizedSlot: 0,
+          workersCount: rawNode.workersCount ?? 0,
+          createdAt: rawNode.createdAt ?? undefined,
+          updatedAt: rawNode.updatedAt ?? undefined
+        })
+      }
+      return true
+    } catch (error) {
+      log.error('nodes insertManyForImport', error)
+      return false
+    }
+  }
+
+  syncWorkersCount(): boolean {
+    if (!this.db) {
+      return false
+    }
+    try {
+      this.db
+        .prepare(
+          `UPDATE nodes
+           SET workersCount = (
+             SELECT COUNT(*) FROM workers WHERE workers.nodeId = nodes.id
+           )`
+        )
+        .run()
+      return true
+    } catch (error) {
+      log.error('nodes syncWorkersCount', error)
+      return false
+    }
+  }
+
   remove(id: number | bigint): boolean {
     if (!this.db) {
       return false

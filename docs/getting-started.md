@@ -53,7 +53,7 @@ npm run build:linux
 On app startup the main process:
 
 1. Runs SQLite migrations.
-2. Initializes node/worker/fs IPC handlers.
+2. Initializes settings/node/worker/fs IPC handlers.
 3. Starts status and snapshot monitoring workers.
 4. Opens update window first and shows startup progress (`completed/total` steps + current step details).
 5. If a startup step fails, keeps the update window open and shows which step failed and the error message.

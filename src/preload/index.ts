@@ -23,6 +23,7 @@ import https from 'node:https'
 
 import { node } from './node'
 import { worker } from './worker'
+import { settings } from './settings'
 
 const STARTUP_STATUS_CHANNEL = 'startup:status'
 
@@ -37,13 +38,17 @@ interface StartupStatus {
   totalSteps: number
 }
 
+type FileFilter = { name: string; extensions: string[] }
+
 const selectDirectory = (defaultPath?: string) =>
   ipcRenderer.invoke('os:selectDirectory', defaultPath)
-const selectFile = (defaultPath?: string, filters?: { name: string; extensions: string[] }[]) =>
+const selectFile = (defaultPath?: string, filters?: FileFilter[]) =>
   ipcRenderer.invoke('os:selectFile', defaultPath, filters)
+const selectSavePath = (title?: string, fileName?: string, filters?: FileFilter[]) =>
+  ipcRenderer.invoke('os:selectSavePath', title, fileName, filters)
 
-const saveTextFile = (text: string, title?: string, fileName?: string) =>
-  ipcRenderer.invoke('os:saveTextFile', text, title, fileName)
+const saveTextFile = (text: string, title?: string, fileName?: string, filters?: FileFilter[]) =>
+  ipcRenderer.invoke('os:saveTextFile', text, title, fileName, filters)
 
 const openExternal = (url: string) => ipcRenderer.invoke('os:openExternal', url)
 
@@ -69,6 +74,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', { ...electronAPI })
     contextBridge.exposeInMainWorld('node', node)
     contextBridge.exposeInMainWorld('worker', worker)
+    contextBridge.exposeInMainWorld('settings', settings)
     contextBridge.exposeInMainWorld('app', {
       quit,
       fetchState
@@ -81,6 +87,7 @@ if (process.contextIsolated) {
       homedir: getHomeDir(),
       selectDirectory: selectDirectory,
       selectFile: selectFile,
+      selectSavePath: selectSavePath,
       saveTextFile: saveTextFile,
       openExternal: openExternal,
       path,
@@ -94,11 +101,13 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   window.node = node
   window.worker = worker
+  window.settings = settings
   window.os = {
     platform: getPlatform(),
     homedir: getHomeDir(),
     selectDirectory: selectDirectory,
     selectFile: selectFile,
+    selectSavePath: selectSavePath,
     saveTextFile: saveTextFile,
     openExternal: openExternal,
     path,

@@ -14,13 +14,14 @@
  * limitations under the License.
  *
  */
-import { darkPalette, lightPalette } from './palette'
+import { ipcRenderer } from 'electron'
 
-export type ThemeMode = 'light' | 'dark'
+import { UpdateSettings } from '../main/models/settings'
 
-export const createTheme = (mode: ThemeMode = 'light') => ({
-  mode,
-  palette: mode === 'dark' ? darkPalette : lightPalette
-})
-
-export const theme = createTheme('light')
+export const settings = {
+  get: () => ipcRenderer.invoke('settings:get'),
+  update: (data: UpdateSettings) => ipcRenderer.invoke('settings:update', data),
+  exportConfig: (filePath: string) => ipcRenderer.invoke('settings:exportConfig', filePath),
+  importConfigFile: (filePath: string) => ipcRenderer.invoke('settings:importConfigFile', filePath),
+  resetFactory: () => ipcRenderer.invoke('settings:resetFactory')
+}

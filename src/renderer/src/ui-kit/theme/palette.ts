@@ -32,7 +32,36 @@ const grayScale = {
   _12: '#000000'
 }
 
-export const palette = {
+export interface ThemePalette {
+  layout: {
+    white: string
+    light: string
+    black: string
+  }
+  background: {
+    white: string
+    lightGray: string
+    gray: string
+    darkGray: string
+    blue: string
+    black: string
+  }
+  text: {
+    white: string
+    lightGray: string
+    gray: string
+    blue: string
+    black: string
+    red: string
+  }
+  common: {
+    white: string
+    gray: string
+    black: string
+  }
+}
+
+export const lightPalette: ThemePalette = {
   layout: {
     white: grayScale._0,
     light: grayScale._1,
@@ -60,3 +89,35 @@ export const palette = {
     black: grayScale._12
   }
 }
+
+export const darkPalette: ThemePalette = {
+  layout: {
+    white: '#141414',
+    light: '#1f1f1f',
+    black: grayScale._0
+  },
+  background: {
+    white: '#141414',
+    lightGray: '#1f1f1f',
+    gray: '#262626',
+    darkGray: '#434343',
+    blue: blue.primary ?? '#1677ff',
+    black: grayScale._0
+  },
+  text: {
+    white: grayScale._0,
+    lightGray: '#f5f5f5',
+    gray: '#bfbfbf',
+    blue: blue.primary ?? '#1677ff',
+    black: '#f5f5f5',
+    red: '#ff7875'
+  },
+  common: {
+    white: grayScale._0,
+    gray: '#8c8c8c',
+    black: grayScale._12
+  }
+}
+
+// Backward-compatible export for places that still import `palette` directly.
+export const palette = lightPalette

@@ -635,6 +635,83 @@ class WorkerModel {
     return !!res.changes
   }
 
+  clearAll(): boolean {
+    if (!this.db) {
+      return false
+    }
+    try {
+      const res = this.db.prepare('DELETE FROM workers').run()
+      return res.changes >= 0
+    } catch (error) {
+      log.error('workers clearAll', error)
+      return false
+    }
+  }
+
+  insertManyForImport(workers: Record<string, unknown>[]): boolean {
+    if (!this.db) {
+      return false
+    }
+
+    try {
+      const insertWorker = this.db.prepare(`
+        INSERT INTO workers (
+          id, nodeId, number,
+          coordinatorStatus, coordinatorPublicKey, coordinatorBalanceAmount,
+          coordinatorActivationEpoch, coordinatorDeActivationEpoch, coordinatorBlockCreationCount, coordinatorAttestationCreationCount,
+          validatorStatus, validatorAddress, validatorBalanceAmount, validatorActivationEpoch, validatorDeActivationEpoch, validatorBlockCreationCount,
+          withdrawalAddress, signature, stakeAmount, delegate, validatorIndex,
+          createdAt, updatedAt
+        ) VALUES (
+          @id, @nodeId, @number,
+          @coordinatorStatus, @coordinatorPublicKey, @coordinatorBalanceAmount,
+          @coordinatorActivationEpoch, @coordinatorDeActivationEpoch, @coordinatorBlockCreationCount, @coordinatorAttestationCreationCount,
+          @validatorStatus, @validatorAddress, @validatorBalanceAmount, @validatorActivationEpoch, @validatorDeActivationEpoch, @validatorBlockCreationCount,
+          @withdrawalAddress, @signature, @stakeAmount, @delegate, @validatorIndex,
+          @createdAt, @updatedAt
+        )
+      `)
+
+      for (const rawWorker of workers) {
+        insertWorker.run({
+          id: rawWorker.id,
+          nodeId: rawWorker.nodeId,
+          number: rawWorker.number ?? 0,
+          coordinatorStatus: rawWorker.coordinatorStatus ?? 'pending_initialized',
+          coordinatorPublicKey: rawWorker.coordinatorPublicKey,
+          coordinatorBalanceAmount: rawWorker.coordinatorBalanceAmount ?? '0',
+          coordinatorActivationEpoch: rawWorker.coordinatorActivationEpoch ?? '',
+          coordinatorDeActivationEpoch: rawWorker.coordinatorDeActivationEpoch ?? '',
+          coordinatorBlockCreationCount: rawWorker.coordinatorBlockCreationCount ?? 0,
+          coordinatorAttestationCreationCount: rawWorker.coordinatorAttestationCreationCount ?? 0,
+          validatorStatus: rawWorker.validatorStatus ?? 'pending_initialized',
+          validatorAddress: rawWorker.validatorAddress,
+          validatorBalanceAmount: rawWorker.validatorBalanceAmount ?? '0',
+          validatorActivationEpoch: rawWorker.validatorActivationEpoch ?? '',
+          validatorDeActivationEpoch: rawWorker.validatorDeActivationEpoch ?? '',
+          validatorBlockCreationCount: rawWorker.validatorBlockCreationCount ?? 0,
+          withdrawalAddress: rawWorker.withdrawalAddress,
+          signature: rawWorker.signature,
+          stakeAmount: rawWorker.stakeAmount ?? '0',
+          delegate:
+            rawWorker.delegate === null || rawWorker.delegate === undefined
+              ? null
+              : typeof rawWorker.delegate === 'string'
+                ? rawWorker.delegate
+                : JSON.stringify(rawWorker.delegate),
+          validatorIndex: rawWorker.validatorIndex ?? 0,
+          createdAt: rawWorker.createdAt ?? undefined,
+          updatedAt: rawWorker.updatedAt ?? undefined
+        })
+      }
+
+      return true
+    } catch (error) {
+      log.error('workers insertManyForImport', error)
+      return false
+    }
+  }
+
   update(id: number | bigint, data: UpdateWorker): boolean {
     if (!this.db) {
       return false

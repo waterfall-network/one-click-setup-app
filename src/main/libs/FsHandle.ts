@@ -17,6 +17,8 @@
 import { IpcMain, dialog, shell, IpcMainInvokeEvent } from 'electron'
 import { writeFile } from 'node:fs/promises'
 
+type FileFilter = { name: string; extensions: string[] }
+
 class FsHandle {
   private ipcMain: IpcMain
 
@@ -31,8 +33,15 @@ class FsHandle {
     this.ipcMain.handle('os:selectFile', (_event: IpcMainInvokeEvent, defaultPath, filters) =>
       this._selectFile(defaultPath, filters)
     )
-    this.ipcMain.handle('os:saveTextFile', (_event: IpcMainInvokeEvent, text, title, fileName) =>
-      this._saveTextFile(text, title, fileName)
+    this.ipcMain.handle(
+      'os:selectSavePath',
+      (_event: IpcMainInvokeEvent, title, fileName, filters?: FileFilter[]) =>
+        this._selectSavePath(title, fileName, filters)
+    )
+    this.ipcMain.handle(
+      'os:saveTextFile',
+      (_event: IpcMainInvokeEvent, text, title, fileName, filters?: FileFilter[]) =>
+        this._saveTextFile(text, title, fileName, filters)
     )
     this.ipcMain.handle('os:openExternal', (_event: IpcMainInvokeEvent, url) =>
       this._openExternal(url)
@@ -42,6 +51,7 @@ class FsHandle {
   public async destroy() {
     this.ipcMain.removeHandler('os:selectDirectory')
     this.ipcMain.removeHandler('os:selectFile')
+    this.ipcMain.removeHandler('os:selectSavePath')
     this.ipcMain.removeHandler('os:saveTextFile')
     this.ipcMain.removeHandler('os:openUrl')
   }
@@ -76,12 +86,18 @@ class FsHandle {
       return filePaths[0]
     }
   }
-  private async _saveTextFile(text: string, title?: string, fileName?: string): Promise<boolean> {
+  private async _saveTextFile(
+    text: string,
+    title?: string,
+    fileName?: string,
+    filters?: FileFilter[]
+  ): Promise<boolean> {
     try {
       const { filePath } = await dialog.showSaveDialog({
         defaultPath: fileName,
         title: title || 'Save text file',
-        filters: [{ name: 'Text Files', extensions: ['txt'] }]
+        filters:
+          filters && filters.length > 0 ? filters : [{ name: 'Text Files', extensions: ['txt'] }]
       })
       if (filePath) {
         await writeFile(filePath, text)
@@ -91,6 +107,20 @@ class FsHandle {
       return false
     }
     return false
+  }
+
+  private async _selectSavePath(
+    title?: string,
+    fileName?: string,
+    filters?: FileFilter[]
+  ): Promise<string | null> {
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: fileName,
+      title: title || 'Save file',
+      filters:
+        filters && filters.length > 0 ? filters : [{ name: 'Text Files', extensions: ['txt'] }]
+    })
+    return filePath || null
   }
 }
 
