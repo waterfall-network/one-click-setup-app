@@ -37,12 +37,13 @@ For changes touching IPC, secrets, file access, or external URLs, follow `docs/s
 
 ## Task tracking (Beads)
 
-Use Beads (`bd`) for task lifecycle:
+Use `bd` as the project task tracker:
 
-1. Create/select an issue before non-trivial implementation.
-2. Set status to `in_progress` at start.
-3. Set status to `done` after code + docs are complete.
-4. Run `bd sync` before final push.
+1. Pick/create issue.
+2. Set `in_progress` before implementation.
+3. Link discovered work via `discovered-from` dependency.
+4. Close issue after code, checks, and docs updates.
+5. Run `bd sync` before push.
 
 ## Local development cycle
 

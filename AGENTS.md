@@ -1,6 +1,6 @@
 # AGENTS Guide
 
-This file helps coding agents navigate project documentation quickly.
+This file helps coding agents navigate project docs and follow the expected delivery workflow.
 
 ## Primary Documentation Index
 
@@ -10,87 +10,141 @@ Start here first:
 
 ## Documentation Map by Task
 
-- Product context and scope:
-  - `docs/overview.md`
-- System architecture and runtime model:
-  - `docs/architecture.md`
-- Repository layout and module locations:
-  - `docs/project-structure.md`
-- Local setup and build commands:
-  - `docs/getting-started.md`
-- Environment variables and runtime config:
-  - `docs/configuration.md`
-- Code conventions and formatting:
-  - `docs/code-style.md`
-- Renderer/Main IPC contracts:
-  - `docs/ipc-api.md`
-- SQLite schema, enums, triggers:
-  - `docs/data-model.md`
-- Migration rules and review checklist:
-  - `docs/migration-guidelines.md`
-- Development process and quality gates:
-  - `docs/development-workflow.md`
-- Security boundaries and secret handling:
-  - `docs/security.md`
-- Pre-merge checks:
-  - `docs/pr-checklist.md`
-- Packaging, updates, and release flow:
-  - `docs/build-and-release.md`
+- Product context and scope: `docs/overview.md`
+- Architecture and runtime model: `docs/architecture.md`
+- Repository/module layout: `docs/project-structure.md`
+- Setup and local run/build: `docs/getting-started.md`
+- Env/config variables: `docs/configuration.md`
+- Code conventions: `docs/code-style.md`
+- Renderer/Main IPC contracts: `docs/ipc-api.md`
+- SQLite schema and statuses: `docs/data-model.md`
+- Migration rules: `docs/migration-guidelines.md`
+- Development process: `docs/development-workflow.md`
+- Security requirements: `docs/security.md`
+- PR checks: `docs/pr-checklist.md`
+- Packaging/release: `docs/build-and-release.md`
 
-## Agent Workflow Requirements
 
-1. Before changing code, read only the relevant docs from the map above.
-2. For DB changes, always follow `docs/migration-guidelines.md`.
-3. For IPC or secret-related changes, always follow `docs/security.md`.
-4. Keep implementation aligned with `docs/code-style.md`.
-5. If behavior/config/schema changes, update corresponding docs in the same task.
+<!-- BEGIN BEADS INTEGRATION -->
+## Issue Tracking with bd (beads)
 
-## Beads Issue Tracking (Mandatory)
+**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
 
-This repository uses Beads (`bd`) as the default task tracker.
+### Why bd?
 
-1. For every non-trivial task, create or pick a Beads issue before code changes.
-2. Move issue status to `in_progress` when implementation starts.
-3. Link implementation scope to the issue and keep status updated during work.
-4. Mark issue `done` only after code changes and related docs updates are complete.
-5. Run `bd sync` before finishing the session and before `git push`.
+- Dependency-aware: Track blockers and relationships between issues
+- Git-friendly: Auto-syncs to JSONL for version control
+- Agent-optimized: JSON output, ready work detection, discovered-from links
+- Prevents duplicate tracking systems and confusion
 
-Recommended commands:
+### Quick Start
 
-- `bd list`
-- `bd create "<title>"`
-- `bd show <issue-id>`
-- `bd update <issue-id> --status in_progress`
-- `bd update <issue-id> --status done`
-- `bd sync`
+**Check for ready work:**
 
-## Source of Truth
+```bash
+bd ready --json
+```
 
-- If documentation conflicts with code, treat code as source of truth.
-- After resolving discrepancies, update docs to match current implementation.
+**Create new issues:**
 
-## Landing the Plane (Session Completion)
+```bash
+bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
+bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+```
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+**Claim and update:**
 
-**MANDATORY WORKFLOW:**
+```bash
+bd update bd-42 --status in_progress --json
+bd update bd-42 --priority 1 --json
+```
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+**Complete work:**
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+```bash
+bd close bd-42 --reason "Completed" --json
+```
+
+### Issue Types
+
+- `bug` - Something broken
+- `feature` - New functionality
+- `task` - Work item (tests, docs, refactoring)
+- `epic` - Large feature with subtasks
+- `chore` - Maintenance (dependencies, tooling)
+
+### Priorities
+
+- `0` - Critical (security, data loss, broken builds)
+- `1` - High (major features, important bugs)
+- `2` - Medium (default, nice-to-have)
+- `3` - Low (polish, optimization)
+- `4` - Backlog (future ideas)
+
+### Workflow for AI Agents
+
+1. **Check ready work**: `bd ready` shows unblocked issues
+2. **Claim your task**: `bd update <id> --status in_progress`
+3. **Work on it**: Implement, test, document
+4. **Discover new work?** Create linked issue:
+   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
+5. **Complete**: `bd close <id> --reason "Done"`
+
+### Auto-Sync
+
+bd automatically syncs with git:
+
+- Exports to `.beads/issues.jsonl` after changes (5s debounce)
+- Imports from JSONL when newer (e.g., after `git pull`)
+- No manual export/import needed!
+
+### Important Rules
+
+- ✅ Use bd for ALL task tracking
+- ✅ Always use `--json` flag for programmatic use
+- ✅ Link discovered work with `discovered-from` dependencies
+- ✅ Check `bd ready` before asking "what should I work on?"
+- ❌ Do NOT create markdown TODO lists
+- ❌ Do NOT use external issue trackers
+- ❌ Do NOT duplicate tracking systems
+
+For more details, see README.md and docs/QUICKSTART.md.
+
+<!-- END BEADS INTEGRATION -->
+
+## Project-Specific Rules
+
+These rules extend (and do not replace) the Beads workflow above.
+
+1. Documentation-first navigation:
+   - Start with `docs/README.md`
+   - Use task-specific docs from `docs/*` before coding
+
+2. Mandatory docs update policy:
+   - If behavior/config/schema changes, update corresponding docs in the same task
+   - Minimum check:
+     - API/IPC changes -> `docs/ipc-api.md`
+     - DB schema/migrations -> `docs/data-model.md`, `docs/migration-guidelines.md`
+     - Security-sensitive changes -> `docs/security.md`
+     - Build/release changes -> `docs/build-and-release.md`
+
+3. Migration requirements:
+   - Follow `docs/migration-guidelines.md`
+   - Keep migrations additive where possible
+   - Preserve `updatedAt` trigger behavior for SQLite tables
+
+4. Security requirements:
+   - Follow `docs/security.md`
+   - Never log secrets (mnemonic/private key/passwords)
+   - Validate IPC inputs in main process handlers
+
+5. Code style requirements:
+   - Follow `docs/code-style.md`
+   - Run project quality gates for changed scope:
+     - `npm run typecheck`
+     - `npm run lint`
+     - `npm run format` (if formatting changed)
+
+6. Source of truth:
+   - If docs conflict with code, code is source of truth
+   - Update docs immediately after resolving mismatch
