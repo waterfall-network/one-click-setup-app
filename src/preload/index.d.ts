@@ -22,6 +22,18 @@ import { worker } from './worker'
 type State = {
   version: string
 }
+
+type StartupPhase = 'running' | 'done' | 'error'
+
+type StartupStatus = {
+  phase: StartupPhase
+  title: string
+  detail: string
+  activeStep: number
+  completedSteps: number
+  totalSteps: number
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -43,6 +55,9 @@ declare global {
     app: {
       quit: () => void
       fetchState: () => Promise<State>
+    }
+    startup: {
+      onStatus: (callback: (status: StartupStatus) => void) => () => void
     }
   }
 }

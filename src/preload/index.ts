@@ -15,7 +15,7 @@
  *
  */
 /// <reference types="./index.d.ts" />
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { platform, homedir } from 'node:os'
 import path from 'node:path'
@@ -23,6 +23,19 @@ import https from 'node:https'
 
 import { node } from './node'
 import { worker } from './worker'
+
+const STARTUP_STATUS_CHANNEL = 'startup:status'
+
+type StartupPhase = 'running' | 'done' | 'error'
+
+interface StartupStatus {
+  phase: StartupPhase
+  title: string
+  detail: string
+  activeStep: number
+  completedSteps: number
+  totalSteps: number
+}
 
 const selectDirectory = (defaultPath?: string) =>
   ipcRenderer.invoke('os:selectDirectory', defaultPath)
@@ -38,6 +51,16 @@ const quit = () => ipcRenderer.invoke('app:quit')
 
 const fetchState = () => ipcRenderer.invoke('app:state')
 
+const onStartupStatus = (callback: (status: StartupStatus) => void): (() => void) => {
+  const listener = (_event: IpcRendererEvent, status: StartupStatus): void => {
+    callback(status)
+  }
+  ipcRenderer.on(STARTUP_STATUS_CHANNEL, listener)
+  return () => {
+    ipcRenderer.removeListener(STARTUP_STATUS_CHANNEL, listener)
+  }
+}
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -49,6 +72,9 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('app', {
       quit,
       fetchState
+    })
+    contextBridge.exposeInMainWorld('startup', {
+      onStatus: onStartupStatus
     })
     contextBridge.exposeInMainWorld('os', {
       platform: getPlatform(),
@@ -79,6 +105,7 @@ if (process.contextIsolated) {
     fetchJSON
   }
   window.app = { quit, fetchState }
+  window.startup = { onStatus: onStartupStatus }
 }
 
 function getPlatform(): 'linux' | 'mac' | 'win' | null {

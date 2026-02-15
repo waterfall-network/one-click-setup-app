@@ -1,6 +1,7 @@
 # IPC API
 
 This project uses `ipcMain.handle` / `ipcRenderer.invoke` request-response channels.
+It also uses scoped one-way event channels for startup UI updates.
 
 ## App channels
 
@@ -8,6 +9,11 @@ This project uses `ipcMain.handle` / `ipcRenderer.invoke` request-response chann
   Requests graceful application shutdown.
 - `app:state`:
   Returns app-level state (currently includes `version`).
+
+## Startup event channel
+
+- `startup:status` (main -> renderer):
+  Pushes startup progress status for the update window UI (`phase`, `title`, `detail`, `activeStep`, `completedSteps`, `totalSteps`).
 
 ## OS/File channels (`FsHandle`)
 
@@ -52,8 +58,10 @@ Preload exposes:
 - `window.worker`
 - `window.os`
 - `window.app`
+- `window.startup`
 
 Renderer-side wrapper modules are in `src/renderer/src/api/*`.
+Update screen listens via `window.startup.onStatus(callback)`.
 
 ## Event-driven background coordination
 

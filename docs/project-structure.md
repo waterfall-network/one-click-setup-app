@@ -20,7 +20,13 @@
 ## Main process (`src/main`)
 
 - `index.ts`:
-  App bootstrap, windows/tray, updater, lifecycle, graceful shutdown.
+  App bootstrap orchestration, lifecycle wiring, and graceful shutdown.
+- `windows/`:
+  BrowserWindow factories for main UI and startup/update window.
+- `startup/`:
+  Startup step definitions, progress runner, and startup status types.
+- `app/`:
+  App-shell helpers (tray menu + app IPC handlers).
 - `node/`:
   Node service and local/provider node implementations.
 - `worker/`:
