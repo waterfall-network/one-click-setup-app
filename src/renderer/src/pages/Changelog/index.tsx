@@ -101,6 +101,11 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Improve,
         description:
+          'Optimized table rendering across pages: shell-first loading placeholders and unified polling interval from Settings'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
           'Refactored application startup flow and improved pre-launch startup window with step-by-step progress'
       },
       {
