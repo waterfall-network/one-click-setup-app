@@ -36,6 +36,7 @@ import { WorkerViewCoordinator } from '@renderer/containers/Workers/WorkerViewCo
 import { WorkerViewInformation } from '@renderer/containers/Workers/WorkerViewInformation'
 import { WorkerViewDelegateRules } from '@renderer/containers/Workers/WorkerViewDelegateRules'
 import { useGetById } from '../../hooks/workers'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 import { getViewLink } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { getActions } from '../../helpers/workers'
@@ -98,7 +99,14 @@ const getTabs = (worker?: Worker) => {
 export const WorkerViewPage = () => {
   const workerId = useParams()?.id
   const [actionModal, setActionModal] = useState<null | ActionTxType>(null)
-  const { isLoading, data: worker, error } = useGetById(workerId, { refetchInterval: 5000 })
+  const monitoringInterval = useMonitoringInterval()
+  const {
+    isLoading,
+    data: worker,
+    error
+  } = useGetById(workerId, {
+    refetchInterval: monitoringInterval
+  })
 
   const tabs = useMemo(() => getTabs(worker), [worker])
   const [activeKey, setActiveKey] = useState(tabs[0].key)

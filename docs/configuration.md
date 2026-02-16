@@ -66,3 +66,9 @@ Notes:
 - Packaged binaries: `<process.resourcesPath>/bin`
 - Development binaries: `<appPath>/resources/bin/<platform>/<arch>`
 - Genesis files: `<process.resourcesPath>/genesis` (packaged) or `<appPath>/resources/genesis` (dev)
+
+## Runtime settings (DB-backed)
+
+- `monitoringInterval` (ms, 5000-60000):
+  controls main-process status monitor frequency and renderer polling frequency for nodes/validators
+  pages (`Nodes`, `Node View`, `Validators`, `Validator View`, validators statistics/filters).

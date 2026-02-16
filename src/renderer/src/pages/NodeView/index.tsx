@@ -36,6 +36,7 @@ import { NodeViewValidator } from '@renderer/containers/Node/NodeViewValidator'
 import { NodeViewWorkers } from '@renderer/containers/Node/NodeViewWorkers'
 import { NodeViewStatistics } from '@renderer/containers/Node/NodeViewStatistics'
 import { useGetById, useControl } from '@renderer/hooks/node'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 import { Node, DownloadStatus, Action, Type } from '@renderer/types/node'
 import { getActions } from '@renderer/helpers/node'
 import { getViewLink } from '@renderer/helpers/navigation'
@@ -94,11 +95,18 @@ const getTabs = (node?: Node) => {
 export const NodeViewPage = () => {
   const nodeId = useParams()?.id
   const [removeId, setRemoveId] = useState<string | undefined>(undefined)
-  const { isLoading, data: node, error } = useGetById(nodeId, { refetchInterval: 1000 })
+  const [activeKey, setActiveKey] = useState('1')
+  const monitoringInterval = useMonitoringInterval()
+  const {
+    isLoading,
+    data: node,
+    error
+  } = useGetById(nodeId, {
+    refetchInterval: monitoringInterval
+  })
   const { onStop, onRestart, onStart, status } = useControl(nodeId)
 
   const tabs = useMemo(() => getTabs(node), [node])
-  const [activeKey, setActiveKey] = useState(tabs[0].key)
   const onTabChange = (newActiveKey: string) => setActiveKey(newActiveKey)
 
   const actions = getActions(node)

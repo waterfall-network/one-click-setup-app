@@ -19,7 +19,7 @@ import { WorkersListTable } from '@renderer/components/Workers/WorkersListTable/
 import { Flex } from '@renderer/ui-kit/Flex'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { useGoWorker } from '@renderer/hooks/workers'
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useDeferredValue } from 'react'
 import { ActionTxType } from '../../types/workers'
 import { ActionModal } from './ActionModal'
 import { MassActionModal } from './MassActionModal'
@@ -40,6 +40,7 @@ import { useGetStats } from '../../hooks/workers'
 import { Node } from '../../types/node'
 import { Empty } from '@renderer/ui-kit/Empty'
 import { Popover } from '@renderer/ui-kit/Popover'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 
 type WorkersListPropsT = {
   data?: Worker[]
@@ -88,6 +89,8 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
   activeFilterValues: activeFilterValuesProp,
   filters: filtersProp
 }) => {
+  const deferredData = useDeferredValue(data)
+  const monitoringInterval = useMonitoringInterval()
   const { goView } = useGoWorker()
   // Use filters from parent if provided, otherwise use local state
   const [localFilters, setLocalFilters] = useState<{
@@ -114,7 +117,7 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
 
   // Load statistics from server
   const { data: stats } = useGetStats({
-    refetchInterval: 5000,
+    refetchInterval: monitoringInterval,
     nodeId,
     filters
   })
@@ -145,13 +148,13 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
     } else {
       // Mark as "select all" - when opening mass action modal, we'll load all workers
       const allIds = new Set<number | bigint>()
-      if (data) {
-        data.forEach((worker) => allIds.add(worker.id))
+      if (deferredData) {
+        deferredData.forEach((worker) => allIds.add(worker.id))
       }
       setSelectedWorkerIds(allIds)
       setIsSelectAll(true)
     }
-  }, [isSelectAll, data])
+  }, [isSelectAll, deferredData])
 
   const loadSelectedWorkers = useCallback(
     async (
@@ -209,7 +212,7 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
         ?.map((nodeName) => {
           const node =
             nodes?.find((n) => n.name === nodeName) ||
-            data?.find((w) => w.node?.name === nodeName)?.node
+            deferredData?.find((w) => w.node?.name === nodeName)?.node
           return node?.id
         })
         .filter((id) => id !== undefined) as (number | bigint)[] | undefined
@@ -228,7 +231,7 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
         setLocalFilters(updatedFilters)
       }
     },
-    [data, nodes, onActiveFilterValuesChange, onDataChange]
+    [deferredData, nodes, onActiveFilterValuesChange, onDataChange]
   )
 
   useEffect(() => {
@@ -238,6 +241,24 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
     }
   }, [massActionModal.action])
 
+  const tableFilters = useMemo(
+    () =>
+      stats
+        ? {
+            status: Object.keys(stats.filters.status).map((key) => ({
+              text: `${key}(${stats.filters.status[key]})`,
+              value: key
+            })),
+            node: Object.keys(stats.filters.node).map((key) => ({
+              text: `${key}(${stats.filters.node[key]})`,
+              value: key
+            }))
+          }
+        : undefined,
+    [stats]
+  )
+  const selectedRowKeys = useMemo(() => Array.from(selectedWorkerIds), [selectedWorkerIds])
+
   if (shouldAddNode)
     return (
       <Empty description={<span>Nothing to display here. Please add your first Node</span>}>
@@ -246,7 +267,7 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
         </Flex>
       </Empty>
     )
-  if (!data?.length)
+  if (!deferredData?.length)
     return (
       <Empty description={<span>Nothing to display here. Please add your Validators</span>}></Empty>
     )
@@ -319,21 +340,8 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
         </SelectedCount>
       </MassAction>
       <WorkersListTable
-        data={data}
-        filters={
-          stats
-            ? {
-                status: Object.keys(stats.filters.status).map((key) => ({
-                  text: `${key}(${stats.filters.status[key]})`,
-                  value: key
-                })),
-                node: Object.keys(stats.filters.node).map((key) => ({
-                  text: `${key}(${stats.filters.node[key]})`,
-                  value: key
-                }))
-              }
-            : undefined
-        }
+        data={deferredData}
+        filters={tableFilters}
         rewardAmount={stats?.rewardAmount || 0}
         onRowClick={goView}
         onAction={onActionModalChange}
@@ -348,7 +356,7 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
               }
             : undefined
         }
-        selectedRowKeys={Array.from(selectedWorkerIds)}
+        selectedRowKeys={selectedRowKeys}
         onFiltersChange={handleFiltersChange}
         activeFilters={activeFilterValues || {}}
       />

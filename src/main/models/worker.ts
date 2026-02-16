@@ -181,6 +181,14 @@ class WorkerModel {
     this.db = db
   }
 
+  private hasComputedFilters(filters?: FilterOptions): boolean {
+    return !!(
+      (filters?.status && filters.status.length > 0) ||
+      filters?.rewardMin !== undefined ||
+      filters?.rewardMax !== undefined
+    )
+  }
+
   public insert(workers: NewWorker[], node: Node): Worker[] {
     if (!this.db) {
       return []
@@ -324,12 +332,21 @@ class WorkerModel {
     }
     let query = 'SELECT * FROM workers'
     const params: (number | bigint)[] = []
+    const hasComputedFilters = this.hasComputedFilters(options?.filters)
 
     // Apply nodeId filter in SQL if provided
     if (options?.filters?.nodeId && options.filters.nodeId.length > 0) {
       const placeholders = options.filters.nodeId.map(() => '?').join(',')
       query += ` WHERE nodeId IN (${placeholders})`
       params.push(...options.filters.nodeId)
+    }
+
+    // Fast path: when no computed filters are active, let SQLite do pagination.
+    if (!hasComputedFilters && options?.limit !== undefined) {
+      const limit = options.limit
+      const offset = options.page !== undefined ? (options.page - 1) * limit : 0
+      query += ' LIMIT ? OFFSET ?'
+      params.push(limit, offset)
     }
 
     const res = this.db.prepare(query)
@@ -386,8 +403,8 @@ class WorkerModel {
       })
     }
 
-    // Apply pagination after filtering
-    if (options?.limit !== undefined) {
+    // Apply pagination in JS only when computed filters are active.
+    if (hasComputedFilters && options?.limit !== undefined) {
       const limit = options.limit
       const offset = options.page !== undefined ? (options.page - 1) * limit : 0
       workers = workers.slice(offset, offset + limit)
@@ -437,6 +454,7 @@ class WorkerModel {
     let query = 'SELECT * FROM workers'
     const params: (number | bigint | string)[] = []
     const conditions: string[] = []
+    const hasComputedFilters = this.hasComputedFilters(options?.filters)
 
     if (options?.nodeId !== undefined) {
       conditions.push('nodeId = ?')
@@ -454,7 +472,19 @@ class WorkerModel {
     }
 
     if (conditions.length > 0) {
-      query = query.replace('SELECT *', 'SELECT *') + ' WHERE ' + conditions.join(' AND ')
+      query += ' WHERE ' + conditions.join(' AND ')
+    }
+
+    if (!hasComputedFilters) {
+      const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count')
+      try {
+        const stmt = this.db.prepare(countQuery)
+        const result = stmt.get(...params) as { count: number } | undefined
+        return result?.count ?? 0
+      } catch (error) {
+        log.error(error)
+        return null
+      }
     }
 
     try {
@@ -541,12 +571,6 @@ class WorkerModel {
     try {
       const stmt = this.db.prepare(query)
       let workers = stmt.all(...params) as Worker[]
-
-      // Parse delegate JSON
-      workers = workers.map((worker) => ({
-        ...worker,
-        delegate: worker.delegate ? JSON.parse(worker.delegate) : null
-      }))
 
       // Load nodes for filtering and reward calculation
       const nodeModel = new NodeModel(this.db)

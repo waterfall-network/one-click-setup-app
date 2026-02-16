@@ -33,6 +33,11 @@ export const useGetSettings = () => {
   })
 }
 
+export const useMonitoringInterval = (): number => {
+  const { data } = useGetSettings()
+  return data?.monitoringInterval ?? 12000
+}
+
 export const useUpdateSettings = () => {
   const queryClient = useQueryClient()
 

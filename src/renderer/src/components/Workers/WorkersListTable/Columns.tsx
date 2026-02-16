@@ -41,8 +41,8 @@ import { ActionTxType } from '../../../types/workers'
 import { getNodeStatus } from '../../../helpers/node'
 import { Status as NodeStatus } from '../../../types/node'
 import { Input } from '@renderer/ui-kit/Input'
-import { Popover } from '@renderer/ui-kit/Popover'
 import { LiveValue } from '@renderer/ui-kit/LiveValue'
+import { Popover } from '@renderer/ui-kit/Popover'
 
 export type DataType = Worker &
   WorkersListDataTypes & {
@@ -113,8 +113,11 @@ export const columns = ({
     key: WorkersListDataFields.status,
     render: (_, worker) => {
       const statusLabel = getStatusLabel(worker)
-      return <LiveValue value={statusLabel}>{statusLabel}</LiveValue>
+      return statusLabel
     },
+    shouldCellUpdate: (record, prevRecord) =>
+      record.coordinatorStatus !== prevRecord.coordinatorStatus ||
+      record.validatorStatus !== prevRecord.validatorStatus,
     filters: filters.status,
     filteredValue: filteredValues?.status ?? null,
     onFilter: (value, worker) => getStatusLabel(worker) === value
@@ -136,8 +139,12 @@ export const columns = ({
           ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
           : parseFloat(worker.coordinatorBalanceAmount)
       ).toFixed(2)
-      return <LiveValue value={rewardValue}>{rewardValue}</LiveValue>
+      return rewardValue
     },
+    shouldCellUpdate: (record, prevRecord) =>
+      record.coordinatorBalanceAmount !== prevRecord.coordinatorBalanceAmount ||
+      record.coordinatorStatus !== prevRecord.coordinatorStatus ||
+      record.validatorStatus !== prevRecord.validatorStatus,
     filterDropdown: ({ confirm }) => {
       const [minValue, setMinValue] = React.useState<string>('')
       const [maxValue, setMaxValue] = React.useState<string>('')
@@ -248,6 +255,7 @@ export const columns = ({
                 placement="bottom"
               >
                 <IconButton
+                  title="Activate"
                   disabled={worker?.node && getNodeStatus(worker?.node) !== NodeStatus.running}
                   icon={<CaretRightOutlined />}
                   shape="default"
@@ -262,6 +270,7 @@ export const columns = ({
                 placement="bottom"
               >
                 <IconButton
+                  title="Deactivate"
                   disabled={worker?.node && getNodeStatus(worker?.node) !== NodeStatus.running}
                   icon={<CloseOutlined />}
                   shape="default"
@@ -276,6 +285,7 @@ export const columns = ({
                 placement="bottom"
               >
                 <IconButton
+                  title="Withdraw"
                   disabled={worker?.node && getNodeStatus(worker?.node) !== NodeStatus.running}
                   icon={<WalletOutlined />}
                   shape="default"
@@ -289,6 +299,7 @@ export const columns = ({
               placement="bottom"
             >
               <IconButton
+                title="Delete"
                 disabled={!actions[ActionTxType.remove]}
                 icon={<DeleteOutlined />}
                 shape="default"
@@ -300,6 +311,12 @@ export const columns = ({
           </Flex>
         </Flex>
       )
-    }
+    },
+    shouldCellUpdate: (record, prevRecord) =>
+      record.coordinatorStatus !== prevRecord.coordinatorStatus ||
+      record.validatorStatus !== prevRecord.validatorStatus ||
+      record.node?.coordinatorStatus !== prevRecord.node?.coordinatorStatus ||
+      record.node?.coordinatorValidatorStatus !== prevRecord.node?.coordinatorValidatorStatus ||
+      record.node?.validatorStatus !== prevRecord.node?.validatorStatus
   }
 ]

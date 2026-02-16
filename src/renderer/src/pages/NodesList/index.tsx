@@ -24,9 +24,11 @@ import { PageBody } from '@renderer/components/Page/Body'
 import { routes } from '@renderer/constants/navigation'
 
 import { useGetAll, useGoNode } from '@renderer/hooks/node'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 
 export const NodeListPage = () => {
-  const { isLoading, data, error } = useGetAll({ refetchInterval: 5000 })
+  const monitoringInterval = useMonitoringInterval()
+  const { isLoading, data, error } = useGetAll({ refetchInterval: monitoringInterval })
   const { goView } = useGoNode()
   const breadcrumb = [
     {

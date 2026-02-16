@@ -25,6 +25,7 @@ import { addParams } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { WorkersList } from '@renderer/containers/Workers/WorkersList'
 import { useGetAllByNodeId } from '../../hooks/workers'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 import { keyframes, styled } from 'styled-components'
 import { SearchKeys } from '../../constants/navigation'
 import { Spin } from '@renderer/ui-kit/Spin'
@@ -32,6 +33,7 @@ import { Spin } from '@renderer/ui-kit/Spin'
 export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(100)
+  const monitoringInterval = useMonitoringInterval()
   const [filters, setFilters] = useState<{
     status?: string[]
     nodeId?: (number | bigint)[]
@@ -44,7 +46,7 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
     reward?: { min?: number; max?: number }
   }>({})
   const { isLoading, data, total, error } = useGetAllByNodeId(item?.id.toString(), {
-    refetchInterval: 5000,
+    refetchInterval: monitoringInterval,
     page,
     limit: pageSize,
     filters

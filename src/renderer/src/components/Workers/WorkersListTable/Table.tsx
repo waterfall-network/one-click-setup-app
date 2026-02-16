@@ -16,7 +16,7 @@
  */
 import { Table } from '@renderer/ui-kit/Table'
 import { ColumnFilterItem } from 'antd/es/table/interface'
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { columns } from './Columns'
 import { ActionTxType, Worker } from '../../../types/workers'
 import { LiveValue } from '@renderer/ui-kit/LiveValue'
@@ -46,7 +46,7 @@ type WorkersListTablePropsT = {
   activeFilters?: { status?: string[]; node?: string[]; reward?: { min?: number; max?: number } } // Active filters from parent to sync
 }
 
-export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
+const WorkersListTableBase: React.FC<WorkersListTablePropsT> = ({
   data,
   filters: filtersProp,
   rewardAmount: rewardAmountProp,
@@ -61,14 +61,14 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
   // Use activeFilters from parent as source of truth - no local state
   // This ensures filters persist across component remounts
   const currentFilters = activeFilters || {}
-  const dataSource = useMemo(
-    () => (data ? data.map((item) => ({ ...item, key: `${item.id}` })) : []),
-    [data]
+  const dataSource = useMemo(() => data || [], [data])
+  const onActivate = useCallback((id?: string) => onAction(ActionTxType.activate, id), [onAction])
+  const onDeactivate = useCallback(
+    (id?: string) => onAction(ActionTxType.deActivate, id),
+    [onAction]
   )
-  const onActivate = (id?: string) => onAction(ActionTxType.activate, id)
-  const onDeactivate = (id?: string) => onAction(ActionTxType.deActivate, id)
-  const onWithdraw = (id?: string) => onAction(ActionTxType.withdraw, id)
-  const onRemove = (id?: string) => onAction(ActionTxType.remove, id)
+  const onWithdraw = useCallback((id?: string) => onAction(ActionTxType.withdraw, id), [onAction])
+  const onRemove = useCallback((id?: string) => onAction(ActionTxType.remove, id), [onAction])
 
   // Use provided filters and rewardAmount from server
   const filters = filtersProp || { status: [], node: [] }
@@ -106,33 +106,39 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
     ]
   )
 
-  const rowSelection = {
-    selectedRowKeys: selectedRowKeys?.map((key) => key.toString()),
-    onChange: (selectedKeys: React.Key[]) => {
-      const keys = selectedKeys.map((key) => {
-        const numKey = typeof key === 'string' ? parseInt(key, 10) : key
-        return typeof numKey === 'number' && !isNaN(numKey) ? numKey : BigInt(key.toString())
-      })
-      onSelect?.(keys as (number | bigint)[])
-    }
-  }
+  const rowSelection = useMemo(
+    () => ({
+      selectedRowKeys: selectedRowKeys?.map((key) => key.toString()),
+      onChange: (selectedKeys: React.Key[]) => {
+        const keys = selectedKeys.map((key) => {
+          const numKey = typeof key === 'string' ? parseInt(key, 10) : key
+          return typeof numKey === 'number' && !isNaN(numKey) ? numKey : BigInt(key.toString())
+        })
+        onSelect?.(keys as (number | bigint)[])
+      }
+    }),
+    [onSelect, selectedRowKeys]
+  )
 
-  const handleTableChange = (paginationData, filtersData) => {
-    // Note: reward filter is handled separately via onRewardFilterChange in columns
-    const newFilters = {
-      status: filtersData?.status || [],
-      node: filtersData?.node || [],
-      reward: currentFilters?.reward // Keep existing reward filter
-    }
+  const handleTableChange = useCallback(
+    (paginationData, filtersData) => {
+      // Note: reward filter is handled separately via onRewardFilterChange in columns
+      const newFilters = {
+        status: filtersData?.status || [],
+        node: filtersData?.node || [],
+        reward: currentFilters?.reward // Keep existing reward filter
+      }
 
-    if (onFiltersChange) {
-      onFiltersChange(newFilters)
-    }
+      if (onFiltersChange) {
+        onFiltersChange(newFilters)
+      }
 
-    if (pagination && paginationData) {
-      pagination.onChange(paginationData.current || 1, paginationData.pageSize || 100)
-    }
-  }
+      if (pagination && paginationData) {
+        pagination.onChange(paginationData.current || 1, paginationData.pageSize || 100)
+      }
+    },
+    [currentFilters?.reward, onFiltersChange, pagination]
+  )
 
   const paginationConfig = pagination
     ? {
@@ -148,24 +154,33 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
       }
     : false
 
+  const handleRow = useCallback(
+    (record: Worker) => ({
+      style: {
+        cursor: 'pointer'
+      },
+      onClick: () => {
+        onRowClick(Number(record.id))
+      }
+    }),
+    [onRowClick]
+  )
+
   return (
     <Table
       dataSource={dataSource}
+      rowKey={(record) => record.id.toString()}
       columns={getColumns}
       rowSelection={{
         type: 'checkbox',
         ...rowSelection
       }}
       pagination={paginationConfig}
-      onRow={(record) => ({
-        style: {
-          cursor: 'pointer'
-        },
-        onClick: () => {
-          onRowClick(record.id)
-        }
-      })}
+      disableRowAnimation
+      onRow={handleRow}
       onChange={handleTableChange}
     />
   )
 }
+
+export const WorkersListTable = React.memo(WorkersListTableBase)

@@ -25,6 +25,7 @@ import { WorkersList } from '@renderer/containers/Workers/WorkersList'
 import { routes } from '@renderer/constants/navigation'
 import { useGetAll } from '@renderer/hooks/workers'
 import { useGetAll as useGetAllNode } from '@renderer/hooks/node'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 import { SearchKeys } from '../../constants/navigation'
 import { addParams } from '@renderer/helpers/navigation'
 import { useState } from 'react'
@@ -32,6 +33,7 @@ import { useState } from 'react'
 export const WorkersListPage = () => {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(100)
+  const monitoringInterval = useMonitoringInterval()
   const [filters, setFilters] = useState<{
     status?: string[]
     nodeId?: (number | bigint)[]
@@ -45,7 +47,7 @@ export const WorkersListPage = () => {
     reward?: { min?: number; max?: number }
   }>({})
   const { isLoading, data, total, error } = useGetAll({
-    refetchInterval: 5000,
+    refetchInterval: monitoringInterval,
     page,
     limit: pageSize,
     filters
