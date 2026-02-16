@@ -28,7 +28,7 @@ export const UpdateApp = ({ status }: UpdateAppProps) => {
   return (
     <main className={panelClassName}>
       <div className="brand">
-        <img className="brand-logo" src="/logo.svg" alt="Waterfall logo" />
+        <img className="brand-logo" src="./logo.svg" alt="Waterfall logo" />
         <span>Waterfall</span>
       </div>
       <h1>{status.title}</h1>
