@@ -15,7 +15,7 @@
  *
  */
 import { FOOTER_HEIGHT } from '@renderer/constants/layout'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import React from 'react'
 import { styled } from 'styled-components'
 
@@ -41,12 +41,12 @@ const StyledFooter = styled(Layout.Footer)`
   height: ${FOOTER_HEIGHT}px;
   background-color: ${({ theme }) => theme.palette.background.lightGray};
   color: ${({ theme }) => theme.palette.text.black};
-  border-top: 1px solid
-    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.12)')};
+  border-top: 1px solid ${({ theme }) => theme.palette.semantic.chrome.footerTopBorder};
   padding: 0 10px 0 0;
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
+  backdrop-filter: blur(6px);
 `
 
 const SidePart = styled.div`
@@ -57,6 +57,7 @@ const SidePart = styled.div`
   align-items: center;
   padding: 0 12px;
   box-sizing: border-box;
+  border-right: 1px solid ${({ theme }) => theme.palette.semantic.chrome.footerSideBorder};
 `
 
 const Main = styled.div`

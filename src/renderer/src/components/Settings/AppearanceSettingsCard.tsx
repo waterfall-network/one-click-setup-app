@@ -14,8 +14,11 @@
  * limitations under the License.
  *
  */
-import { Card, Radio, Space, Typography } from 'antd'
 import { ThemeMode } from '@renderer/types/settings'
+import { Card } from '@renderer/ui-kit/Card'
+import { RadioButton, RadioGroup } from '@renderer/ui-kit/Radio'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 interface AppearanceSettingsCardProps {
   theme: ThemeMode
@@ -25,21 +28,38 @@ interface AppearanceSettingsCardProps {
 export const AppearanceSettingsCard = ({ theme, onThemeChange }: AppearanceSettingsCardProps) => {
   return (
     <Card title="Appearance">
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        <Typography.Text strong>Theme</Typography.Text>
-        <Radio.Group
+      <Container>
+        <Label>Theme</Label>
+        <RadioGroup
           value={theme}
           onChange={(event) => {
             onThemeChange(event.target.value as ThemeMode)
           }}
         >
-          <Space>
-            <Radio.Button value="light">Light</Radio.Button>
-            <Radio.Button value="dark">Dark</Radio.Button>
-            <Radio.Button value="system">System</Radio.Button>
-          </Space>
-        </Radio.Group>
-      </Space>
+          <ButtonsRow>
+            <RadioButton value="light">Light</RadioButton>
+            <RadioButton value="dark">Dark</RadioButton>
+            <RadioButton value="system">System</RadioButton>
+          </ButtonsRow>
+        </RadioGroup>
+      </Container>
     </Card>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const ButtonsRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`
+
+const Label = styled(Text)`
+  font-weight: 600;
+`

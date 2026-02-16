@@ -14,8 +14,11 @@
  * limitations under the License.
  *
  */
-import { Modal, Progress, Space, Typography } from 'antd'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { Modal } from '@renderer/ui-kit/Modal'
+import { Progress } from '@renderer/ui-kit/Progress'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 export interface SyncProgressState {
   open: boolean
@@ -57,27 +60,38 @@ export const SyncProgressModal = ({ value, onClose }: SyncProgressModalProps) =>
             ]
       }
     >
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+      <Container>
         <Progress
           percent={value.percent}
           status={
             value.status === 'error' ? 'exception' : value.status === 'done' ? 'success' : 'active'
           }
         />
-        <Typography.Text>{value.message}</Typography.Text>
+        <Text>{value.message}</Text>
         {value.status !== 'running' && (
-          <Typography.Text type="secondary">
+          <Hint size="sm">
             {value.mode === 'export' ? 'Exported' : 'Imported'} nodes: {value.nodes}, validators:{' '}
             {value.validators}
-          </Typography.Text>
+          </Hint>
         )}
         {value.status === 'done' && value.mode === 'export' && value.exportPath && (
-          <Typography.Text type="secondary">Exported to: {value.exportPath}</Typography.Text>
+          <Hint size="sm">Exported to: {value.exportPath}</Hint>
         )}
         {value.status === 'done' && value.mode === 'import' && value.importPath && (
-          <Typography.Text type="secondary">Imported from: {value.importPath}</Typography.Text>
+          <Hint size="sm">Imported from: {value.importPath}</Hint>
         )}
-      </Space>
+      </Container>
     </Modal>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const Hint = styled(Text)`
+  color: ${({ theme }) => theme.palette.text.gray};
+`

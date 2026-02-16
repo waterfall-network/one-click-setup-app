@@ -17,8 +17,10 @@
 import { useMemo, useState } from 'react'
 import { PageBody } from '@renderer/components/Page/Body'
 import { PageHeader } from '@renderer/components/Page/Header'
-import { Flex, Layout, Popover } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { IconButton } from '@renderer/ui-kit/Button'
+import { Popover } from '@renderer/ui-kit/Popover'
 import {
   CloseOutlined,
   CaretRightOutlined,

@@ -14,15 +14,18 @@
  * limitations under the License.
  *
  */
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PageHeader } from '../Page/Header'
+import { PageBody } from '../Page/Body'
 import { Content } from './Content'
 
 export const Page = ({ title }) => {
   return (
     <Layout>
       <PageHeader title={title} />
-      <Content />
+      <PageBody>
+        <Content />
+      </PageBody>
     </Layout>
   )
 }

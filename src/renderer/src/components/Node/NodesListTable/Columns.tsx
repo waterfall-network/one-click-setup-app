@@ -14,10 +14,10 @@
  * limitations under the License.
  *
  */
-import { TableColumnsType } from 'antd'
 import { NodesListDataTypes, NodesListDataFields, Node } from '@renderer/types/node'
 import { getDateTime } from '@renderer/helpers/date'
 import { getNodeStatusLabel } from '@renderer/helpers/node'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 
 export type DataType = Node &
   NodesListDataTypes & {

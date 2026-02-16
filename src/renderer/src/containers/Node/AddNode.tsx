@@ -17,7 +17,14 @@
 import React from 'react'
 import { NodeAddForm } from '@renderer/components/Node/AddNode/Form'
 import { useAddNode } from '@renderer/hooks/node'
-import { AddNodeFields, NewNode, CheckPorts, DownloadStatus, Type } from '@renderer/types/node'
+import {
+  AddNodeFields,
+  NewNode,
+  CheckPorts,
+  DownloadStatus,
+  Type,
+  PortsNodeFields
+} from '@renderer/types/node'
 import {
   NodeNetworkInput,
   NodeDataFolderInput,
@@ -27,13 +34,15 @@ import {
   NodePortInput,
   NodePreview
 } from '@renderer/components/Node/AddNode/Inputs'
-import { StepsWithActiveContent } from '@renderer/ui-kit/Steps/Steps'
+import { StepsWithActiveContent } from '@renderer/ui-kit/Steps'
 import { Snapshot } from '../../types/node'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SearchKeys } from '@renderer/constants/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { addParams } from '@renderer/helpers/navigation'
 import { AddNodeStepKeys, getAddNodeSteps } from '@renderer/helpers/node'
+import { styled } from 'styled-components'
+import { Alert } from '@renderer/ui-kit/Alert'
 
 export const AddNode: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -210,14 +219,13 @@ const FolderSelection: React.FC<
         // error={'The directory and network does not match'}
       />
       {snapshot && (
-        <>
-          <br />
+        <SnapshotBlock>
           <NodeSnapshotInput
             value={isSnapshot}
             handleChange={onSelectSnapshot}
             snapshot={snapshot}
           />
-        </>
+        </SnapshotBlock>
       )}
     </NodeAddForm>
   )
@@ -231,8 +239,18 @@ const PortsSelection: React.FC<PortsSelectionT> = ({
   goNextStep,
   goPrevStep
 }) => {
+  const hasBusyPorts = Boolean(
+    checkPorts &&
+    Object.values(PortsNodeFields).some((field) => checkPorts[field as PortsNodeFields] === false)
+  )
+
   return (
-    <NodeAddForm title="Select ports" goNext={goNextStep} goPrev={goPrevStep}>
+    <NodeAddForm
+      title="Select ports"
+      goNext={goNextStep}
+      goPrev={goPrevStep}
+      canGoNext={!hasBusyPorts}
+    >
       <NodePortInput
         label="Coordinator P2P Tcp"
         handleChange={handleChange(AddNodeFields.coordinatorP2PTcpPort)}
@@ -282,6 +300,12 @@ const PortsSelection: React.FC<PortsSelectionT> = ({
         isCheck={checkPorts ? !!checkPorts[AddNodeFields.validatorWsApiPort] : true}
         onCheck={onCheckPorts}
       />
+      {hasBusyPorts && (
+        <Alert
+          type="warning"
+          title="One or more selected ports are already in use. Update ports or stop conflicting services."
+        />
+      )}
     </NodeAddForm>
   )
 }
@@ -332,6 +356,7 @@ const Preview: React.FC<PreviewPropsT> = ({ values, goNextStep, goPrevStep, isLo
       goPrev={goPrevStep}
       canGoNext={canGoNext}
       isLoading={isLoading}
+      showActionsDivider={false}
     >
       <NodePreview values={values} />
     </NodeAddForm>
@@ -367,3 +392,7 @@ type SelectionBasePropsT = {
   goNextStep: () => void | Promise<void>
   goPrevStep: () => void
 }
+
+const SnapshotBlock = styled.div`
+  margin-top: 14px;
+`

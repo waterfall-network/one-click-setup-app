@@ -15,7 +15,8 @@
  *
  */
 import { PageHeader } from '@renderer/components/Page/Header'
-import { Flex, Layout } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { Alert } from '@renderer/ui-kit/Alert'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { PlusCircleOutlined, ImportOutlined } from '@ant-design/icons'

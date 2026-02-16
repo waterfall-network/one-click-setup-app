@@ -57,5 +57,12 @@
 
 - Routing: `react-router-dom` with hash routing
 - Server state: `@tanstack/react-query`
-- Styling: `styled-components` + custom UI kit + Ant Design usage
+- Styling: `styled-components` + custom `ui-kit` wrappers (built on top of Ant Design)
+- Theme system:
+  - `src/renderer/src/providers/AppThemeProvider.tsx` composes Styled Components theme + Ant Design `ConfigProvider`.
+  - `src/renderer/src/ui-kit/theme/palette.ts` defines app-level light/dark palette used by styled components.
+  - `src/renderer/src/ui-kit/theme/antd.ts` defines Ant Design light/dark tokens and component overrides.
+- Motion system:
+  - UI transitions are defined in shared UI components (`ui-kit` and page shell) and respect `prefers-reduced-motion`.
+  - Visual behavior is theme-token driven, so component logic is shared between light and dark modes.
 - IPC access: thin API wrappers in `src/renderer/src/api/*`

@@ -17,7 +17,8 @@
 import React from 'react'
 import { EarnedTableDataTypes } from '@renderer/types/statistics'
 import { Title } from '@renderer/ui-kit/Typography'
-import { Flex, Table } from 'antd'
+import { Table } from '@renderer/ui-kit/Table'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { styled } from 'styled-components'
 import { StockOutlined } from '@ant-design/icons'
 

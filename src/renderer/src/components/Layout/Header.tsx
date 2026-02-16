@@ -16,7 +16,8 @@
  */
 import React from 'react'
 import styled from 'styled-components'
-import { Layout, Flex } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
+import { Flex } from '@renderer/ui-kit/Flex'
 import LogoSrc from '/logo.svg'
 import { LayoutHeaderActionT } from '@renderer/types/layout'
 import { IconButton } from '@renderer/ui-kit/Button'
@@ -47,33 +48,34 @@ export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightA
 
 const Button = styled(IconButton)`
   -webkit-app-region: no-drag;
-  ${({ theme }) =>
-    theme.mode === 'dark'
-      ? `
-    background: transparent !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  .anticon {
+    color: ${({ theme }) => theme.palette.text.white} !important;
+  }
+  &:hover,
+  &:focus,
+  &:active {
+    background: ${({ theme }) => theme.palette.semantic.headerBar.actionHoverBackground} !important;
     border-color: transparent !important;
-    box-shadow: none !important;
-    .anticon {
-      color: ${theme.palette.text.white} !important;
-    }
-    &:hover,
-    &:focus,
-    &:active {
-      background: rgba(255, 255, 255, 0.12) !important;
-      border-color: transparent !important;
-    }
-  `
-      : ''}
+  }
 `
 
 const AppHeader = styled(Layout.Header)`
   height: 40px;
-  background-color: ${({ theme }) => theme.palette.background.blue};
+  background: linear-gradient(
+    90deg,
+    ${({ theme }) => theme.palette.semantic.headerBar.backgroundStart} 0%,
+    ${({ theme }) => theme.palette.semantic.headerBar.backgroundEnd} 100%
+  );
   -webkit-app-region: drag;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 10px;
+  border-bottom: 1px solid ${({ theme }) => theme.palette.semantic.headerBar.borderBottom};
+  backdrop-filter: blur(6px);
 `
 
 const AppTitle = styled(Text).attrs({

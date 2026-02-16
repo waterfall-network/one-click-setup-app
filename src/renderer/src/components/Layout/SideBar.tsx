@@ -15,22 +15,43 @@
  *
  */
 import React, { PropsWithChildren } from 'react'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { styled } from 'styled-components'
 const { Sider } = Layout
 
 type AppSideBarProps = PropsWithChildren
 
 export const AppSideBar: React.FC<AppSideBarProps> = ({ children }) => {
-  return <StyledSider>{children}</StyledSider>
+  return (
+    <StyledSider>
+      <GlassPanel>{children}</GlassPanel>
+    </StyledSider>
+  )
 }
 
 const StyledSider = styled(Sider)`
   display: flex;
-  justify-content: center;
-  background-color: ${({ theme }) => theme.palette.background.gray} !important;
-  min-width: 200px !important;
+  justify-content: stretch;
+  align-items: stretch;
+  background: transparent !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  padding: 12px 10px;
+
   .ant-layout-sider-children {
     width: 100%;
+    display: flex;
   }
+`
+
+const GlassPanel = styled.div`
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.sidebar.panelBorder};
+  background: ${({ theme }) => theme.palette.semantic.sidebar.panelBackground};
+  box-shadow: ${({ theme }) => theme.palette.semantic.sidebar.panelShadow};
+  backdrop-filter: blur(18px) saturate(138%);
+  -webkit-backdrop-filter: blur(18px) saturate(138%);
+  display: flex;
+  min-height: 0;
 `

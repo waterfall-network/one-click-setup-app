@@ -16,8 +16,8 @@
  */
 import React from 'react'
 
-import { TableColumnsType } from 'antd'
 import { Table } from '@renderer/ui-kit/Table'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 import { DisplayKeysDataType, DisplayKeysFields } from '@renderer/types/workers'
 
 type DataType = DisplayKeysDataType & {

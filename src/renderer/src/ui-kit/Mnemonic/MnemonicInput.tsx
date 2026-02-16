@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-import { Input } from 'antd'
 import React, { useRef } from 'react'
 import { styled } from 'styled-components'
+import { Input } from '@renderer/ui-kit/Input'
 
 type GenerateMnemonicPropsT = {
   value: Record<number, string>
@@ -83,8 +83,7 @@ const PhraseInput = styled(Input)`
   width: 90%;
   text-align: center;
   border: none;
-  border-bottom: 1px solid
-    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)')};
+  border-bottom: 1px solid ${({ theme }) => theme.palette.semantic.mnemonic.inputBorder};
   border-radius: 0;
   outline: none;
   box-shadow: unset !important;

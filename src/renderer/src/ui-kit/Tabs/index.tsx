@@ -16,7 +16,7 @@
  */
 import { Tabs as AntdTabs, Flex, TabsProps } from 'antd'
 import React, { PropsWithChildren } from 'react'
-import { styled } from 'styled-components'
+import { keyframes, styled } from 'styled-components'
 import { Text } from '../Typography'
 
 export const Tabs: React.FC<TabsProps> = ({ ...props }) => {
@@ -27,8 +27,20 @@ export const Tabs: React.FC<TabsProps> = ({ ...props }) => {
   )
 }
 
-export const TabContent: React.FC<PropsWithChildren> = ({ children, ...props }) => {
-  return <TabContentWrapper {...props}>{children}</TabContentWrapper>
+type TabContentProps = PropsWithChildren<{
+  variant?: 'text' | 'table'
+}>
+
+export const TabContent: React.FC<TabContentProps> = ({
+  children,
+  variant = 'table',
+  ...props
+}) => {
+  return (
+    <TabContentWrapper $variant={variant} {...props}>
+      {children}
+    </TabContentWrapper>
+  )
 }
 
 export const TabTextRow: React.FC<{ label: string; value?: string | number | React.ReactNode }> = ({
@@ -54,23 +66,133 @@ export const TabTextColumn: React.FC<{
   )
 }
 
+const tabPaneReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const sectionReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const tabActivePop = keyframes`
+  from {
+    transform: translateY(1px) scale(0.985);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+`
+
 const TabsWrapper = styled.div`
   .ant-tabs-nav-add {
     display: none;
   }
+
   .ant-tabs-nav {
-    margin-bottom: 0 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .ant-tabs-ink-bar {
+    transition:
+      width 220ms ease,
+      transform 220ms ease;
+  }
+
+  .ant-tabs-tab {
+    border-radius: 10px 10px 0 0;
+    padding: 8px 12px !important;
+    border: 1px solid transparent;
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .ant-tabs-tab .ant-tabs-tab-btn {
+    transition: color 180ms ease;
+  }
+
+  .ant-tabs-tab:hover {
+    transform: translateY(-1px);
+  }
+
+  .ant-tabs-tab-active {
+    background: ${({ theme }) => theme.palette.semantic.tabs.activeTabBackground};
+    border-color: ${({ theme }) => theme.palette.semantic.card.headerBorder};
+    border-bottom-color: transparent;
+    animation: ${tabActivePop} 180ms ease-out both;
+  }
+
+  .ant-tabs-tabpane-active {
+    animation: ${tabPaneReveal} 180ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ant-tabs-ink-bar {
+      transition: none;
+    }
+
+    .ant-tabs-tab {
+      transition: none;
+    }
+
+    .ant-tabs-tab:hover {
+      transform: none;
+    }
+
+    .ant-tabs-tab-active {
+      animation: none;
+    }
+
+    .ant-tabs-tabpane-active {
+      animation: none;
+    }
   }
 `
 
 const StyledTabs = styled(AntdTabs)``
 
-const TabContentWrapper = styled.div`
-  padding: 30px 30px 15px 5px;
-  /* border: 1px solid ${({ theme }) => theme.palette.background.gray}; */
+const TabContentWrapper = styled.div<{ $variant: 'text' | 'table' }>`
+  padding: 24px ${({ $variant }) => ($variant === 'text' ? '24px' : '0')} 14px;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.palette.semantic.tabs.contentBackground};
 
-  border-bottom-right-radius: 4px;
-  border-bottom-left-radius: 4px;
+  > * {
+    animation: ${sectionReveal} 180ms ease-out both;
+  }
+
+  > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  > *:nth-child(2) {
+    animation-delay: 45ms;
+  }
+  > *:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  > *:nth-child(4) {
+    animation-delay: 135ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    > * {
+      animation: none;
+    }
+  }
 `
 
 const TextItem = styled(Flex)`

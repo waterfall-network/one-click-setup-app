@@ -21,7 +21,7 @@ import { getEpochFromSlot, getSlotFromEpoch } from '@renderer/helpers/network'
 
 export const NodeViewCoordinator: React.FC<NodeViewTabProps> = ({ item }) => {
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow label="Status" value={item?.coordinatorStatus} />
       <TabTextRow label="Peers" value={item?.coordinatorPeersCount} />
       <TabTextRow

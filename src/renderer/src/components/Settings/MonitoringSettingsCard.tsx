@@ -14,7 +14,10 @@
  * limitations under the License.
  *
  */
-import { Card, Slider, Space, Typography } from 'antd'
+import { Card } from '@renderer/ui-kit/Card'
+import { Slider } from '@renderer/ui-kit/Slider'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 interface MonitoringSettingsCardProps {
   monitoringInterval: number
@@ -33,10 +36,8 @@ export const MonitoringSettingsCard = ({
 }: MonitoringSettingsCardProps) => {
   return (
     <Card title="Monitoring">
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        <Typography.Text>
-          Status polling interval: {Math.round(monitoringInterval / 1000)} sec
-        </Typography.Text>
+      <Container>
+        <Text>Status polling interval: {Math.round(monitoringInterval / 1000)} sec</Text>
         <Slider
           min={intervalMin}
           max={intervalMax}
@@ -54,7 +55,14 @@ export const MonitoringSettingsCard = ({
             }
           }}
         />
-      </Space>
+      </Container>
     </Card>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`

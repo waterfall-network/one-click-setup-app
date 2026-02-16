@@ -48,17 +48,16 @@ import { selectFile } from '../api/os'
 import { chunkArray } from '../helpers/common'
 import { ethers } from 'ethers'
 
-// Calculate chunk size based on total number of workers
-// For small batches (up to 200) use small chunks for progress visibility
-// For larger batches use bigger chunks for better performance
+// Keep mass-action progress smooth by targeting ~1% movement per chunk.
+// Example: 190 workers -> chunk size 2 (~1.05% per progress update).
+// For very small batches we still send at least one operation per chunk.
+// For very large batches we cap chunk size to avoid oversized requests.
+const TARGET_PROGRESS_STEPS = 100
+const MAX_CHUNK_SIZE = 100
+
 const getChunkSize = (totalCount: number): number => {
-  if (totalCount <= 200) {
-    return 10
-  } else if (totalCount <= 500) {
-    return 50
-  } else {
-    return 100
-  }
+  const byProgressStep = Math.ceil(totalCount / TARGET_PROGRESS_STEPS)
+  return Math.min(MAX_CHUNK_SIZE, Math.max(1, byProgressStep))
 }
 
 const addInitialValues = {

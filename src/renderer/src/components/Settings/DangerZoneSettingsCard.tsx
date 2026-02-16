@@ -14,8 +14,10 @@
  * limitations under the License.
  *
  */
-import { Card, Space, Typography } from 'antd'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { Card } from '@renderer/ui-kit/Card'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 interface DangerZoneSettingsCardProps {
   onResetFactory: () => void
@@ -28,14 +30,23 @@ export const DangerZoneSettingsCard = ({
 }: DangerZoneSettingsCardProps) => {
   return (
     <Card title="Danger Zone">
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        <Typography.Text type="secondary">
-          Clear local nodes and validators and restore default settings.
-        </Typography.Text>
+      <Container>
+        <Hint size="sm">Clear local nodes and validators and restore default settings.</Hint>
         <ButtonPrimary danger onClick={onResetFactory} loading={loading}>
           Reset to factory defaults
         </ButtonPrimary>
-      </Space>
+      </Container>
     </Card>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const Hint = styled(Text)`
+  color: ${({ theme }) => theme.palette.text.gray};
+`

@@ -21,7 +21,7 @@ import { getEpochFromSlot } from '@renderer/helpers/network'
 
 export const NodeViewValidator: React.FC<NodeViewTabProps> = ({ item }) => {
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow label="Status" value={item?.validatorStatus} />
       <TabTextRow label="Peers" value={item?.validatorPeersCount} />
       <TabTextRow

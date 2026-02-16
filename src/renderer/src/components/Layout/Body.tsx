@@ -15,7 +15,7 @@
  *
  */
 import React, { PropsWithChildren } from 'react'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { styled } from 'styled-components'
 
 type BodyPropsT = PropsWithChildren

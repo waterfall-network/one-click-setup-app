@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-import { Card, Space, Typography } from 'antd'
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { Card } from '@renderer/ui-kit/Card'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 interface BackupSettingsCardProps {
   onExport: () => void
@@ -33,19 +35,35 @@ export const BackupSettingsCard = ({
 }: BackupSettingsCardProps) => {
   return (
     <Card title="Backup">
-      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        <Space>
+      <Container>
+        <ButtonsRow>
           <ButtonPrimary icon={<DownloadOutlined />} onClick={onExport} loading={exportLoading}>
             Export config
           </ButtonPrimary>
           <ButtonPrimary icon={<UploadOutlined />} onClick={onImport} loading={importLoading}>
             Import config
           </ButtonPrimary>
-        </Space>
-        <Typography.Text type="secondary">
-          Import expects a JSON file exported from this application.
-        </Typography.Text>
-      </Space>
+        </ButtonsRow>
+        <Hint size="sm">Import expects a JSON file exported from this application.</Hint>
+      </Container>
     </Card>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const ButtonsRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+`
+
+const Hint = styled(Text)`
+  color: ${({ theme }) => theme.palette.text.gray};
+`

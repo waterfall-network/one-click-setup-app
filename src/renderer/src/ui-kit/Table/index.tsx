@@ -16,9 +16,10 @@
  */
 import { Table as AntdTable, TableProps } from 'antd'
 import React from 'react'
-import { styled } from 'styled-components'
+import { keyframes, styled } from 'styled-components'
 
 export { type TableProps }
+export type { TableColumnsType } from 'antd'
 
 export const Table: React.FC<TableProps<any>> = ({ pagination, ...props }) => {
   return (
@@ -31,11 +32,87 @@ export const Table: React.FC<TableProps<any>> = ({ pagination, ...props }) => {
   )
 }
 
+const rowReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
 const TableWrapper = styled.div`
-  table {
-    border: 1px solid #ebeaea;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
+  .ant-table-wrapper {
+    width: 100%;
+  }
+
+  .ant-table-container {
+    border: 1px solid ${({ theme }) => theme.palette.semantic.table.border};
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .ant-table {
+    background: transparent;
+  }
+
+  .ant-table-thead > tr > th {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-bottom-color: ${({ theme }) => theme.palette.semantic.table.headerSplit};
+  }
+
+  .ant-table-tbody > tr > td {
+    border-bottom-color: ${({ theme }) => theme.palette.semantic.table.rowBorder};
+    transition: background 0.22s ease;
+  }
+
+  .ant-table-tbody > tr {
+    animation: ${rowReveal} 170ms ease-out both;
+  }
+
+  .ant-table-tbody > tr:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .ant-table-tbody > tr:nth-child(2) {
+    animation-delay: 15ms;
+  }
+  .ant-table-tbody > tr:nth-child(3) {
+    animation-delay: 30ms;
+  }
+  .ant-table-tbody > tr:nth-child(4) {
+    animation-delay: 45ms;
+  }
+  .ant-table-tbody > tr:nth-child(5) {
+    animation-delay: 60ms;
+  }
+  .ant-table-tbody > tr:nth-child(6) {
+    animation-delay: 75ms;
+  }
+  .ant-table-tbody > tr:nth-child(7) {
+    animation-delay: 90ms;
+  }
+  .ant-table-tbody > tr:nth-child(8) {
+    animation-delay: 105ms;
+  }
+  .ant-table-tbody > tr:nth-child(9) {
+    animation-delay: 120ms;
+  }
+  .ant-table-tbody > tr:nth-child(10) {
+    animation-delay: 135ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ant-table-tbody > tr {
+      animation: none;
+    }
+  }
+
+  .ant-table-pagination {
+    margin: 14px 4px 0 !important;
   }
 `
 const StyledTable = styled(AntdTable)``

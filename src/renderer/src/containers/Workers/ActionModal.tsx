@@ -19,11 +19,14 @@ import { Modal } from '../../ui-kit/Modal'
 import { Alert } from '../../ui-kit/Alert'
 import { useActionTx, useRemove } from '../../hooks/workers'
 import { useCopy } from '../../hooks/common'
-import { Button, Spin, Input, Space } from 'antd'
+import { Space } from '@renderer/ui-kit/Space'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Button } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
-import { styled } from 'styled-components'
-import { Flex } from 'antd'
+import { keyframes, styled } from 'styled-components'
 import { ActionTxType } from '../../types/workers'
+import { Input } from '@renderer/ui-kit/Input'
+import { Spin } from '@renderer/ui-kit/Spin'
 
 type ActionModalProps = {
   type: ActionTxType | null
@@ -92,12 +95,12 @@ export const ActionModal: React.FC<ActionModalProps> = ({ type, id, onClose }) =
     >
       {isLoading ? (
         <Spin tip="Loading" size="large">
-          <div className="content" />
+          <LoadingPlaceholder />
         </Spin>
       ) : error ? (
         <Alert title={error.message} type="error" />
       ) : (
-        <div>
+        <AnimatedContent>
           {type === ActionTxType.remove && (
             <Alert title="Are you sure you want to remove this Validator?" type="error" />
           )}
@@ -166,7 +169,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({ type, id, onClose }) =
               />
             </>
           )}
-        </div>
+        </AnimatedContent>
       )}
     </Modal>
   )
@@ -204,4 +207,47 @@ const StyledInput = styled(Input)`
 `
 const Actions = styled(Flex)`
   min-width: 80px;
+`
+
+const contentReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const AnimatedContent = styled.div`
+  > * {
+    animation: ${contentReveal} 180ms ease-out both;
+  }
+
+  > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  > *:nth-child(2) {
+    animation-delay: 45ms;
+  }
+  > *:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  > *:nth-child(4) {
+    animation-delay: 135ms;
+  }
+  > *:nth-child(5) {
+    animation-delay: 180ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    > * {
+      animation: none;
+    }
+  }
+`
+
+const LoadingPlaceholder = styled.div`
+  min-height: 260px;
 `

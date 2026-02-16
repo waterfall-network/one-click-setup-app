@@ -14,7 +14,10 @@
  * limitations under the License.
  *
  */
-import { Card, Space, Switch, Typography } from 'antd'
+import { Card } from '@renderer/ui-kit/Card'
+import { Switch } from '@renderer/ui-kit/Switch'
+import { Text } from '@renderer/ui-kit/Typography'
+import { styled } from 'styled-components'
 
 interface StartupSettingsCardProps {
   autoStartApp: boolean
@@ -31,17 +34,32 @@ export const StartupSettingsCard = ({
 }: StartupSettingsCardProps) => {
   return (
     <Card title="Startup">
-      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Typography.Text>Open app at system login</Typography.Text>
+      <Container>
+        <Row>
+          <Text>Open app at system login</Text>
           <Switch checked={autoStartApp} onChange={onAutoStartAppChange} />
-        </Space>
+        </Row>
 
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Typography.Text>Start all nodes on app launch</Typography.Text>
+        <Row>
+          <Text>Start all nodes on app launch</Text>
           <Switch checked={autoStartNodes} onChange={onAutoStartNodesChange} />
-        </Space>
-      </Space>
+        </Row>
+      </Container>
     </Card>
   )
 }
+
+const Container = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`
+
+const Row = styled.div`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`

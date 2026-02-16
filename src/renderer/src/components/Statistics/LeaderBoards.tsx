@@ -17,7 +17,7 @@
 import { LeaderBoardTableDataTypes } from '@renderer/types/statistics'
 import { Table } from '@renderer/ui-kit/Table'
 import { Title } from '@renderer/ui-kit/Typography'
-import { Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import React from 'react'
 import { styled } from 'styled-components'
 

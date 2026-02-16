@@ -15,7 +15,7 @@
  *
  */
 import { useEffect, useState } from 'react'
-import { Modal } from 'antd'
+import { Modal } from '@renderer/ui-kit/Modal'
 import { selectFile, selectSavePath } from '@renderer/api/os'
 import { getAll as getAllNodes, stop as stopNode } from '@renderer/api/node'
 import { Settings } from '@renderer/types/settings'

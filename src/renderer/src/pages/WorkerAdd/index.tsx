@@ -16,7 +16,7 @@
  */
 import { SearchKeys } from '@renderer/constants/navigation'
 import { useSearchParams } from 'react-router-dom'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PageHeader } from '@renderer/components/Page/Header'
 import { PageBody } from '@renderer/components/Page/Body'
 import { AddWorker } from '@renderer/containers/Workers/AddWorker'
@@ -29,7 +29,14 @@ export const AddWorkerPage = () => {
 
   return (
     <Layout>
-      <PageHeader title={mode === 'add' ? 'Add Validator' : 'Import Validator'} />
+      <PageHeader
+        title={mode === 'add' ? 'Add Validator' : 'Import Validator'}
+        subtitle={
+          mode === 'add'
+            ? 'Create validators step-by-step for the selected node'
+            : 'Import existing validators from prepared files'
+        }
+      />
       <PageBody>
         <AddWorker mode={mode} />
       </PageBody>

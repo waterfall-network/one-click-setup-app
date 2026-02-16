@@ -17,7 +17,7 @@
 import { PageHeader } from '@renderer/components/Page/Header'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { Alert } from '@renderer/ui-kit/Alert'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PlusCircleOutlined } from '@ant-design/icons'
 import { NodesList } from '@renderer/containers/Node/NodesList'
 import { PageBody } from '@renderer/components/Page/Body'

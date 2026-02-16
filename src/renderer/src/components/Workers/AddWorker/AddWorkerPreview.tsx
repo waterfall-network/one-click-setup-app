@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import { Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { Text } from '@renderer/ui-kit/Typography'
 import { styled } from 'styled-components'
 import { AddWorkerFields, AddWorkerFormValuesT, DelegateRulesT } from '@renderer/types/workers'

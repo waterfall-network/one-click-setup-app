@@ -18,7 +18,7 @@ import { Breadcrumb as AntBreadcrumb } from 'antd'
 import React from 'react'
 import { styled } from 'styled-components'
 import { Link } from '../Link'
-import { Title } from '../Typography'
+import { Text } from '../Typography'
 
 export type Item = {
   title: string
@@ -29,29 +29,59 @@ type BreadcrumbProps = {
 }
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
   return (
-    <AntBreadcrumb
-      separator={<StyledTitle level={4}>/</StyledTitle>}
+    <StyledBreadcrumb
+      separator={<CrumbSeparator>/</CrumbSeparator>}
       items={items.map(({ title, link }) => ({
         title: link ? (
           <StyledLink to={link}>
-            <StyledTitle level={4}>{title}</StyledTitle>
+            <CrumbText>{title}</CrumbText>
           </StyledLink>
         ) : (
-          <StyledTitle level={4}>{title}</StyledTitle>
+          <CrumbText>{title}</CrumbText>
         )
       }))}
     />
   )
 }
 
+const StyledBreadcrumb = styled(AntBreadcrumb)`
+  display: flex;
+  align-items: center;
+  line-height: 1;
+
+  .ant-breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .ant-breadcrumb-separator {
+    display: inline-flex;
+    align-items: center;
+    margin-inline: 10px !important;
+  }
+`
+
 const StyledLink = styled(Link)`
   text-decoration: none !important;
   user-select: none !important;
   height: auto !important;
+  display: inline-flex;
+  align-items: center;
   &:hover {
     background-color: inherit !important;
   }
 `
-const StyledTitle = styled(Title)`
-  margin-bottom: 0;
+
+const CrumbText = styled(Text)`
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  color: ${({ theme }) => theme.palette.semantic.pageHeader.crumb} !important;
+`
+
+const CrumbSeparator = styled.span`
+  font-size: 16px;
+  line-height: 1;
+  color: ${({ theme }) => theme.palette.semantic.pageHeader.crumbSeparator};
 `

@@ -14,7 +14,8 @@
  * limitations under the License.
  *
  */
-import { Modal, Space } from 'antd'
+import { Modal } from '@renderer/ui-kit/Modal'
+import { Space } from '@renderer/ui-kit/Space'
 import { PageBody } from '@renderer/components/Page/Body'
 import { Alert } from '@renderer/ui-kit/Alert'
 import { AppearanceSettingsCard } from '@renderer/components/Settings/AppearanceSettingsCard'

@@ -15,12 +15,11 @@
  *
  */
 import React from 'react'
-import { Checkbox } from 'antd'
 import { Modal } from '../../ui-kit/Modal'
 import { Alert } from '../../ui-kit/Alert'
 import { Title, Text } from '../../ui-kit/Typography'
 import { useRemove } from '../../hooks/node'
-import { CheckboxChangeEvent } from 'antd/es/checkbox'
+import { Checkbox, type CheckboxProps } from '@renderer/ui-kit/Checkbox'
 
 type RemoveModalProps = {
   onClose: () => void
@@ -43,7 +42,7 @@ export const RemoveModal: React.FC<RemoveModalProps> = ({ id, onClose, isRemoveF
     await onRemove(handleClose)
   }
 
-  const onChange = (e: CheckboxChangeEvent) => onChangeWithData(e.target.checked)
+  const onChange: CheckboxProps['onChange'] = (e) => onChangeWithData(e.target.checked)
 
   return (
     <Modal

@@ -19,6 +19,7 @@ import { ColumnFilterItem } from 'antd/es/table/interface'
 import React, { useMemo } from 'react'
 import { columns } from './Columns'
 import { ActionTxType, Worker } from '../../../types/workers'
+import { LiveValue } from '@renderer/ui-kit/LiveValue'
 
 type WorkersListTablePropsT = {
   data: Worker[]
@@ -139,7 +140,11 @@ export const WorkersListTable: React.FC<WorkersListTablePropsT> = ({
         pageSize: pagination.pageSize,
         total: pagination.total,
         showSizeChanger: false,
-        showTotal: (total: number) => `Total ${total} items`
+        showTotal: (total: number) => (
+          <>
+            Total <LiveValue value={total}>{total}</LiveValue> items
+          </>
+        )
       }
     : false
 

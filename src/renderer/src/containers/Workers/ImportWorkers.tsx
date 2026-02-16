@@ -15,10 +15,10 @@
  *
  */
 import React from 'react'
-import { Flex, Input, Select, StepsProps } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { ImportWorkersStepKeys } from '@renderer/helpers/workers'
 import { useImportWorker } from '@renderer/hooks/workers'
-import { StepsWithActiveContent } from '@renderer/ui-kit/Steps/Steps'
+import { StepsWithActiveContent, StepsProps } from '@renderer/ui-kit/Steps'
 import { AddWorkerForm } from '@renderer/components/Workers/AddWorker/AddWorkerForm'
 import {
   DisplayKeysFields,
@@ -28,7 +28,9 @@ import {
 import { Text } from '@renderer/ui-kit/Typography'
 import { WorkerKeysTable } from '@renderer/components/Workers/AddWorker/WorkerKeysTable'
 import { WorkerTransactionTable } from '@renderer/components/Workers/AddWorker/WorkerTransactionTable'
-import { MnemonicInput } from '@renderer/ui-kit/Mnemonic/MnemonicInput'
+import { MnemonicInput } from '@renderer/ui-kit/Mnemonic'
+import { Input } from '@renderer/ui-kit/Input'
+import { Select } from '@renderer/ui-kit/Select'
 
 type StepItem = NonNullable<StepsProps['items']>[number]
 type ImportWorkerPropsT = {

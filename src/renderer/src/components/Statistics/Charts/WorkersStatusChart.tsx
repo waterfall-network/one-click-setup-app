@@ -20,7 +20,7 @@ import CanvasJSReact from '@canvasjs/react-stockcharts'
 import { getValidatorOptions } from '@renderer/helpers/charts'
 import { DataPointsStatus } from '@renderer/types/data'
 import { Title } from '@renderer/ui-kit/Typography'
-import { Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 
 const CanvasJSStockChart = CanvasJSReact.CanvasJSStockChart
 

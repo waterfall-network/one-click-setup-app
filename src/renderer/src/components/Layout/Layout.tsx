@@ -16,7 +16,7 @@
  */
 import React, { PropsWithChildren } from 'react'
 import styled from 'styled-components'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 
 type LayoutProps = PropsWithChildren
 
@@ -26,4 +26,5 @@ export const LayoutWrapper: React.FC<LayoutProps> = ({ children }) => {
 
 const StyledLayout = styled(Layout)`
   min-height: 100vh;
+  background: transparent !important;
 `

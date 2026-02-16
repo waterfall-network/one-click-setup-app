@@ -40,6 +40,16 @@ Run:
   - Keep containers thin: UI composition and prop wiring only.
   - Move non-trivial orchestration/stateful flows (async actions, modal flows, multi-step handlers) to feature hooks in `src/renderer/src/hooks/*`.
 
+## UI conventions
+
+- Prefer `src/renderer/src/ui-kit/*` components over direct Ant Design controls in feature code (`components/`, `containers/`, `pages/`, `hooks/`).
+- Keep visual values in `theme.palette.semantic.*` tokens. Avoid hardcoded color literals in feature-level styled blocks.
+- Do not branch feature styles with `theme.mode === 'dark'` / `theme.mode === 'light'`; encode theme differences in palette tokens.
+- Keep motion subtle and deterministic:
+  - use short transitions/reveals in shared UI components;
+  - add `prefers-reduced-motion` fallbacks for new animations;
+  - avoid stacking multiple transform animations on the same element unless intentionally composed.
+
 ## Naming and file organization
 
 - Follow existing naming patterns:

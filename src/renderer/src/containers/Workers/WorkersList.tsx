@@ -16,7 +16,7 @@
  */
 import { Worker } from '@renderer/types/workers'
 import { WorkersListTable } from '@renderer/components/Workers/WorkersListTable/Table'
-import { Empty, Flex, Popover } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { useGoWorker } from '@renderer/hooks/workers'
 import React, { useState, useCallback, useEffect } from 'react'
@@ -26,6 +26,7 @@ import { MassActionModal } from './MassActionModal'
 import { routes } from '@renderer/constants/navigation'
 import { IconButton } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
+import { LiveValue } from '@renderer/ui-kit/LiveValue'
 import {
   CloseOutlined,
   CaretRightOutlined,
@@ -33,10 +34,12 @@ import {
   DeleteOutlined,
   CheckSquareOutlined
 } from '@ant-design/icons'
-import { styled } from 'styled-components'
+import { keyframes, styled } from 'styled-components'
 import { getById, getAll, getAllByNodeId } from '../../api/worker'
 import { useGetStats } from '../../hooks/workers'
 import { Node } from '../../types/node'
+import { Empty } from '@renderer/ui-kit/Empty'
+import { Popover } from '@renderer/ui-kit/Popover'
 
 type WorkersListPropsT = {
   data?: Worker[]
@@ -311,7 +314,9 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
             danger
           />
         </Popover>
-        <Text>Selected: {selectedCount}</Text>
+        <Text>
+          Selected: <LiveValue value={selectedCount}>{selectedCount}</LiveValue>
+        </Text>
       </MassAction>
       <WorkersListTable
         data={data}
@@ -361,6 +366,22 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
   )
 }
 
+const toolbarReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
 const MassAction = styled(Flex)`
   margin: 20px 0;
+  animation: ${toolbarReveal} 180ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `

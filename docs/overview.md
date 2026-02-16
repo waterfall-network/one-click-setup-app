@@ -20,6 +20,8 @@ The app combines:
 - Add workers from mnemonic or deposit/delegate data files
 - Build and send validator action transactions
 - Persist state in a local SQLite database (`wf.db`)
+- Switch application theme (`Light`, `Dark`, `System`) with shared design tokens
+- Use consistent UI motion across headers, tabs, modals, tables, and loading/empty states
 
 ## Runtime model
 
@@ -28,7 +30,7 @@ The app combines:
 - Preload process:
   Exposes a safe bridge (`window.node`, `window.worker`, `window.os`, `window.app`) to the renderer.
 - Renderer process:
-  React application (HashRouter + React Query + styled-components) consuming preload APIs.
+  React application (HashRouter + React Query + styled-components + Ant Design theming) consuming preload APIs.
 
 ## Technology highlights
 

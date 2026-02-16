@@ -22,7 +22,7 @@ import { getNodeStatusLabel } from '@renderer/helpers/node'
 
 export const NodeViewInformation: React.FC<NodeViewTabProps> = ({ item }) => {
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow label="ID" value={item?.id ? item?.id.toString() : '-'} />
       <TabTextRow label="Name" value={item?.name} />
       <TabTextRow label="Status" value={item ? getNodeStatusLabel(item) : 'unknown'} />

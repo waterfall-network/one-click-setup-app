@@ -17,15 +17,17 @@
 import React, { useState } from 'react'
 import { NodeViewTabProps, Type as NodeType } from '@renderer/types/node'
 import { TabContent } from '@renderer/ui-kit/Tabs'
-import { Flex, Spin } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { Alert } from '@renderer/ui-kit/Alert'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { addParams } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { WorkersList } from '@renderer/containers/Workers/WorkersList'
 import { useGetAllByNodeId } from '../../hooks/workers'
-import { styled } from 'styled-components'
+import { keyframes, styled } from 'styled-components'
 import { SearchKeys } from '../../constants/navigation'
+import { Spin } from '@renderer/ui-kit/Spin'
 
 export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
   const [page, setPage] = useState(1)
@@ -73,14 +75,14 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
 
   if (isLoading)
     return (
-      <TabContent>
+      <TabContent variant="table">
         <Spin tip="Loading" size="large">
-          <div className="content" />
+          <LoadingPlaceholder />
         </Spin>
       </TabContent>
     )
   return (
-    <TabContent>
+    <TabContent variant="table">
       {item && (
         <Actions align="center" justify="flex-end" gap={10}>
           {(data?.length === 0 || item.type === NodeType.provider) && (
@@ -91,7 +93,7 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
                 [SearchKeys.step]: '1'
               })}
             >
-              Import Validator
+              Import Validator <ImportOutlined />
             </ButtonPrimary>
           )}
 
@@ -102,7 +104,7 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
                 [SearchKeys.step]: '1'
               })}
             >
-              Add Validator
+              Add Validator <PlusOutlined />
             </ButtonPrimary>
           )}
         </Actions>
@@ -125,6 +127,26 @@ export const NodeViewWorkers: React.FC<NodeViewTabProps> = ({ item }) => {
   )
 }
 
+const toolbarReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
 const Actions = styled(Flex)`
   margin-bottom: 10px;
+  animation: ${toolbarReveal} 180ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`
+
+const LoadingPlaceholder = styled.div`
+  min-height: 320px;
 `

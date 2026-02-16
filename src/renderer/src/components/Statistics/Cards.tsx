@@ -14,7 +14,9 @@
  * limitations under the License.
  *
  */
-import { Card, Col, Flex, Row } from 'antd'
+import { Col, Row } from '@renderer/ui-kit/Grid'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Card } from '@renderer/ui-kit/Card'
 import React from 'react'
 
 type PropsT = {

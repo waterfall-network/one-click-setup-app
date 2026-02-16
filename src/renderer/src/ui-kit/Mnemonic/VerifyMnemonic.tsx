@@ -14,10 +14,10 @@
  * limitations under the License.
  *
  */
-import { Input } from 'antd'
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { styled } from 'styled-components'
 import { shuffleArray } from '../../helpers/common'
+import { Input } from '@renderer/ui-kit/Input'
 
 type VerifyMnemonicPropsT = {
   phrase: string[]
@@ -125,8 +125,7 @@ const PhraseInput = styled(Input)`
   width: 90%;
   text-align: center;
   border: none;
-  border-bottom: 1px solid
-    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.1)')};
+  border-bottom: 1px solid ${({ theme }) => theme.palette.semantic.mnemonic.inputBorder};
   border-radius: 0;
   outline: none;
   /* pointer-events: none; */
@@ -138,24 +137,44 @@ const DNDContainer = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  border-top: 1px solid
-    ${({ theme }) => (theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)')};
-  padding-top: 20px;
+  padding-top: 4px;
   margin-top: 40px;
   margin-bottom: 20px;
 `
 
 const DNDItem = styled.div<{ $disabled?: boolean }>`
-  width: 10%;
-  color: ${({ theme }) => theme.palette.text.black};
-  font-size: 10px;
+  min-width: 96px;
+  color: ${({ theme }) => theme.palette.semantic.button.ghostText};
+  font-size: 12px;
+  font-weight: 600;
   text-decoration: none;
   text-align: center;
   cursor: pointer;
-  border-radius: 6px;
-  padding: 4px 6px;
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
+  border-radius: 14px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.button.ghostBorder};
+  padding: 6px 10px;
+  background: transparent;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
   box-sizing: border-box;
-  ${({ $disabled }) => $disabled && ` opacity: 0.5; pointer-events: none;`}
+
+  &:hover {
+    background: ${({ theme }) => theme.palette.semantic.button.ghostHoverBackground};
+    border-color: ${({ theme }) => theme.palette.semantic.button.ghostBorder};
+    transform: translateY(-1px);
+  }
+
+  ${({ $disabled, theme }) =>
+    $disabled
+      ? `
+    color: ${theme.palette.semantic.mnemonic.chipDisabledText};
+    background: ${theme.palette.semantic.mnemonic.chipDisabledBackground};
+    border-color: ${theme.palette.semantic.button.ghostBorder};
+    pointer-events: none;
+    transform: none;
+  `
+      : ''}
 `

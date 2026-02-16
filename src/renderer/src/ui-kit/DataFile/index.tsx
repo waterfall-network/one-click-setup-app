@@ -16,7 +16,7 @@
  */
 import React from 'react'
 import { styled } from 'styled-components'
-import { Input, Flex } from 'antd'
+import { Input } from '../Input'
 import { ButtonPrimary } from '../Button'
 
 type DataFilePropsT = {
@@ -39,7 +39,7 @@ export const DataFile: React.FC<DataFilePropsT> = ({
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => handleChange(e.target.value)
   return (
     <Wrapper>
-      <InputWrapper gap={10}>
+      <InputWrapper>
         <StyledInput placeholder={placeholder} value={value} onChange={onChange} />
         {<ButtonPrimary onClick={() => onSelectFile()}>Select</ButtonPrimary>}
       </InputWrapper>
@@ -62,7 +62,10 @@ const Error = styled.div`
   margin-top: 4px;
   color: ${({ theme }) => theme.palette.text.red};
 `
-const InputWrapper = styled(Flex)`
+const InputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   max-width: 360px;
 

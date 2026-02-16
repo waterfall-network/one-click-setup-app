@@ -14,20 +14,51 @@
  * limitations under the License.
  *
  */
-import { Space } from 'antd'
-import { Title } from '@renderer/ui-kit/Typography'
+import { Card } from '@renderer/ui-kit/Card'
+import { Title, Text } from '@renderer/ui-kit/Typography'
 import { styled } from 'styled-components'
 import { LoadingOutlined } from '@ant-design/icons'
+
 export const Content = () => {
   return (
-    <Space orientation="vertical" size="middle" align="center">
-      <Loading />
-      <Title>Page Under Construction</Title>
-      <p>We are working on something amazing. Stay tuned!</p>
-    </Space>
+    <Wrapper>
+      <Panel>
+        <Loading />
+        <Title level={3}>Coming Soon</Title>
+        <Description>
+          This section is currently in development.
+          <br />
+          We are actively working on it and will ship it in a future release.
+        </Description>
+      </Panel>
+    </Wrapper>
   )
 }
 
+const Wrapper = styled.div`
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 24px;
+`
+
+const Panel = styled(Card)`
+  width: min(100%, 680px);
+  text-align: center;
+  padding: 22px 18px 18px;
+`
+
 const Loading = styled(LoadingOutlined)`
-  font-size: 48px;
+  font-size: 42px;
+  color: ${({ theme }) => theme.palette.text.blue};
+  margin-bottom: 8px;
+`
+
+const Description = styled(Text)`
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.palette.text.gray};
 `

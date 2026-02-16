@@ -15,10 +15,11 @@
  *
  */
 import React, { PropsWithChildren } from 'react'
-import { Card } from 'antd'
 import { styled } from 'styled-components'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { Alert } from '@renderer/ui-kit/Alert'
+import { Card } from '@renderer/ui-kit/Card'
+import { Text } from '@renderer/ui-kit/Typography'
 
 type FormPropsT = PropsWithChildren & {
   title?: string
@@ -29,6 +30,7 @@ type FormPropsT = PropsWithChildren & {
   nextText?: string
   isLoading?: boolean
   error?: string
+  showActionsDivider?: boolean
 }
 
 export const AddWorkerForm: React.FC<FormPropsT> = ({
@@ -42,18 +44,19 @@ export const AddWorkerForm: React.FC<FormPropsT> = ({
   isLoading,
   error
 }) => {
+  const resolvedTitle = typeof title === 'string' ? <CardTitle>{title}</CardTitle> : title
+
   return (
-    <StyledCard type="inner" title={title} extra={extra}>
+    <StyledCard title={resolvedTitle} extra={extra}>
       <Body>{children}</Body>
       {error && <Alert type="error" title={error} />}
       <Actions>
-        <ButtonPrimary onClick={goPrev} ghost={!goPrev} disabled={!goPrev}>
+        <ButtonPrimary onClick={goPrev} ghost disabled={!goPrev}>
           Back
         </ButtonPrimary>
         <ButtonPrimary
           onClick={goNext}
           disabled={!canGoNext}
-          ghost={!canGoNext}
           loading={isLoading ? isLoading : false}
         >
           {nextText}
@@ -64,17 +67,23 @@ export const AddWorkerForm: React.FC<FormPropsT> = ({
 }
 
 const StyledCard = styled(Card)`
-  margin-top: 40px;
+  margin-top: 26px;
 `
 
 const Body = styled.div`
-  padding-top: 20px;
+  padding-top: 4px;
 `
 
 const Actions = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 26px;
   gap: 15px;
+`
+
+const CardTitle = styled(Text)`
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 `

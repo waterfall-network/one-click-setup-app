@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PageHeader } from '@renderer/components/Page/Header'
 import { SettingsPageContent } from '@renderer/containers/Settings/SettingsPageContent'
 

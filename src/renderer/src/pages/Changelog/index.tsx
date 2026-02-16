@@ -16,9 +16,10 @@
  */
 import { PageHeader } from '@renderer/components/Page/Header'
 import { PageBody } from '@renderer/components/Page/Body'
-import { Layout, Timeline } from 'antd'
-import { Text } from '../../ui-kit/Typography'
+import { Layout } from '@renderer/ui-kit/Layout'
+import { Timeline } from '@renderer/ui-kit/Timeline'
 import React from 'react'
+import { styled } from 'styled-components'
 
 enum ChangeType {
   New = 'New',
@@ -30,7 +31,6 @@ enum ChangeType {
 interface ChangelogEntry {
   type: ChangeType
   description: string
-  issueId?: string
 }
 
 interface ChangelogVersion {
@@ -76,6 +76,31 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Improve,
         description:
+          'Refreshed Light and Dark visual design across navigation, page headers, links, tabs, and tables'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
+          'Added polished interface animations for page transitions, headers, tabs, modals, buttons, and empty/error states'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
+          'Improved page content scrolling under headers and alignment for Node/Validator detail tabs'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
+          'Redesigned bulk action modal UX: clearer sections, signer details, and full-width execution progress'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
+          'Adjusted bulk operation batching for smoother progress updates with safe maximum chunk size limits'
+      },
+      {
+        type: ChangeType.Improve,
+        description:
           'Refactored application startup flow and improved pre-launch startup window with step-by-step progress'
       },
       {
@@ -86,6 +111,11 @@ const changelogData: ChangelogVersion[] = [
         type: ChangeType.Fix,
         description:
           'Fixed page loader layout for large validator/node lists to prevent clipped loading indicator'
+      },
+      {
+        type: ChangeType.Fix,
+        description:
+          'Fixed bulk action compatibility checks for withdraw/deactivate and removed incorrect warning for bulk activation'
       }
     ]
   },
@@ -220,8 +250,7 @@ const changelogData: ChangelogVersion[] = [
     changes: [
       {
         type: ChangeType.New,
-        description: 'Automatic snapshot download when adding a new node',
-        issueId: '#11'
+        description: 'Automatic snapshot download when adding a new node'
       },
       {
         type: ChangeType.New,
@@ -229,13 +258,11 @@ const changelogData: ChangelogVersion[] = [
       },
       {
         type: ChangeType.New,
-        description: 'Worker import functionality',
-        issueId: '#12'
+        description: 'Worker import functionality'
       },
       {
         type: ChangeType.New,
-        description: 'Worker and node removal functionality',
-        issueId: '#17'
+        description: 'Worker and node removal functionality'
       },
       { type: ChangeType.New, description: 'Ability to add workers when node is stopped' },
       { type: ChangeType.New, description: 'Node restart functionality' },
@@ -248,13 +275,11 @@ const changelogData: ChangelogVersion[] = [
       { type: ChangeType.Improve, description: 'Added monitoring data to application logs' },
       {
         type: ChangeType.Fix,
-        description: 'Added validation for invalid mnemonic phrases during worker import',
-        issueId: '#63'
+        description: 'Added validation for invalid mnemonic phrases during worker import'
       },
       {
         type: ChangeType.Fix,
-        description: 'Fixed withdrawal form fields being cleared when switching windows',
-        issueId: '#36'
+        description: 'Fixed withdrawal form fields being cleared when switching windows'
       },
       { type: ChangeType.Fix, description: 'Fixed coordinator and validator peers connection' },
       { type: ChangeType.Fix, description: 'Fixed worker addition process' },
@@ -265,18 +290,17 @@ const changelogData: ChangelogVersion[] = [
     version: '0.3.0 beta',
     date: '22.04.2024',
     changes: [
-      { type: ChangeType.New, description: 'Windows application code signing', issueId: '#13' },
-      { type: ChangeType.New, description: 'macOS application code signing', issueId: '#44' },
-      { type: ChangeType.New, description: 'Updated application logo and icons', issueId: '#49' },
-      { type: ChangeType.New, description: 'Added changelog page', issueId: '#42' },
-      { type: ChangeType.New, description: 'Automatic update feature', issueId: '#10' },
+      { type: ChangeType.New, description: 'Windows application code signing' },
+      { type: ChangeType.New, description: 'macOS application code signing' },
+      { type: ChangeType.New, description: 'Updated application logo and icons' },
+      { type: ChangeType.New, description: 'Added changelog page' },
+      { type: ChangeType.New, description: 'Automatic update feature' },
       {
         type: ChangeType.New,
-        description: 'Application version display in status bar',
-        issueId: '#10'
+        description: 'Application version display in status bar'
       },
       { type: ChangeType.New, description: 'NAT traversal support' },
-      { type: ChangeType.Improve, description: 'Reduced application bundle size', issueId: '#44' },
+      { type: ChangeType.Improve, description: 'Reduced application bundle size' },
       { type: ChangeType.Fix, description: 'Fixed adding additional workers' },
       { type: ChangeType.Fix, description: 'Fixed validator addition process' }
     ]
@@ -309,33 +333,92 @@ const sortChangesByType = (changes: ChangelogEntry[]): ChangelogEntry[] => {
 }
 
 const formatChangeEntry = (entry: ChangelogEntry): React.ReactNode => {
-  const prefix = entry.issueId ? `${entry.type}: ${entry.issueId} ` : `${entry.type}: `
+  const prefix = entry.type
   return (
-    <p key={`${entry.type}-${entry.description}`}>
-      {prefix}
-      {entry.description}
-    </p>
+    <ChangeLine key={`${entry.type}-${entry.description}`}>
+      <ChangePrefix $type={entry.type}>{prefix}</ChangePrefix>
+      <span>{entry.description}</span>
+    </ChangeLine>
   )
 }
 
-const items = changelogData.map((version) => ({
-  children: (
-    <>
-      <Text size="sm">
-        {version.version} - {version.date}
-      </Text>
-      {sortChangesByType(version.changes).map(formatChangeEntry)}
-    </>
-  )
-}))
-
 export const ChangelogPage = () => {
+  const items = changelogData.map((version) => ({
+    content: (
+      <ReleaseBlock>
+        <ReleaseHeader>
+          <VersionText>{version.version}</VersionText>
+          <DateText>{version.date}</DateText>
+        </ReleaseHeader>
+        {sortChangesByType(version.changes).map(formatChangeEntry)}
+      </ReleaseBlock>
+    )
+  }))
+
   return (
     <Layout>
       <PageHeader breadcrumb={breadcrumb} />
       <PageBody>
-        <Timeline items={items} mode="start" />
+        <TimelineWrap>
+          <Timeline items={items} mode="start" />
+        </TimelineWrap>
       </PageBody>
     </Layout>
   )
 }
+
+const TimelineWrap = styled.div`
+  width: 100%;
+  max-width: 1120px;
+
+  .ant-timeline-item-content {
+    max-width: 980px;
+    padding-bottom: 22px;
+  }
+`
+
+const ReleaseBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`
+
+const ReleaseHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+`
+
+const VersionText = styled.span`
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.002em;
+  line-height: 1.25;
+`
+
+const DateText = styled.span`
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0.68;
+`
+
+const ChangeLine = styled.p`
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: 0.002em;
+`
+
+const ChangePrefix = styled.span<{ $type: ChangeType }>`
+  display: inline-block;
+  min-width: 88px;
+  margin-right: 2px;
+  font-weight: 600;
+  color: ${({ $type, theme }) => {
+    if ($type === ChangeType.New) return theme.palette.semantic.changelog.new
+    if ($type === ChangeType.Improve) return theme.palette.semantic.changelog.improve
+    if ($type === ChangeType.Update) return theme.palette.semantic.changelog.update
+    return theme.palette.semantic.changelog.fix
+  }};
+`

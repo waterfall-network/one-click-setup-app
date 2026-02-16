@@ -14,7 +14,9 @@
  * limitations under the License.
  *
  */
-import { Flex, TableColumnsType, Popover, Input, Button, Space } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Space } from '@renderer/ui-kit/Space'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 import { ColumnFilterItem } from 'antd/es/table/interface'
 import {
   WorkersListDataFields,
@@ -22,7 +24,7 @@ import {
   Worker,
   Status
 } from '@renderer/types/workers'
-import { IconButton } from '@renderer/ui-kit/Button'
+import { Button, IconButton } from '@renderer/ui-kit/Button'
 import {
   CloseOutlined,
   CaretRightOutlined,
@@ -38,6 +40,9 @@ import { getActions } from '../../../helpers/workers'
 import { ActionTxType } from '../../../types/workers'
 import { getNodeStatus } from '../../../helpers/node'
 import { Status as NodeStatus } from '../../../types/node'
+import { Input } from '@renderer/ui-kit/Input'
+import { Popover } from '@renderer/ui-kit/Popover'
+import { LiveValue } from '@renderer/ui-kit/LiveValue'
 
 export type DataType = Worker &
   WorkersListDataTypes & {
@@ -106,7 +111,10 @@ export const columns = ({
     title: 'Status',
     dataIndex: WorkersListDataFields.status,
     key: WorkersListDataFields.status,
-    render: (_, worker) => getStatusLabel(worker),
+    render: (_, worker) => {
+      const statusLabel = getStatusLabel(worker)
+      return <LiveValue value={statusLabel}>{statusLabel}</LiveValue>
+    },
     filters: filters.status,
     filteredValue: filteredValues?.status ?? null,
     onFilter: (value, worker) => getStatusLabel(worker) === value
@@ -116,18 +124,19 @@ export const columns = ({
     title: (
       <div>
         Rewards (WATER) <br />
-        Total: {rewardAmount.toFixed(2)}
+        Total: <LiveValue value={rewardAmount.toFixed(2)}>{rewardAmount.toFixed(2)}</LiveValue>
       </div>
     ),
     dataIndex: WorkersListDataFields.coordinatorBalanceAmount,
     key: WorkersListDataFields.coordinatorBalanceAmount,
     render: (_, worker) => {
       const status = getStatus(worker)
-      return (
+      const rewardValue = (
         status === Status.active
           ? parseFloat(worker.coordinatorBalanceAmount) - getStakeAmount()
           : parseFloat(worker.coordinatorBalanceAmount)
       ).toFixed(2)
+      return <LiveValue value={rewardValue}>{rewardValue}</LiveValue>
     },
     filterDropdown: ({ confirm }) => {
       const [minValue, setMinValue] = React.useState<string>('')

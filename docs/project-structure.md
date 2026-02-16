@@ -57,4 +57,4 @@
 - `constants/`: routing, env and layout constants.
 - `helpers/`: pure utility functions.
 - `types/`: shared front-end types.
-- `ui-kit/`: design system primitives and theme.
+- `ui-kit/`: design system primitives and theme (`theme/palette.ts` for app palette and `theme/antd.ts` for Ant Design tokens).

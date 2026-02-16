@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-import { Select } from 'antd'
 import React from 'react'
 import { styled } from 'styled-components'
+import { Select } from '@renderer/ui-kit/Select'
 
 type PropsT = {
   options: { label?: string; value?: string }[]

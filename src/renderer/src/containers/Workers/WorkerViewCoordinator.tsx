@@ -17,7 +17,8 @@
 import React from 'react'
 import { TabContent, TabTextRow } from '@renderer/ui-kit/Tabs'
 import { WorkerViewTabProps } from '@renderer/types/workers'
-import { Button, Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Button } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
 import { styled } from 'styled-components'
 import { useCopy } from '../../hooks/common'
@@ -28,7 +29,7 @@ export const WorkerViewCoordinator: React.FC<WorkerViewTabProps> = ({ item }) =>
   )
 
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow
         label="Public Key"
         value={
