@@ -65,7 +65,7 @@ export const PageHeader: React.FC<PageHeaderPropsT> = ({
 }
 
 const Wrapper = styled.div`
-  padding: 20px 40px 18px;
+  padding: 12px 40px 18px;
   position: relative;
   z-index: 3;
 `

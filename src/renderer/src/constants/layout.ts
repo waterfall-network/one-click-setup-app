@@ -17,7 +17,7 @@
 export const HEADER_HEIGHT = 40
 export const FOOTER_HEIGHT = 26
 
-export const PAGE_BODY_PADDING_TOP = 30
+export const PAGE_BODY_PADDING_TOP = 16
 export const PAGE_BODY_PADDING_SIDE = 40
 export const PAGE_BODY_PADDING_BOTTOM = 20
 export const PAGE_BODY_HEADER_UNDERLAP = 78

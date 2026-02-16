@@ -378,7 +378,7 @@ const toolbarReveal = keyframes`
 `
 
 const MassAction = styled(Flex)`
-  margin: 20px 0;
+  margin: 0 0 16px;
   animation: ${toolbarReveal} 180ms ease-out both;
 
   @media (prefers-reduced-motion: reduce) {
