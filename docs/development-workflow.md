@@ -56,7 +56,8 @@ Use `bd` as the project task tracker:
    - worker add/import/remove
    - status/snapshot updates
 5. Run `npm run typecheck` and `npm run lint` before packaging.
-6. Before opening PR, go through `docs/pr-checklist.md`.
+6. Before each commit, update `src/renderer/src/pages/Changelog/index.tsx` with short user-facing bullet(s) under the release matching `package.json` `version` (example: `0.6.0-beta` -> `0.6.0 beta`).
+7. Before opening PR, go through `docs/pr-checklist.md`.
 
 ## Frontend structure guardrail
 

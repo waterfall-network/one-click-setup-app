@@ -30,4 +30,5 @@ Use this checklist before requesting review or merging.
 ## Documentation
 
 11. Docs were updated for behavior/API/schema changes.
-12. Commit message(s) clearly explain what changed and why.
+12. Before each commit, `src/renderer/src/pages/Changelog/index.tsx` was updated with short bullet(s) under the release matching `package.json` `version` (example: `0.6.0-beta` -> `0.6.0 beta`).
+13. Commit message(s) clearly explain what changed and why.

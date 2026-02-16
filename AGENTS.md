@@ -149,6 +149,11 @@ These rules extend (and do not replace) the Beads workflow above.
    - If docs conflict with code, code is source of truth
    - Update docs immediately after resolving mismatch
 
+7. Changelog before commit:
+   - Before each commit, update `src/renderer/src/pages/Changelog/index.tsx`
+   - Use `package.json` `version` as the source of truth for the target release section (for display, `0.6.0-beta` -> `0.6.0 beta`)
+   - Add short, user-facing bullet(s) describing the work completed in that commit
+
 <!-- bv-agent-instructions-v1 -->
 
 ---
@@ -195,6 +200,7 @@ bd sync               # Commit and push changes
 
 ```bash
 git status              # Check what changed
+# update changelog       # Add short bullet(s) under the release matching package.json version
 git add <files>         # Stage code changes
 bd sync                 # Commit beads changes
 git commit -m "..."     # Commit code
