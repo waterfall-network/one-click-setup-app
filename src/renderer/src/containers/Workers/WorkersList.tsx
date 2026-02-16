@@ -314,9 +314,9 @@ export const WorkersList: React.FC<WorkersListPropsT> = ({
             danger
           />
         </Popover>
-        <Text>
+        <SelectedCount>
           Selected: <LiveValue value={selectedCount}>{selectedCount}</LiveValue>
-        </Text>
+        </SelectedCount>
       </MassAction>
       <WorkersListTable
         data={data}
@@ -379,9 +379,16 @@ const toolbarReveal = keyframes`
 
 const MassAction = styled(Flex)`
   margin: 0 0 16px;
+  align-items: center;
   animation: ${toolbarReveal} 180ms ease-out both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
+`
+
+const SelectedCount = styled(Text)`
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
 `
