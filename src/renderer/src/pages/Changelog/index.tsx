@@ -50,77 +50,38 @@ const changelogData: ChangelogVersion[] = [
     version: '0.6.0 beta',
     date: '15.02.2026',
     changes: [
-      { type: ChangeType.New, description: 'Added full Settings page' },
       {
         type: ChangeType.New,
         description:
-          'Added startup preferences: open app at login and auto-start nodes on app launch'
-      },
-      {
-        type: ChangeType.New,
-        description: 'Added backup tools in Settings: export, import, and factory reset'
-      },
-      {
-        type: ChangeType.New,
-        description:
-          'Added progress dialogs for config import/export with imported/exported nodes and validators counters'
+          'Added Settings page, startup options, backup tools, and import/export progress'
       },
       {
         type: ChangeType.Improve,
-        description: 'Added application theme modes: Light, Dark, and System'
+        description: 'Added Light/Dark/System themes and refreshed app visuals'
       },
       {
         type: ChangeType.Improve,
-        description: 'Improved dark theme support across application pages and layout'
+        description: 'Added smoother animations across key interface elements'
       },
       {
         type: ChangeType.Improve,
-        description:
-          'Refreshed Light and Dark visual design across navigation, page headers, links, tabs, and tables'
+        description: 'Improved scrolling, detail tab alignment, and bulk modal UX'
       },
       {
         type: ChangeType.Improve,
-        description:
-          'Added polished interface animations for page transitions, headers, tabs, modals, buttons, and empty/error states'
+        description: 'Optimized table loading, polling, and bulk operation batching'
       },
       {
         type: ChangeType.Improve,
-        description:
-          'Improved page content scrolling under headers and alignment for Node/Validator detail tabs'
-      },
-      {
-        type: ChangeType.Improve,
-        description:
-          'Redesigned bulk action modal UX: clearer sections, signer details, and full-width execution progress'
-      },
-      {
-        type: ChangeType.Improve,
-        description:
-          'Adjusted bulk operation batching for smoother progress updates with safe maximum chunk size limits'
-      },
-      {
-        type: ChangeType.Improve,
-        description:
-          'Optimized table rendering across pages: shell-first loading placeholders and unified polling interval from Settings'
-      },
-      {
-        type: ChangeType.Improve,
-        description:
-          'Refactored application startup flow and improved pre-launch startup window with step-by-step progress'
+        description: 'Refined startup flow and pre-launch progress window'
       },
       {
         type: ChangeType.Fix,
-        description: 'Improved stability of local node monitoring when endpoints are unavailable'
+        description: 'Improved node monitoring stability and fixed loader clipping'
       },
       {
         type: ChangeType.Fix,
-        description:
-          'Fixed page loader layout for large validator/node lists to prevent clipped loading indicator'
-      },
-      {
-        type: ChangeType.Fix,
-        description:
-          'Fixed bulk action compatibility checks for withdraw/deactivate and removed incorrect warning for bulk activation'
+        description: 'Fixed bulk withdraw/deactivate checks and activation warning'
       }
     ]
   },
