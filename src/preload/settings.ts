@@ -22,6 +22,7 @@ export const settings = {
   get: () => ipcRenderer.invoke('settings:get'),
   update: (data: UpdateSettings) => ipcRenderer.invoke('settings:update', data),
   exportConfig: (filePath: string) => ipcRenderer.invoke('settings:exportConfig', filePath),
+  exportMainLog: (filePath: string) => ipcRenderer.invoke('settings:exportMainLog', filePath),
   importConfigFile: (filePath: string) => ipcRenderer.invoke('settings:importConfigFile', filePath),
   resetFactory: () => ipcRenderer.invoke('settings:resetFactory')
 }

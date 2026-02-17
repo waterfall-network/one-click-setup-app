@@ -70,5 +70,8 @@ Notes:
 ## Runtime settings (DB-backed)
 
 - `monitoringInterval` (ms, 5000-60000):
-  controls main-process status monitor frequency and renderer polling frequency for nodes/validators
-  pages (`Nodes`, `Node View`, `Validators`, `Validator View`, validators statistics/filters).
+  controls main-process monitoring workers frequency (status + snapshot) and renderer polling
+  frequency for nodes/validators pages (`Nodes`, `Node View`, `Validators`, `Validator View`,
+  validators statistics/filters).
+- `logLevel` (`debug` | `info` | `warn` | `error`):
+  controls minimum severity persisted by Electron file logger (`main.log`) in main process and monitoring workers.

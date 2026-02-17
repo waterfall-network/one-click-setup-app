@@ -15,11 +15,19 @@
  *
  */
 import { IpcMain, IpcMainInvokeEvent, app } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { copyFile, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import log from 'electron-log/node'
+import logMain from 'electron-log/main'
 import { getMain } from '../libs/db'
 import AppEnv from '../libs/appEnv'
 import EventBus, { EventName } from '../libs/EventBus'
-import SettingsModel, { Settings as SettingsType, Theme, UpdateSettings } from '../models/settings'
+import SettingsModel, {
+  LogLevel,
+  Settings as SettingsType,
+  Theme,
+  UpdateSettings
+} from '../models/settings'
 import NodeModel from '../models/node'
 import WorkerModel from '../models/worker'
 import Database from 'better-sqlite3'
@@ -54,6 +62,10 @@ interface ExportConfigResult {
   exportedWorkers: number
 }
 
+interface ExportMainLogResult {
+  saved: boolean
+}
+
 class Settings {
   private ipcMain: IpcMain
   private appEnv: AppEnv
@@ -67,7 +79,8 @@ class Settings {
     theme: Theme.system,
     autoStartApp: true,
     autoStartNodes: true,
-    monitoringInterval: 12000
+    monitoringInterval: 12000,
+    logLevel: LogLevel.debug
   }
 
   constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus) {
@@ -90,11 +103,15 @@ class Settings {
     this.ipcMain.handle('settings:importConfigFile', (_event: IpcMainInvokeEvent, filePath) =>
       this._importConfigFile(filePath)
     )
+    this.ipcMain.handle('settings:exportMainLog', (_event: IpcMainInvokeEvent, filePath) =>
+      this._exportMainLog(filePath)
+    )
     this.ipcMain.handle('settings:resetFactory', () => this._resetFactory())
 
     const settings = this._get()
     if (settings) {
       this._setAutoStart(settings.autoStartApp)
+      this._setLogLevel(settings.logLevel)
     }
 
     return true
@@ -105,6 +122,7 @@ class Settings {
     this.ipcMain.removeHandler('settings:update')
     this.ipcMain.removeHandler('settings:exportConfig')
     this.ipcMain.removeHandler('settings:importConfigFile')
+    this.ipcMain.removeHandler('settings:exportMainLog')
     this.ipcMain.removeHandler('settings:resetFactory')
   }
 
@@ -113,23 +131,42 @@ class Settings {
   }
 
   private _update(data: unknown): SettingsType | null {
+    const startedAt = Date.now()
     const updateData = this._validateUpdateData(data)
     if (!updateData) {
+      log.warn('settings:update-invalid-payload')
+      return this._get()
+    }
+
+    const updated = this.settingsModel.update(updateData)
+    if (!updated) {
+      log.error('settings:update-db-failed', { keys: Object.keys(updateData) })
       return this._get()
     }
 
     if (updateData.autoStartApp !== undefined) {
       this._setAutoStart(updateData.autoStartApp)
     }
+    if (updateData.logLevel !== undefined) {
+      this._setLogLevel(updateData.logLevel)
+    }
 
-    this.settingsModel.update(updateData)
     const settings = this.settingsModel.get()
+    log.info('settings:update-applied', {
+      keys: Object.keys(updateData),
+      durationMs: Date.now() - startedAt
+    })
     if (settings) {
+      const effectiveSettings = {
+        ...settings,
+        ...updateData
+      }
       this.eventBus.emitEvent(EventName.SettingsUpdated, {
-        theme: settings.theme,
-        autoStartApp: settings.autoStartApp,
-        autoStartNodes: settings.autoStartNodes,
-        monitoringInterval: settings.monitoringInterval
+        theme: effectiveSettings.theme,
+        autoStartApp: effectiveSettings.autoStartApp,
+        autoStartNodes: effectiveSettings.autoStartNodes,
+        monitoringInterval: effectiveSettings.monitoringInterval,
+        logLevel: effectiveSettings.logLevel
       })
     }
 
@@ -138,10 +175,19 @@ class Settings {
 
   private _setAutoStart(enabled: boolean): void {
     app.setLoginItemSettings({ openAtLogin: enabled })
+    log.info('settings:auto-start-updated', { enabled })
+  }
+
+  private _setLogLevel(level: LogLevel): void {
+    log.transports.file.level = level
+    logMain.transports.file.level = level
+    log.info('settings:log-level-updated', { level })
   }
 
   private async _exportConfig(filePath: unknown): Promise<ExportConfigResult> {
+    const startedAt = Date.now()
     if (typeof filePath !== 'string' || filePath.length === 0) {
+      log.warn('settings:export-config-invalid-path')
       return {
         saved: false,
         exportedNodes: 0,
@@ -159,12 +205,18 @@ class Settings {
 
     try {
       await writeFile(filePath, JSON.stringify(payload, null, 2))
+      log.info('settings:export-config-success', {
+        exportedNodes: payload.nodes.length,
+        exportedWorkers: payload.workers.length,
+        durationMs: Date.now() - startedAt
+      })
       return {
         saved: true,
         exportedNodes: payload.nodes.length,
         exportedWorkers: payload.workers.length
       }
     } catch {
+      log.error('settings:export-config-failed', { durationMs: Date.now() - startedAt })
       return {
         saved: false,
         exportedNodes: 0,
@@ -173,9 +225,34 @@ class Settings {
     }
   }
 
+  private async _exportMainLog(filePath: unknown): Promise<ExportMainLogResult> {
+    const startedAt = Date.now()
+    if (typeof filePath !== 'string' || filePath.length === 0) {
+      log.warn('settings:export-main-log-invalid-path')
+      return { saved: false }
+    }
+
+    try {
+      const sourceLogPath = path.join(app.getPath('logs'), 'main.log')
+      await copyFile(sourceLogPath, filePath)
+      log.info('settings:export-main-log-success', {
+        durationMs: Date.now() - startedAt
+      })
+      return { saved: true }
+    } catch (error) {
+      log.error('settings:export-main-log-failed', {
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      return { saved: false }
+    }
+  }
+
   private _importConfig(data: unknown): ImportConfigResult {
+    const startedAt = Date.now()
     const payload = this._validateImportConfig(data)
     if (!payload) {
+      log.warn('settings:import-config-invalid-payload')
       return {
         settings: this._get(),
         importedNodes: 0,
@@ -185,6 +262,7 @@ class Settings {
 
     const validatedSettings = this._validateImportSettings(payload.settings)
     if (!validatedSettings) {
+      log.warn('settings:import-config-invalid-settings')
       return {
         settings: this._get(),
         importedNodes: 0,
@@ -194,6 +272,7 @@ class Settings {
 
     const imported = this._importNodesAndWorkers(payload)
     if (!imported) {
+      log.error('settings:import-config-import-failed')
       return {
         settings: this._get(),
         importedNodes: 0,
@@ -201,6 +280,11 @@ class Settings {
       }
     }
 
+    log.info('settings:import-config-success', {
+      importedNodes: imported.nodes,
+      importedWorkers: imported.workers,
+      durationMs: Date.now() - startedAt
+    })
     return {
       settings: this._update(validatedSettings),
       importedNodes: imported.nodes,
@@ -209,7 +293,9 @@ class Settings {
   }
 
   private async _importConfigFile(filePath: unknown): Promise<ImportConfigResult> {
+    const startedAt = Date.now()
     if (typeof filePath !== 'string' || filePath.length === 0) {
+      log.warn('settings:import-config-file-invalid-path')
       return {
         settings: this._get(),
         importedNodes: 0,
@@ -219,8 +305,10 @@ class Settings {
 
     try {
       const content = await readFile(filePath, { encoding: 'utf-8' })
+      log.debug('settings:import-config-file-read', { durationMs: Date.now() - startedAt })
       return this._importConfig(JSON.parse(content))
     } catch {
+      log.error('settings:import-config-file-failed', { durationMs: Date.now() - startedAt })
       return {
         settings: this._get(),
         importedNodes: 0,
@@ -230,6 +318,7 @@ class Settings {
   }
 
   private _resetFactory(): SettingsType | null {
+    const startedAt = Date.now()
     try {
       const resetData = this.db.transaction(() => {
         if (!this.workerModel.clearAll()) {
@@ -248,11 +337,14 @@ class Settings {
           theme: settings.theme,
           autoStartApp: settings.autoStartApp,
           autoStartNodes: settings.autoStartNodes,
-          monitoringInterval: settings.monitoringInterval
+          monitoringInterval: settings.monitoringInterval,
+          logLevel: settings.logLevel
         })
       }
+      log.info('settings:reset-factory-success', { durationMs: Date.now() - startedAt })
       return settings
     } catch {
+      log.error('settings:reset-factory-failed', { durationMs: Date.now() - startedAt })
       return null
     }
   }
@@ -301,6 +393,18 @@ class Settings {
         return null
       }
       validated.monitoringInterval = monitoringInterval
+    }
+
+    if (payload.logLevel !== undefined) {
+      if (
+        payload.logLevel !== LogLevel.debug &&
+        payload.logLevel !== LogLevel.info &&
+        payload.logLevel !== LogLevel.warn &&
+        payload.logLevel !== LogLevel.error
+      ) {
+        return null
+      }
+      validated.logLevel = payload.logLevel
     }
 
     if (Object.keys(validated).length === 0) {
@@ -368,7 +472,8 @@ class Settings {
       theme: settings.theme,
       autoStartApp: settings.autoStartApp,
       autoStartNodes: settings.autoStartNodes,
-      monitoringInterval: settings.monitoringInterval
+      monitoringInterval: settings.monitoringInterval,
+      logLevel: settings.logLevel ?? LogLevel.debug
     })
   }
 

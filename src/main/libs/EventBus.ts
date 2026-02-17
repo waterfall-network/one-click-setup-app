@@ -47,6 +47,7 @@ export type SettingsUpdatedPayload = {
   autoStartApp: boolean
   autoStartNodes: boolean
   monitoringInterval: number
+  logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
 class EventBus extends EventEmitter {

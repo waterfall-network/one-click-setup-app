@@ -31,26 +31,42 @@ import * as os from 'node:os'
 import log from 'electron-log/node'
 import * as https from 'node:https'
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export const checkOrCreateDir = async (dirPath: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await access(dirPath, constants.F_OK)
     await access(dirPath, constants.R_OK | constants.W_OK)
+    log.debug('fs:check-or-create-dir:exists', { dirPath, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
     const nodeError = error as NodeJS.ErrnoException
     if (nodeError.code === 'ENOENT') {
       try {
         await mkdir(dirPath, { recursive: true })
+        log.debug('fs:check-or-create-dir:created', {
+          dirPath,
+          durationMs: Date.now() - startedAt
+        })
         return true
       } catch {
-        log.error('Not permissions to create dir:', dirPath)
+        log.error('fs:check-or-create-dir:create-failed', {
+          dirPath,
+          durationMs: Date.now() - startedAt
+        })
         return false
       }
     } else if (nodeError.code === 'EACCES') {
-      log.error('Not permissions to access dir:', dirPath)
+      log.error('fs:check-or-create-dir:access-denied', { dirPath })
       return false
     } else {
-      log.error('Other error:', dirPath)
+      log.error('fs:check-or-create-dir:failed', {
+        dirPath,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
   }
   return false
@@ -83,10 +99,21 @@ export const checkFile = async (filePath: string): Promise<boolean> => {
 }
 
 export const appendToFile = async (filePath: string, data: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await appendFile(filePath, data)
+    log.debug('fs:append-to-file:success', {
+      filePath,
+      bytes: data.length,
+      durationMs: Date.now() - startedAt
+    })
     return true
-  } catch {
+  } catch (error) {
+    log.error('fs:append-to-file:failed', {
+      filePath,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
@@ -137,21 +164,33 @@ export const checkSocket = async (ipcPath: string): Promise<boolean> => {
 }
 
 export const deleteFolderRecursive = async (path: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await rm(path, { recursive: true, force: true })
+    log.debug('fs:delete-folder:success', { path, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
-    log.error('deleteFolderRecursive', error)
+    log.error('fs:delete-folder:failed', {
+      path,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
 
 export const deleteFile = async (filePath: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await unlink(filePath)
+    log.debug('fs:delete-file:success', { filePath, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
-    log.error('deleteFile', error)
+    log.error('fs:delete-file:failed', {
+      filePath,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
@@ -171,6 +210,7 @@ export const deleteFilesByCoordinatorPublicKeys = async (
   publicKeys: PublicKey[]
 ): Promise<RemovePublicKeyResponse[]> => {
   const results: RemovePublicKeyResponse[] = []
+  const startedAt = Date.now()
   try {
     const files = await readdir(dirPath)
     for (const file of files) {
@@ -185,7 +225,10 @@ export const deleteFilesByCoordinatorPublicKeys = async (
           results.push({ id: publicKeyObject.id, status: true })
         }
       } catch (error) {
-        log.error('deleteFilesByCoordinatorPublicKeys', `Error processing file ${file}:`, error)
+        log.error('fs:delete-coordinator-files:process-file-failed', {
+          file,
+          error: getErrorMessage(error)
+        })
       }
     }
     publicKeys.forEach((pk) => {
@@ -194,8 +237,17 @@ export const deleteFilesByCoordinatorPublicKeys = async (
       }
     })
   } catch (error) {
-    log.error('deleteFilesByCoordinatorPublicKeys', 'Error reading directory:', error)
+    log.error('fs:delete-coordinator-files:read-dir-failed', {
+      dirPath,
+      error: getErrorMessage(error)
+    })
   }
+  log.debug('fs:delete-coordinator-files:completed', {
+    dirPath,
+    requested: publicKeys.length,
+    processed: results.length,
+    durationMs: Date.now() - startedAt
+  })
   return results
 }
 
@@ -206,6 +258,7 @@ export const deleteFilesByValidatorPublicKeys = async (
 ): Promise<RemovePublicKeyResponse[]> => {
   const results: RemovePublicKeyResponse[] = []
   const filesToDeleteIndexes: number[] = []
+  const startedAt = Date.now()
 
   try {
     const files = await readdir(dirPath)
@@ -217,11 +270,10 @@ export const deleteFilesByValidatorPublicKeys = async (
           results.push({ id: key.id, status: true })
           filesToDeleteIndexes.push(index)
         } catch (error) {
-          log.error(
-            'deleteFilesByValidatorPublicKeys',
-            `Error deleting file: ${fileToDelete}`,
-            error
-          )
+          log.error('fs:delete-validator-files:delete-file-failed', {
+            file: fileToDelete,
+            error: getErrorMessage(error)
+          })
           results.push({ id: key.id, status: false })
         }
       } else {
@@ -239,8 +291,18 @@ export const deleteFilesByValidatorPublicKeys = async (
       await writeFile(passwordFilePath, passwordsArray.join('\n'))
     }
   } catch (error) {
-    console.error('deleteFilesByValidatorPublicKeys', 'Error processing:', error)
+    log.error('fs:delete-validator-files:failed', {
+      dirPath,
+      error: getErrorMessage(error)
+    })
   }
+  log.debug('fs:delete-validator-files:completed', {
+    dirPath,
+    requested: publicKeys.length,
+    processed: results.length,
+    passwordEntriesRemoved: filesToDeleteIndexes.length,
+    durationMs: Date.now() - startedAt
+  })
   return results
 }
 

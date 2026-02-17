@@ -17,22 +17,34 @@
 import { Card } from '@renderer/ui-kit/Card'
 import { Slider } from '@renderer/ui-kit/Slider'
 import { Text } from '@renderer/ui-kit/Typography'
+import { Select } from '@renderer/ui-kit/Select'
+import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { DownloadOutlined } from '@ant-design/icons'
 import { styled } from 'styled-components'
+import { LogLevel } from '@renderer/types/settings'
 
 interface MonitoringSettingsCardProps {
   monitoringInterval: number
+  logLevel: LogLevel
   intervalMin: number
   intervalMax: number
   onIntervalChange: (value: number) => void
   onIntervalCommit: (value: number) => void
+  onLogLevelChange: (value: LogLevel) => void
+  onExportMainLog: () => void
+  exportMainLogLoading: boolean
 }
 
 export const MonitoringSettingsCard = ({
   monitoringInterval,
+  logLevel,
   intervalMin,
   intervalMax,
   onIntervalChange,
-  onIntervalCommit
+  onIntervalCommit,
+  onLogLevelChange,
+  onExportMainLog,
+  exportMainLogLoading
 }: MonitoringSettingsCardProps) => {
   return (
     <Card title="Monitoring">
@@ -55,6 +67,27 @@ export const MonitoringSettingsCard = ({
             }
           }}
         />
+        <Text>Log level</Text>
+        <ControlsRow>
+          <Select
+            value={logLevel}
+            style={{ width: 180 }}
+            options={[
+              { label: 'Debug', value: 'debug' },
+              { label: 'Info', value: 'info' },
+              { label: 'Warn', value: 'warn' },
+              { label: 'Error', value: 'error' }
+            ]}
+            onChange={(value) => onLogLevelChange(value as LogLevel)}
+          />
+          <ButtonPrimary
+            icon={<DownloadOutlined />}
+            onClick={onExportMainLog}
+            loading={exportMainLogLoading}
+          >
+            Save main.log
+          </ButtonPrimary>
+        </ControlsRow>
       </Container>
     </Card>
   )
@@ -65,4 +98,12 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
+`
+
+const ControlsRow = styled.div`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 `

@@ -64,7 +64,8 @@ class Status {
     this.worker.postMessage({
       type: EventName.SettingsUpdated,
       payload: {
-        monitoringInterval: event.payload.monitoringInterval
+        monitoringInterval: event.payload.monitoringInterval,
+        logLevel: event.payload.logLevel
       }
     })
   }

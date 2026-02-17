@@ -400,8 +400,8 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       } else {
         isCorrect = true
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      console.error('Failed to parse private key')
     }
     let balance = ''
     let hasPendingTransactions = false

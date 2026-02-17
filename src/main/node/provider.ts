@@ -27,6 +27,9 @@ import { EraInfo, isEraInfo, isValidatorInfo } from '../helpers/worker'
 import { PublicKey } from '../worker'
 import { getRPC, Network } from '../libs/env'
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export enum StatusResult {
   success = 'success',
   fail = 'fail'
@@ -482,6 +485,8 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    const startedAt = Date.now()
+    const network = this.model.network
     try {
       const response = await fetch(
         `${getRPC(this.model ? this.model.network : Network.mainnet)}/coordinator/${command}`,
@@ -492,11 +497,27 @@ class ProviderNode extends EventEmitter {
         }
       )
       if (!response.ok) {
+        log.warn('provider:runCoordinatorCommand non-ok response', {
+          network,
+          command,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
+      log.debug('provider:runCoordinatorCommand success', {
+        network,
+        command,
+        durationMs: Date.now() - startedAt
+      })
       return await response.json()
     } catch (error) {
-      log.error('runCoordinatorCommand', command, error)
+      log.error('provider:runCoordinatorCommand failed', {
+        network,
+        command,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }
@@ -510,6 +531,9 @@ class ProviderNode extends EventEmitter {
     if (!Array.isArray(req) || req.length === 0) {
       return []
     }
+    const startedAt = Date.now()
+    const network = this.model.network
+    const methods = req.map((item) => item.method)
     try {
       const response = await fetch(getRPC(this.model ? this.model.network : Network.mainnet), {
         headers: {
@@ -526,17 +550,41 @@ class ProviderNode extends EventEmitter {
         method: 'POST'
       })
       if (!response.ok) {
+        log.warn('provider:runValidatorCommands non-ok response', {
+          network,
+          batchSize: req.length,
+          methods,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return []
       }
       const result = await response.json()
       if (!Array.isArray(result)) {
-        log.error('runValidatorCommands invalid batch response', req, result)
+        log.error('provider:runValidatorCommands invalid batch response', {
+          network,
+          batchSize: req.length,
+          methods,
+          responseType: typeof result,
+          durationMs: Date.now() - startedAt
+        })
         return []
       }
+      log.debug('provider:runValidatorCommands success', {
+        network,
+        batchSize: req.length,
+        methods,
+        durationMs: Date.now() - startedAt
+      })
       return result.map((r) => r.result)
     } catch (error) {
-      // log.debug(error)
-      log.error('runValidatorCommands', req, error)
+      log.error('provider:runValidatorCommands failed', {
+        network,
+        batchSize: req.length,
+        methods,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return []
   }
@@ -548,6 +596,8 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    const startedAt = Date.now()
+    const network = this.model.network
     try {
       const response = await fetch(getRPC(this.model ? this.model.network : Network.mainnet), {
         headers: {
@@ -562,13 +612,31 @@ class ProviderNode extends EventEmitter {
         method: 'POST'
       })
       if (!response.ok) {
+        log.warn('provider:runValidatorCommand non-ok response', {
+          network,
+          method,
+          paramsCount: params.length,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
       const result = await response.json()
+      log.debug('provider:runValidatorCommand success', {
+        network,
+        method,
+        paramsCount: params.length,
+        durationMs: Date.now() - startedAt
+      })
       return result.result
     } catch (error) {
-      // log.debug(error)
-      log.error('runValidatorCommand', method, params, error)
+      log.error('provider:runValidatorCommand failed', {
+        network,
+        method,
+        paramsCount: params.length,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }

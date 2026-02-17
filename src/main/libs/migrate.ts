@@ -25,6 +25,7 @@ import * as add_download_to_nodes_table from '../migrations/1714416355_add_downl
 import * as add_delegate_to_workers_table from '../migrations/1722960792_add_delegate_to_workers_table'
 import * as add_global_index_to_workers_table from '../migrations/1726762138_add_global_index_to_workers_table'
 import * as create_settings_table from '../migrations/1771174763_create_settings_table'
+import * as add_log_level_to_settings_table from '../migrations/1772000000_add_log_level_to_settings_table'
 
 const migrations = {
   '1708512084_create_nodes_table': create_nodes_table,
@@ -33,9 +34,12 @@ const migrations = {
   '1714416355_add_download_to_nodes_table': add_download_to_nodes_table,
   '1722960792_add_delegate_to_workers_table': add_delegate_to_workers_table,
   '1726762138_add_global_index_to_workers_table': add_global_index_to_workers_table,
-  '1771174763_create_settings_table': create_settings_table
+  '1771174763_create_settings_table': create_settings_table,
+  '1772000000_add_log_level_to_settings_table': add_log_level_to_settings_table
 }
 export function runMigrations(): Promise<boolean> {
+  const startedAt = Date.now()
+  log.info('migrations:start')
   return new Promise((resolve, reject) => {
     migrate.load(
       {
@@ -47,12 +51,14 @@ export function runMigrations(): Promise<boolean> {
           log.error('Migration loading error:', err)
           return reject(err)
         }
+        const pendingCount = set?.migrations?.length || 0
+        log.debug('migrations:loaded', { pendingCount })
         set.up((err) => {
           if (err) {
             log.error('Migration error:', err)
             return reject(err)
           }
-          log.debug('Migrations successfully up')
+          log.info('migrations:completed', { durationMs: Date.now() - startedAt })
           return resolve(true)
         })
       }

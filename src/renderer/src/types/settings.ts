@@ -15,6 +15,7 @@
  *
  */
 export type ThemeMode = 'light' | 'dark' | 'system'
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export interface Settings {
   id: number
@@ -22,12 +23,13 @@ export interface Settings {
   autoStartApp: boolean
   autoStartNodes: boolean
   monitoringInterval: number
+  logLevel: LogLevel
   createdAt: string
   updatedAt: string
 }
 
 export type UpdateSettings = Partial<
-  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval'>
+  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'>
 >
 
 export interface ExportConfigResult {
@@ -40,4 +42,8 @@ export interface ImportConfigResult {
   settings: Settings | null
   importedNodes: number
   importedWorkers: number
+}
+
+export interface ExportMainLogResult {
+  saved: boolean
 }

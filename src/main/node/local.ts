@@ -73,6 +73,12 @@ import * as rfs from 'rotating-file-stream'
 
 export { StatusResult }
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const truncateValue = (value: string, maxLength = 180): string =>
+  value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value
+
 export type StatusResults = {
   coordinatorBeacon: StatusResult
   coordinatorValidator: StatusResult
@@ -860,6 +866,7 @@ class LocalNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    const startedAt = Date.now()
     try {
       const response = await fetch(
         `http://127.0.0.1:${this.model.coordinatorHttpApiPort}${command}`,
@@ -870,12 +877,27 @@ class LocalNode extends EventEmitter {
         }
       )
       if (!response.ok) {
+        log.warn('local:runCoordinatorCommand non-ok response', {
+          nodeId: this.model.id,
+          command,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
+      log.debug('local:runCoordinatorCommand success', {
+        nodeId: this.model.id,
+        command,
+        durationMs: Date.now() - startedAt
+      })
       return await response.json()
     } catch (error) {
-      // log.debug(error)
-      log.error('runCoordinatorCommand', command, error)
+      log.error('local:runCoordinatorCommand failed', {
+        nodeId: this.model.id,
+        command,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }
@@ -884,10 +906,16 @@ class LocalNode extends EventEmitter {
     if (!this.model) {
       return ''
     }
+    const startedAt = Date.now()
     const isWorking = await checkSocket(
       `${this.appEnv.getValidatorSocket(this.model.id.toString())}`
     )
     if (!isWorking) {
+      log.warn('local:runValidatorCommand validator socket unavailable', {
+        nodeId: this.model.id,
+        command: truncateValue(command),
+        durationMs: Date.now() - startedAt
+      })
       return ''
     }
     return new Promise((resolve, reject) => {
@@ -899,11 +927,24 @@ class LocalNode extends EventEmitter {
         `${this.appEnv.getValidatorBinPath(this.model.network)} --verbosity 0 --exec "${execCommand}" attach ${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
         (err, stdout, stderr) => {
           if (err) {
-            log.error('runValidatorCommand', command, err)
+            log.error('local:runValidatorCommand process failed', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: format || 'plain',
+              error: getErrorMessage(err),
+              durationMs: Date.now() - startedAt
+            })
             return reject(err)
           }
           if (stdout) {
             if (stdout.search('Error') !== -1) {
+              log.warn('local:runValidatorCommand returned error output', {
+                nodeId: this.model?.id,
+                command: truncateValue(command),
+                format: format || 'plain',
+                output: truncateValue(stdout),
+                durationMs: Date.now() - startedAt
+              })
               return reject(stdout)
             }
             if (format && format === 'json') {
@@ -912,15 +953,38 @@ class LocalNode extends EventEmitter {
                 json = JSON.parse(stdout)
                 json = JSON.parse(json)
               } catch (err) {
-                log.error(err)
+                log.error('local:runValidatorCommand json parse failed', {
+                  nodeId: this.model?.id,
+                  command: truncateValue(command),
+                  error: getErrorMessage(err),
+                  durationMs: Date.now() - startedAt
+                })
                 return reject(err)
               }
+              log.debug('local:runValidatorCommand success', {
+                nodeId: this.model?.id,
+                command: truncateValue(command),
+                format: 'json',
+                durationMs: Date.now() - startedAt
+              })
               return resolve(json)
             }
+            log.debug('local:runValidatorCommand success', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: 'plain',
+              durationMs: Date.now() - startedAt
+            })
             return resolve(stdout.replaceAll('\n', '').replaceAll('"', '').trim())
           }
           if (stderr) {
-            log.error('runValidatorCommand', command, stderr)
+            log.error('local:runValidatorCommand stderr', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: format || 'plain',
+              stderr: truncateValue(stderr),
+              durationMs: Date.now() - startedAt
+            })
             return reject(stderr)
           }
         }

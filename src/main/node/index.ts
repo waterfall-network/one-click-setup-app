@@ -44,6 +44,9 @@ enum ErrorResults {
   NODE_NOT_CREATED = 'Node Not Created'
 }
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 class Node {
   private ipcMain: IpcMain
   private appEnv: AppEnv
@@ -124,6 +127,8 @@ class Node {
   }
 
   private async _start(id: number): Promise<StatusResults | ErrorResults | boolean> {
+    const startedAt = Date.now()
+    log.debug('node:start-requested', { nodeId: id })
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -135,10 +140,14 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].start()
+    const result = await this.nodes[id.toString()].start()
+    log.info('node:start-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _stop(id: number): Promise<StatusResults | ErrorResults | boolean> {
+    const startedAt = Date.now()
+    log.debug('node:stop-requested', { nodeId: id })
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -150,10 +159,14 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].stop()
+    const result = await this.nodes[id.toString()].stop()
+    log.info('node:stop-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _restart(id: number): Promise<StatusResults | ErrorResults> {
+    const startedAt = Date.now()
+    log.debug('node:restart-requested', { nodeId: id })
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel || nodeModel.downloadStatus !== DownloadStatus.finish) {
@@ -161,18 +174,36 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].restart()
+    const result = await this.nodes[id.toString()].restart()
+    log.info('node:restart-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _add(options: NewNode): Promise<NodeModelType | ErrorResults> {
+    const startedAt = Date.now()
+    log.debug('node:add-requested', {
+      name: options.name,
+      type: options.type,
+      network: options.network
+    })
     const nodeModel = this.nodeModel.insert(options)
     if (!nodeModel) {
+      log.error('node:add-failed', {
+        reason: ErrorResults.NODE_NOT_CREATED,
+        durationMs: Date.now() - startedAt
+      })
       return ErrorResults.NODE_NOT_CREATED
     }
     const result = await this._addNode(nodeModel)
     if (result) {
+      log.info('node:add-finished', { nodeId: nodeModel.id, durationMs: Date.now() - startedAt })
       return nodeModel
     }
+    log.error('node:add-failed', {
+      nodeId: nodeModel.id,
+      reason: ErrorResults.NODE_NOT_CREATED,
+      durationMs: Date.now() - startedAt
+    })
     return ErrorResults.NODE_NOT_CREATED
   }
 
@@ -187,7 +218,7 @@ class Node {
     }
     const node = this.nodes[nodeModel.id.toString()]
     const initNodeStatus = await node.initialize()
-    log.debug('initNodeStatus', initNodeStatus)
+    log.debug('node:initialize-status', { nodeId: nodeModel.id, status: initNodeStatus })
     node.on('stop', () => {
       if (nodeModel.type === NodeType.local) {
         const pids = node.getPids()
@@ -302,7 +333,11 @@ class Node {
     ids: number[] | bigint[],
     withData = false
   ): Promise<boolean[] | ErrorResults> {
-    log.debug('_delete', ids, withData)
+    const startedAt = Date.now()
+    log.debug('node:delete-requested', {
+      idsCount: ids?.length || 0,
+      withData
+    })
     if (!ids || ids.length == 0) {
       return ErrorResults.NODE_NOT_FOUND
     }
@@ -312,6 +347,7 @@ class Node {
     for (const id of ids) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'not-found' })
         continue
       }
       if (
@@ -320,10 +356,12 @@ class Node {
           nodeModel.validatorStatus !== ValidatorStatus.stopped ||
           nodeModel.coordinatorValidatorStatus !== CoordinatorValidatorStatus.stopped)
       ) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'node-running' })
         continue
       }
       const countWorkers = this.workerModel.getCount({ nodeId: id })
       if (countWorkers && countWorkers > 0) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'workers-exist', workers: countWorkers })
         continue
       }
 
@@ -334,6 +372,7 @@ class Node {
 
       if (withData) {
         if (!(await node.removeData())) {
+          log.error('node:delete-skip', { nodeId: id, reason: 'remove-data-failed' })
           continue
         }
       }
@@ -343,16 +382,36 @@ class Node {
       results[index] = status
     }
 
+    log.info('node:delete-finished', {
+      requested: ids.length,
+      deleted: results.filter(Boolean).length,
+      durationMs: Date.now() - startedAt
+    })
     return results
   }
 
   private async _checkPorts(ports: number[]) {
-    return await Promise.all(ports.map((port) => checkPort(port)))
+    const startedAt = Date.now()
+    const result = await Promise.all(ports.map((port) => checkPort(port)))
+    log.debug('node:check-ports-finished', {
+      portsChecked: ports.length,
+      available: result.filter(Boolean).length,
+      durationMs: Date.now() - startedAt
+    })
+    return result
   }
   private async _finishDownloadSnapshot(
     event: EventBusEvent<EventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>
   ) {
-    await this._start(event.payload.nodeId)
+    try {
+      log.debug('node:finish-download-snapshot-event', { nodeId: event.payload.nodeId })
+      await this._start(event.payload.nodeId)
+    } catch (error) {
+      log.error('node:finish-download-snapshot-event-failed', {
+        nodeId: event.payload.nodeId,
+        error: getErrorMessage(error)
+      })
+    }
   }
 }
 

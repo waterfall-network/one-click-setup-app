@@ -27,6 +27,7 @@ import {
 } from '@renderer/types/node'
 import {
   useExportConfig,
+  useExportMainLog,
   useGetSettings,
   useImportConfig,
   useResetFactory,
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoStartApp: true,
   autoStartNodes: true,
   monitoringInterval: 12000,
+  logLevel: 'debug',
   createdAt: '',
   updatedAt: ''
 }
@@ -74,6 +76,7 @@ export const useSettingsPage = (modal: ModalApi) => {
   const { isLoading, data, error } = useGetSettings()
   const updateMutation = useUpdateSettings()
   const exportMutation = useExportConfig()
+  const exportMainLogMutation = useExportMainLog()
   const importMutation = useImportConfig()
   const resetFactoryMutation = useResetFactory()
 
@@ -89,7 +92,10 @@ export const useSettingsPage = (modal: ModalApi) => {
 
   const updateSettingsField = async (
     patch: Partial<
-      Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval'>
+      Pick<
+        Settings,
+        'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'
+      >
     >
   ) => {
     setStatus(null)
@@ -104,6 +110,26 @@ export const useSettingsPage = (modal: ModalApi) => {
       setSettingsForm(result)
     } catch {
       setStatus({ type: 'error', message: 'Failed to update settings.' })
+    }
+  }
+
+  const handleExportMainLog = async () => {
+    setStatus(null)
+    try {
+      const filePath = await selectSavePath('Save application log', 'waterfall-main.log', [
+        { name: 'Log Files', extensions: ['log'] }
+      ])
+      if (!filePath) {
+        return
+      }
+      const result = await exportMainLogMutation.mutateAsync(filePath)
+      if (!result.saved) {
+        setStatus({ type: 'error', message: 'Failed to save main log file.' })
+        return
+      }
+      setStatus({ type: 'success', message: 'Main log file saved.' })
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to save main log file.' })
     }
   }
 
@@ -294,10 +320,12 @@ export const useSettingsPage = (modal: ModalApi) => {
     syncProgress,
     setSyncProgress,
     updateSettingsField,
+    handleExportMainLog,
     handleExport,
     handleImport,
     handleResetFactory,
     exportPending: exportMutation.isPending,
+    exportMainLogPending: exportMainLogMutation.isPending,
     importPending: importMutation.isPending,
     resetPending: resetFactoryMutation.isPending
   }

@@ -17,6 +17,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   exportConfig,
+  exportMainLog,
   getSettings,
   importConfigFile,
   resetFactory,
@@ -69,6 +70,12 @@ export const useImportConfig = () => {
       void queryClient.invalidateQueries({ queryKey: ['workers:stats'] })
       void queryClient.invalidateQueries({ queryKey: ['worker:one'] })
     }
+  })
+}
+
+export const useExportMainLog = () => {
+  return useMutation({
+    mutationFn: exportMainLog
   })
 }
 

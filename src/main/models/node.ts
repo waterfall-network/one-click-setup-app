@@ -30,6 +30,8 @@ import {
 import { Condition, appendCondition } from '../helpers/query'
 
 type Database = ReturnType<typeof Database>
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 export enum Type {
   local = 'local',
   remote = 'remote',
@@ -155,6 +157,7 @@ class NodeModel {
         ')'
     )
     try {
+      const startedAt = Date.now()
       const res = query.run({
         ...fields,
         coordinatorHttpApiPort: fields.coordinatorHttpApiPort || COORDINATOR_HTTP_API_PORT,
@@ -174,9 +177,20 @@ class NodeModel {
       if (res.changes === 0) {
         return null
       }
+      log.debug('node-model:insert', {
+        name: fields.name,
+        type: fields.type,
+        network: fields.network,
+        durationMs: Date.now() - startedAt
+      })
       return this.getById(res.lastInsertRowid)
     } catch (e) {
-      log.error('node insert', e)
+      log.error('node-model:insert-failed', {
+        name: fields.name,
+        type: fields.type,
+        network: fields.network,
+        error: getErrorMessage(e)
+      })
       return null
     }
   }
@@ -206,10 +220,17 @@ class NodeModel {
     }
 
     try {
+      const startedAt = Date.now()
       const stmt = this.db.prepare(query)
-      return stmt.all(...params) as Node[]
+      const nodes = stmt.all(...params) as Node[]
+      log.debug('node-model:get-all', {
+        count: nodes.length,
+        hasDownloadStatusFilter: options?.downloadStatus !== undefined,
+        durationMs: Date.now() - startedAt
+      })
+      return nodes
     } catch (error) {
-      log.error(error)
+      log.error('node-model:get-all-failed', { error: getErrorMessage(error) })
       return []
     }
   }
@@ -227,10 +248,15 @@ class NodeModel {
       return false
     }
     try {
+      const startedAt = Date.now()
       const res = this.db.prepare('DELETE FROM nodes').run()
+      log.debug('node-model:clear-all', {
+        changes: res.changes,
+        durationMs: Date.now() - startedAt
+      })
       return res.changes >= 0
     } catch (error) {
-      log.error('nodes clearAll', error)
+      log.error('node-model:clear-all-failed', { error: getErrorMessage(error) })
       return false
     }
   }
@@ -240,6 +266,7 @@ class NodeModel {
       return false
     }
     try {
+      const startedAt = Date.now()
       const insertNode = this.db.prepare(`
         INSERT INTO nodes (
           id, name, network, type, locationDir, memoHash,
@@ -309,9 +336,16 @@ class NodeModel {
           updatedAt: rawNode.updatedAt ?? undefined
         })
       }
+      log.debug('node-model:insert-many-import', {
+        count: nodes.length,
+        durationMs: Date.now() - startedAt
+      })
       return true
     } catch (error) {
-      log.error('nodes insertManyForImport', error)
+      log.error('node-model:insert-many-import-failed', {
+        count: nodes.length,
+        error: getErrorMessage(error)
+      })
       return false
     }
   }
@@ -321,6 +355,7 @@ class NodeModel {
       return false
     }
     try {
+      const startedAt = Date.now()
       this.db
         .prepare(
           `UPDATE nodes
@@ -329,9 +364,10 @@ class NodeModel {
            )`
         )
         .run()
+      log.debug('node-model:sync-workers-count', { durationMs: Date.now() - startedAt })
       return true
     } catch (error) {
-      log.error('nodes syncWorkersCount', error)
+      log.error('node-model:sync-workers-count-failed', { error: getErrorMessage(error) })
       return false
     }
   }

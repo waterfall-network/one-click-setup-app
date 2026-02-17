@@ -82,6 +82,10 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Fix,
         description: 'Fixed bulk withdraw/deactivate checks and activation warning'
+      },
+      {
+        type: ChangeType.New,
+        description: 'Added configurable log level and option to export main.log from Settings'
       }
     ]
   },

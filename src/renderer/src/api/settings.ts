@@ -16,6 +16,7 @@
  */
 import {
   ExportConfigResult,
+  ExportMainLogResult,
   ImportConfigResult,
   Settings,
   UpdateSettings
@@ -31,6 +32,10 @@ export const updateSettings = async (data: UpdateSettings): Promise<Settings | n
 
 export const exportConfig = async (filePath: string): Promise<ExportConfigResult> => {
   return await window.settings.exportConfig(filePath)
+}
+
+export const exportMainLog = async (filePath: string): Promise<ExportMainLogResult> => {
+  return await window.settings.exportMainLog(filePath)
 }
 
 export const importConfigFile = async (filePath: string): Promise<ImportConfigResult> => {

@@ -21,6 +21,9 @@ import { getStakeAmount } from '../libs/env'
 
 type Database = ReturnType<typeof Database>
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export enum CoordinatorStatus {
   pending_initialized = 'pending_initialized',
   pending_queued = 'pending_queued',
@@ -201,6 +204,7 @@ class WorkerModel {
     const updateNode = this.db.prepare(`UPDATE nodes SET memoHash = @memoHash  WHERE id = @id`)
 
     try {
+      const startedAt = Date.now()
       const query = this.db.transaction((workers) => {
         for (const worker of workers) {
           insertWorkerQuery.run(worker)
@@ -210,12 +214,21 @@ class WorkerModel {
       })
       query(workers)
       const allWorkers = this.getByNodeId(node.id)
+      log.debug('worker-model:insert', {
+        nodeId: node.id,
+        inserted: workers.length,
+        durationMs: Date.now() - startedAt
+      })
       return allWorkers.map((worker) => ({
         ...worker,
         node
       }))
     } catch (e) {
-      log.error('worker insert', e)
+      log.error('worker-model:insert-failed', {
+        nodeId: node.id,
+        requested: workers.length,
+        error: getErrorMessage(e)
+      })
       return []
     }
   }
@@ -231,7 +244,10 @@ class WorkerModel {
       try {
         worker.delegate = JSON.parse(worker.delegate)
       } catch (e) {
-        log.error(e)
+        log.error('worker-model:get-by-id-parse-delegate-failed', {
+          workerId: id,
+          error: getErrorMessage(e)
+        })
       }
     }
 
@@ -257,7 +273,10 @@ class WorkerModel {
       try {
         worker.delegate = JSON.parse(worker.delegate)
       } catch (e) {
-        log.error(e)
+        log.error('worker-model:get-by-pk-parse-delegate-failed', {
+          coordinatorPublicKey: coordinatorPublicKey.slice(0, 16),
+          error: getErrorMessage(e)
+        })
       }
     }
 
@@ -290,7 +309,10 @@ class WorkerModel {
         delegate: worker.delegate ? JSON.parse(worker.delegate) : null
       }))
     } catch (e) {
-      log.error(e)
+      log.error('worker-model:get-by-node-id-parse-delegate-failed', {
+        nodeId,
+        error: getErrorMessage(e)
+      })
     }
 
     // Apply filters
@@ -353,12 +375,19 @@ class WorkerModel {
     let workers = res.all(...params) as Worker[]
 
     try {
+      const startedAt = Date.now()
       workers = workers.map((worker) => ({
         ...worker,
         delegate: worker.delegate ? JSON.parse(worker.delegate) : null
       }))
+      log.debug('worker-model:get-all', {
+        count: workers.length,
+        hasComputedFilters,
+        withNode: !!options?.withNode,
+        durationMs: Date.now() - startedAt
+      })
     } catch (e) {
-      log.error(e)
+      log.error('worker-model:get-all-parse-delegate-failed', { error: getErrorMessage(e) })
     }
 
     // Apply status filter (computed status)
@@ -482,7 +511,7 @@ class WorkerModel {
         const result = stmt.get(...params) as { count: number } | undefined
         return result?.count ?? 0
       } catch (error) {
-        log.error(error)
+        log.error('worker-model:get-count-fast-failed', { error: getErrorMessage(error) })
         return null
       }
     }
@@ -535,7 +564,7 @@ class WorkerModel {
 
       return workers.length
     } catch (error) {
-      log.error(error)
+      log.error('worker-model:get-count-failed', { error: getErrorMessage(error) })
       return null
     }
   }
@@ -645,7 +674,7 @@ class WorkerModel {
         rewardAmount
       }
     } catch (error) {
-      log.error(error)
+      log.error('worker-model:get-stats-failed', { error: getErrorMessage(error) })
       return null
     }
   }
@@ -664,10 +693,15 @@ class WorkerModel {
       return false
     }
     try {
+      const startedAt = Date.now()
       const res = this.db.prepare('DELETE FROM workers').run()
+      log.debug('worker-model:clear-all', {
+        changes: res.changes,
+        durationMs: Date.now() - startedAt
+      })
       return res.changes >= 0
     } catch (error) {
-      log.error('workers clearAll', error)
+      log.error('worker-model:clear-all-failed', { error: getErrorMessage(error) })
       return false
     }
   }
@@ -678,6 +712,7 @@ class WorkerModel {
     }
 
     try {
+      const startedAt = Date.now()
       const insertWorker = this.db.prepare(`
         INSERT INTO workers (
           id, nodeId, number,
@@ -729,9 +764,16 @@ class WorkerModel {
         })
       }
 
+      log.debug('worker-model:insert-many-import', {
+        count: workers.length,
+        durationMs: Date.now() - startedAt
+      })
       return true
     } catch (error) {
-      log.error('workers insertManyForImport', error)
+      log.error('worker-model:insert-many-import-failed', {
+        count: workers.length,
+        error: getErrorMessage(error)
+      })
       return false
     }
   }

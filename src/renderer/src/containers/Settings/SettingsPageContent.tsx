@@ -40,9 +40,11 @@ export const SettingsPageContent = () => {
     syncProgress,
     setSyncProgress,
     updateSettingsField,
+    handleExportMainLog,
     handleExport,
     handleImport,
     handleResetFactory,
+    exportMainLogPending,
     exportPending,
     importPending,
     resetPending
@@ -76,12 +78,16 @@ export const SettingsPageContent = () => {
 
         <MonitoringSettingsCard
           monitoringInterval={settingsForm.monitoringInterval}
+          logLevel={settingsForm.logLevel}
           intervalMin={INTERVAL_MIN}
           intervalMax={INTERVAL_MAX}
           onIntervalChange={(value) =>
             setSettingsForm((prev) => ({ ...prev, monitoringInterval: value }))
           }
           onIntervalCommit={(value) => void updateSettingsField({ monitoringInterval: value })}
+          onLogLevelChange={(value) => void updateSettingsField({ logLevel: value })}
+          onExportMainLog={() => void handleExportMainLog()}
+          exportMainLogLoading={exportMainLogPending}
         />
 
         <BackupSettingsCard

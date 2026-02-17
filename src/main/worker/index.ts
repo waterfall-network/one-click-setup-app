@@ -38,6 +38,17 @@ import { validateDelegateRules, validateDepositData } from '../helpers/worker'
 import { getWeb3 } from '../libs/web3'
 import { TransactionConfig } from 'web3-core'
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const getRpcLabel = (rpcUrl: string): string => {
+  try {
+    return new URL(rpcUrl).origin
+  } catch {
+    return rpcUrl
+  }
+}
+
 enum ErrorResults {
   NODE_NOT_FOUND = 'Node is Not Found',
   MNEMONIC_NOT_PROVIDED = 'Mnemonic is not provided',
@@ -419,7 +430,7 @@ class Worker {
     ids: number[] | bigint[],
     pk: string
   ): Promise<boolean[] | ErrorResults> {
-    log.debug('_sendActionTx', action, ids)
+    log.info('worker:sendActionTx start', { action, requestedWorkers: ids.length })
     if (!action) {
       return ErrorResults.ACTION_NOT_FOUND
     }
@@ -433,7 +444,7 @@ class Worker {
       const id = ids[i]
       const worker = this.workerModel.getById(id, { withNode: true })
       if (!worker || !worker.node) {
-        log.error('no worker', worker)
+        log.warn('worker:sendActionTx worker not found', { workerId: id })
         continue
       }
       workersData.push({ id, worker, index: i })
@@ -447,13 +458,13 @@ class Worker {
     const network = workersData[0].worker.node!.network
     const rpcEndpoints = getRPCs(network)
     if (rpcEndpoints.length === 0) {
-      log.error('no RPC endpoints found')
+      log.error('worker:sendActionTx no RPC endpoints found', { network })
       return ErrorResults.NODE_NOT_FOUND
     }
 
     const primaryWeb3 = getWeb3(getRPC(network))
     if (!primaryWeb3 || !primaryWeb3.currentProvider) {
-      log.error('no web3 currentProvider')
+      log.error('worker:sendActionTx no web3 provider', { network })
       return ErrorResults.NODE_NOT_FOUND
     }
 
@@ -469,8 +480,14 @@ class Worker {
 
     const addMore = primaryWeb3.utils.toBN(currentGasPrice).div(primaryWeb3.utils.toBN(10))
     const gasPrice = primaryWeb3.utils.toBN(currentGasPrice).add(addMore).toString()
-    log.debug('baseNonce', baseNonce)
-    log.debug('gasPrice', gasPrice)
+    log.debug('worker:sendActionTx prepared network context', {
+      action,
+      network,
+      workersToProcess: workersData.length,
+      rpcEndpoints: rpcEndpoints.length,
+      baseNonce,
+      gasPrice
+    })
 
     // Prepare all transactions in parallel
     const prepareTx = async (
@@ -490,7 +507,6 @@ class Worker {
             withdrawal_address: worker.withdrawalAddress,
             signature: worker.signature
           }
-          log.debug('depositData1', depositData)
           if (worker.delegate) {
             try {
               depositData.delegating_stake = worker.delegate as unknown as DelegatingStakeType
@@ -501,13 +517,14 @@ class Worker {
                 depositData.delegating_stake.trial_rules = depositData.delegating_stake.rules
               }
             } catch (e) {
-              log.error('depositData error', e)
+              log.error('worker:sendActionTx invalid delegate data', {
+                workerId: item.id,
+                error: getErrorMessage(e)
+              })
               return null
             }
           }
-          log.debug('depositData2', depositData)
           data = await primaryWeb3.wat.validator.depositData(depositData)
-          log.debug('depositData2', data)
         } else if (action === ActionTxType.deActivate) {
           value = 0
           data = await primaryWeb3.wat.validator.exitData({
@@ -534,7 +551,12 @@ class Worker {
 
         return { ...item, tx }
       } catch (e) {
-        log.error(`Error preparing tx for worker ${item.id}`, e)
+        log.error('worker:sendActionTx prepare tx failed', {
+          workerId: item.id,
+          action,
+          nonce,
+          error: getErrorMessage(e)
+        })
         return null
       }
     }
@@ -544,6 +566,8 @@ class Worker {
 
     // Send transaction to all RPC endpoints in parallel
     const sendTransactionToRPC = async (rpcUrl: string, rawTx: string): Promise<string> => {
+      const startedAt = Date.now()
+      const rpc = getRpcLabel(rpcUrl)
       try {
         const response = await fetch(rpcUrl, {
           method: 'POST',
@@ -558,16 +582,35 @@ class Worker {
           })
         })
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          log.warn('worker:sendActionTx rpc rejected request', {
+            rpc,
+            status: response.status,
+            durationMs: Date.now() - startedAt
+          })
+          throw new Error(`HTTP ${response.status}`)
         }
         const result = await response.json()
         if (result.error) {
+          log.warn('worker:sendActionTx rpc returned error', {
+            rpc,
+            code: result.error.code,
+            message: result.error.message || 'RPC error',
+            durationMs: Date.now() - startedAt
+          })
           throw new Error(result.error.message || 'RPC error')
         }
-        log.debug(`tx-hash from ${rpcUrl}`, result.result)
+        log.debug('worker:sendActionTx rpc accepted tx', {
+          rpc,
+          txHash: result.result,
+          durationMs: Date.now() - startedAt
+        })
         return result.result
       } catch (error) {
-        log.error(`Failed to send transaction to ${rpcUrl}`, error)
+        log.error('worker:sendActionTx rpc request failed', {
+          rpc,
+          error: getErrorMessage(error),
+          durationMs: Date.now() - startedAt
+        })
         throw error
       }
     }
@@ -579,18 +622,17 @@ class Worker {
 
       try {
         const signedTx = await primaryWeb3.eth.accounts.signTransaction(preparedTx.tx, pk)
-        log.debug('tx', preparedTx.tx)
         if (!signedTx?.rawTransaction) {
-          log.error('no signedTx', signedTx)
+          log.error('worker:sendActionTx no signed transaction', {
+            workerId: preparedTx.id,
+            action
+          })
           continue
         }
         const rawTransaction = signedTx.rawTransaction
 
         const sendPromises = rpcEndpoints.map((rpcUrl) =>
-          sendTransactionToRPC(rpcUrl, rawTransaction).catch((error) => {
-            log.error(`Error sending to ${rpcUrl}`, error)
-            return null
-          })
+          sendTransactionToRPC(rpcUrl, rawTransaction).catch(() => null)
         )
 
         const sendResults = await Promise.all(sendPromises)
@@ -602,14 +644,26 @@ class Worker {
         if (successful.length > 0) {
           results[preparedTx.index] = true
         } else {
-          log.error(`Failed to send transaction for worker ${preparedTx.id} to all RPC endpoints`)
+          log.error('worker:sendActionTx failed on all RPC endpoints', {
+            workerId: preparedTx.id,
+            action
+          })
         }
       } catch (e) {
-        log.error(`Error sending transaction for worker ${preparedTx.id}`, e)
+        log.error('worker:sendActionTx send failed', {
+          workerId: preparedTx.id,
+          action,
+          error: getErrorMessage(e)
+        })
       }
     }
 
-    log.debug(results)
+    log.info('worker:sendActionTx completed', {
+      action,
+      total: results.length,
+      success: results.filter(Boolean).length,
+      failed: results.filter((v) => !v).length
+    })
     return results
   }
 

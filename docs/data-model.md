@@ -63,7 +63,7 @@ Created in migration `1771174763_create_settings_table`.
 Key columns:
 
 - Singleton identity: `id` with `CHECK (id = 1)`
-- UI/runtime settings: `theme`, `autoStartApp`, `autoStartNodes`, `monitoringInterval`
+- UI/runtime settings: `theme`, `autoStartApp`, `autoStartNodes`, `monitoringInterval`, `logLevel`
 - Timestamps: `createdAt`, `updatedAt`
 
 Notes:
@@ -100,3 +100,4 @@ Worker-related:
 Settings-related:
 
 - Theme mode: `light`, `dark`, `system`
+- Log level: `debug`, `info`, `warn`, `error`

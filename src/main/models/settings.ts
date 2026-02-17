@@ -19,10 +19,20 @@ import Database from 'better-sqlite3'
 
 type Database = ReturnType<typeof Database>
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export enum Theme {
   light = 'light',
   dark = 'dark',
   system = 'system'
+}
+
+export enum LogLevel {
+  debug = 'debug',
+  info = 'info',
+  warn = 'warn',
+  error = 'error'
 }
 
 interface SettingsRow {
@@ -31,6 +41,7 @@ interface SettingsRow {
   autoStartApp: number
   autoStartNodes: number
   monitoringInterval: number
+  logLevel: LogLevel
   createdAt: string
   updatedAt: string
 }
@@ -41,12 +52,13 @@ export interface Settings {
   autoStartApp: boolean
   autoStartNodes: boolean
   monitoringInterval: number
+  logLevel: LogLevel
   createdAt: string
   updatedAt: string
 }
 
 export type UpdateSettings = Partial<
-  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval'>
+  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'>
 >
 
 class SettingsModel {
@@ -60,7 +72,8 @@ class SettingsModel {
     return {
       ...row,
       autoStartApp: !!row.autoStartApp,
-      autoStartNodes: !!row.autoStartNodes
+      autoStartNodes: !!row.autoStartNodes,
+      logLevel: row.logLevel || LogLevel.debug
     }
   }
 
@@ -77,14 +90,19 @@ class SettingsModel {
       return null
     }
 
+    const startedAt = Date.now()
     try {
       this.ensureRow()
       const row = this.db.prepare('SELECT * FROM settings WHERE id = 1').get() as
         | SettingsRow
         | undefined
+      log.debug('settings-model:get', { found: !!row, durationMs: Date.now() - startedAt })
       return row ? this.mapRow(row) : null
     } catch (error) {
-      log.error('settings get', error)
+      log.error('settings-model:get-failed', {
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
       return null
     }
   }
@@ -128,6 +146,13 @@ class SettingsModel {
       updateData.monitoringInterval = data.monitoringInterval
     }
 
+    if (data.logLevel !== undefined) {
+      if (!Object.values(LogLevel).includes(data.logLevel)) {
+        return false
+      }
+      updateData.logLevel = data.logLevel
+    }
+
     const keys = Object.keys(updateData)
     if (keys.length === 0) {
       return false
@@ -136,12 +161,21 @@ class SettingsModel {
     const columns = keys.map((key) => `${key} = @${key}`).join(', ')
 
     try {
+      const startedAt = Date.now()
       this.ensureRow()
       const query = this.db.prepare(`UPDATE settings SET ${columns} WHERE id = 1`)
       const res = query.run(updateData)
+      log.debug('settings-model:update', {
+        keys,
+        changed: !!res.changes,
+        durationMs: Date.now() - startedAt
+      })
       return !!res.changes
     } catch (error) {
-      log.error('settings update', error)
+      log.error('settings-model:update-failed', {
+        keys,
+        error: getErrorMessage(error)
+      })
       return false
     }
   }

@@ -74,8 +74,8 @@ const snapshotWorker = new SnapshotWorker(appEnv, eventBus)
 let updateWindowReady = false
 let pendingStartupStatus: StartupStatus | null = null
 
-// Optional, initialize the logger for any renderer process
-log.initialize({ spyRendererConsole: true })
+// Keep renderer console output out of main process logs to reduce leakage risk.
+log.initialize({ spyRendererConsole: false })
 
 process.on('uncaughtException', (error) => {
   log.error(`Uncaught Exception: ${error.message}`)
@@ -84,7 +84,7 @@ process.on('uncaughtException', (error) => {
 
 const checkForUpdates = (): void => {
   autoUpdater.checkForUpdatesAndNotify()
-  log.debug('check update')
+  log.info('check update')
 }
 
 const setUpdateWindowStatus = (status: StartupStatus): void => {
@@ -208,7 +208,7 @@ if (!gotTheLock) {
       delayMs: STARTUP_STEP_DELAY_MS,
       publishStatus: setUpdateWindowStatus,
       onStepDone: (step) => {
-        log.debug(`${step.title} Done`)
+        log.info(`${step.title} Done`)
       },
       onStepFailed: (step, error) => {
         log.error(`${step.title} Failed`, error)
@@ -274,7 +274,7 @@ const quit = async () => {
 
   globalShortcut.unregisterAll()
   app.quit()
-  log.debug('Quit')
+  log.info('Quit')
 }
 
 const showExitConfirmation = () => {

@@ -40,6 +40,7 @@ class Child extends EventEmitter {
   readonly args: string[]
   readonly logPath: string
   readonly logName: string
+  private startedAt: number | null = null
 
   constructor(options: Options) {
     super()
@@ -47,7 +48,11 @@ class Child extends EventEmitter {
     this.args = options.args
     this.logPath = options.logPath
     this.logName = options.logName
-    log.debug(`Child constructor ${this.binPath}`)
+    log.debug('child:constructed', {
+      binPath: this.binPath,
+      argsCount: this.args.length,
+      logName: this.logName
+    })
   }
 
   public isRunning(): boolean {
@@ -55,6 +60,11 @@ class Child extends EventEmitter {
   }
 
   public async start(): Promise<StatusResult> {
+    log.debug('child:start-requested', {
+      binPath: this.binPath,
+      argsCount: this.args.length,
+      logName: this.logName
+    })
     const logStream = rfs.createStream(this.logName, {
       size: '1000M',
       interval: '1d',
@@ -64,18 +74,31 @@ class Child extends EventEmitter {
     })
 
     this.child = spawn(this.binPath, this.args)
+    this.startedAt = Date.now()
 
     this.child.stdout.pipe(logStream)
     this.child.stderr.pipe(logStream)
 
     this.child.on('spawn', () => {
+      log.info('child:spawned', {
+        binPath: this.binPath,
+        pid: this.child ? this.child.pid : null
+      })
       this.emit('start', this.child ? this.child.pid : null)
     })
     this.child.on('end', () => {
       logStream.end(() => {})
     })
-    this.child.on('close', () => {
+    this.child.on('close', (code, signal) => {
+      const uptimeMs = this.startedAt ? Date.now() - this.startedAt : null
+      log.info('child:closed', {
+        binPath: this.binPath,
+        code,
+        signal,
+        uptimeMs
+      })
       this.child = null
+      this.startedAt = null
       this.emit('stop')
     })
 
@@ -85,6 +108,7 @@ class Child extends EventEmitter {
       let count = 0
       const interval = setInterval(() => {
         if (!this.child) {
+          log.error('child:start-failed', { binPath: this.binPath, reason: 'child-null' })
           return reject(StatusResult.fail)
         }
         if (this.child.pid) {
@@ -94,6 +118,7 @@ class Child extends EventEmitter {
         count++
         if (count > 10) {
           clearInterval(interval)
+          log.error('child:start-timeout', { binPath: this.binPath })
           return reject(StatusResult.fail)
         }
       }, 500)
@@ -106,9 +131,16 @@ class Child extends EventEmitter {
         return resolve(StatusResult.success)
       }
       this.child.once('close', (code) => {
-        log.debug(`spawn child process exited with code ${code}`)
+        log.info('child:stop-complete', {
+          binPath: this.binPath,
+          code
+        })
         // this.child = null
         resolve(StatusResult.success)
+      })
+      log.debug('child:stop-requested', {
+        binPath: this.binPath,
+        pid: this.child.pid
       })
       this.child.kill()
     })
@@ -120,7 +152,22 @@ class Child extends EventEmitter {
     return this.child.pid
   }
   public async exec() {
-    return await execPromise(`${this.binPath} ${this.args.join(' ')}`)
+    const startedAt = Date.now()
+    try {
+      const result = await execPromise(`${this.binPath} ${this.args.join(' ')}`)
+      log.debug('child:exec-success', {
+        binPath: this.binPath,
+        durationMs: Date.now() - startedAt
+      })
+      return result
+    } catch (error) {
+      log.error('child:exec-failed', {
+        binPath: this.binPath,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   }
 }
 

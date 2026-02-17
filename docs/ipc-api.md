@@ -56,6 +56,9 @@ It also uses scoped one-way event channels for startup UI updates.
 - `settings:get() -> Settings | null`
 - `settings:update(data) -> Settings | null`
 - `settings:exportConfig(filePath) -> { saved, exportedNodes, exportedWorkers }`
+- `settings:exportMainLog(filePath) -> { saved }`
+  - Copies current `main.log` from app logs directory to the target path selected by the user.
+  - File copy is performed in main process to handle large files safely.
 - `settings:importConfigFile(filePath) -> { settings, importedNodes, importedWorkers }`
   - Import accepts only validated backup payloads (`version = 1`, valid `exportedAt`,
     valid `settings` shape, and structurally valid `nodes`/`workers` arrays).
