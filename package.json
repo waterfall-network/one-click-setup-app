@@ -20,7 +20,9 @@
     "postinstall": "electron-builder install-app-deps",
     "build:win": "npm run build && electron-builder --win --config electron-builder.yml",
     "build:mac": "electron-vite build && APPLE_KEYCHAIN_PROFILE=wf-notary electron-builder --mac --config electron-builder.yml",
-    "build:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml"
+    "build:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml",
+    "bdui:start": "BEADS_DB=\"$PWD/.beads/dolt\" bdui start --port 5000 --open",
+    "bdui:stop": "bdui stop"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

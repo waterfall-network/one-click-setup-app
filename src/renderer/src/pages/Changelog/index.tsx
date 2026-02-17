@@ -50,7 +50,7 @@ const breadcrumb = [
 const changelogData: ChangelogVersion[] = [
   {
     version: '0.6.0 beta',
-    date: '15.02.2026',
+    date: '17.02.2026',
     changes: [
       {
         type: ChangeType.New,
@@ -76,6 +76,10 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Improve,
         description: 'Refined startup flow and pre-launch progress window'
+      },
+      {
+        type: ChangeType.Update,
+        description: 'Updated node to the latest version'
       },
       {
         type: ChangeType.Fix,
