@@ -2,6 +2,6 @@
   "database": "dolt",
   "jsonl_export": "issues.jsonl",
   "backend": "dolt",
-  "dolt_database": "beads_waterfall-app",
+  "dolt_database": "beads",
   "last_bd_version": "0.52.0"
 }
