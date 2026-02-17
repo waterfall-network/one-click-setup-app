@@ -153,6 +153,7 @@ These rules extend (and do not replace) the Beads workflow above.
    - Before each commit, update `src/renderer/src/pages/Changelog/index.tsx`
    - Use `package.json` `version` as the source of truth for the target release section (for display, `0.6.0-beta` -> `0.6.0 beta`)
    - Add short, user-facing bullet(s) describing the work completed in that commit
+   - Keep change bullets ordered by type: `New`, `Improve`, `Update`, `Fix`
 
 <!-- bv-agent-instructions-v1 -->
 

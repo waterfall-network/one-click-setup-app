@@ -28,6 +28,8 @@ enum ChangeType {
   Improve = 'Improve'
 }
 
+const CHANGE_TYPE_ORDER = [ChangeType.New, ChangeType.Improve, ChangeType.Update, ChangeType.Fix]
+
 interface ChangelogEntry {
   type: ChangeType
   description: string
@@ -294,10 +296,9 @@ const changelogData: ChangelogVersion[] = [
 ]
 
 const sortChangesByType = (changes: ChangelogEntry[]): ChangelogEntry[] => {
-  const typeOrder = [ChangeType.New, ChangeType.Improve, ChangeType.Update, ChangeType.Fix]
   return [...changes].sort((a, b) => {
-    const indexA = typeOrder.indexOf(a.type)
-    const indexB = typeOrder.indexOf(b.type)
+    const indexA = CHANGE_TYPE_ORDER.indexOf(a.type)
+    const indexB = CHANGE_TYPE_ORDER.indexOf(b.type)
     return indexA - indexB
   })
 }
