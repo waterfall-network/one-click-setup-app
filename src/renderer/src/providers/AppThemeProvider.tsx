@@ -24,15 +24,52 @@ import { useIsDarkTheme } from '@renderer/hooks/theme'
 const GlobalThemeStyle = createGlobalStyle`
   :root {
     --wf-bg-gradient: ${({ theme }) => theme.palette.semantic.app.backgroundGradient};
+    --wf-scrollbar-thumb: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(162, 207, 255, 0.34)' : 'rgba(54, 112, 187, 0.34)'};
+    --wf-scrollbar-track: transparent;
+  }
+
+  html {
+    height: 100%;
+    overflow: hidden;
   }
 
   * {
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--wf-scrollbar-thumb) var(--wf-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--wf-scrollbar-thumb);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:active {
+    background: var(--wf-scrollbar-thumb);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 
   body {
     margin: 0;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
     font-family: 'Avenir Next', 'SF Pro Text', 'Segoe UI', sans-serif;
     background: var(--wf-bg-gradient);
     background-attachment: fixed;
@@ -40,7 +77,9 @@ const GlobalThemeStyle = createGlobalStyle`
   }
 
   #root {
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
   }
 
   .ant-layout {

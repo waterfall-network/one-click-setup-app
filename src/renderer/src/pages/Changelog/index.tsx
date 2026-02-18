@@ -78,6 +78,10 @@ const changelogData: ChangelogVersion[] = [
         description: 'Refined startup flow and pre-launch progress window'
       },
       {
+        type: ChangeType.Improve,
+        description: 'Unified custom scrollbar styling across pages and themes'
+      },
+      {
         type: ChangeType.Update,
         description: 'Updated node to the latest version'
       },
@@ -88,6 +92,10 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Fix,
         description: 'Fixed bulk withdraw/deactivate checks and activation warning'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Fixed macOS page navigation scrollbar flicker in the app window'
       },
       {
         type: ChangeType.New,
