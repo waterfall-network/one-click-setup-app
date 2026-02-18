@@ -12,6 +12,25 @@
 npm install
 ```
 
+### Troubleshooting: Intel macOS + Node 22 native modules
+
+If `npm install` fails on Intel macOS (`darwin-x64`) with native module errors (for example `@chainsafe/blst`, `node-gyp`, or `python: command not found`), configure Python explicitly.
+
+Recommended setup:
+
+```bash
+xcode-select --install
+brew install python@3.11
+export PATH="$(brew --prefix python@3.11)/libexec/bin:$PATH"
+npm config set python "$(brew --prefix python@3.11)/bin/python3.11"
+```
+
+Notes:
+
+- `python` command must be available in `PATH` (not only `python3`).
+- Python `3.14+` can break older `node-gyp` dependency trees used by some transitive packages.
+- Node 22 can work after Python is configured as above.
+
 ## Provide runtime binaries
 
 Download the required coordinator/validator/verifier binaries and place them by platform:

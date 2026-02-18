@@ -14,6 +14,8 @@ An Electron application with React and TypeScript
 $ npm install
 ```
 
+If install fails on Intel macOS with native modules (`node-gyp`, `@chainsafe/blst`, `python`), see `docs/getting-started.md#troubleshooting-intel-macos--node-22-native-modules`.
+
 ### Download binaries
 
 ### Mac arm64
