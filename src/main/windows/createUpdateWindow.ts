@@ -27,7 +27,7 @@ export const createUpdateWindow = ({
     title: '',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#08152c',
+      color: '#00000000',
       symbolColor: '#eef6ff',
       height: 40
     },

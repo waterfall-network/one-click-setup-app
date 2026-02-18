@@ -29,7 +29,7 @@ export const createMainWindow = ({
     title: 'Waterfall',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#1677ff',
+      color: '#00000000',
       symbolColor: '#fff',
       height: 40
     },
