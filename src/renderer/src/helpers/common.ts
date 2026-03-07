@@ -15,6 +15,7 @@
  *
  */
 export const isWindows = window?.os?.platform === 'win'
+export const isMac = window?.os?.platform === 'mac'
 
 export const shuffleArray = (array: any[]) => {
   return array

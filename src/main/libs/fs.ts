@@ -136,17 +136,19 @@ const _checkPortHost = async (port: number, address: string): Promise<boolean> =
 }
 export const checkPort = async (port: number): Promise<boolean> => {
   const interfaces = os.networkInterfaces()
-  const checks: Promise<boolean>[] = [_checkPortHost(port, '0.0.0.0')]
+  const addresses: string[] = ['0.0.0.0']
   Object.values(interfaces).forEach((interfaceInfos) => {
     interfaceInfos?.forEach((info) => {
       if (info.family === 'IPv4') {
-        checks.push(_checkPortHost(port, info.address))
+        addresses.push(info.address)
       }
     })
   })
-  return Promise.all(checks).then((results) => {
-    return results.every((isAvailable) => isAvailable)
-  })
+  for (const address of addresses) {
+    const isAvailable = await _checkPortHost(port, address)
+    if (!isAvailable) return false
+  }
+  return true
 }
 
 export const checkSocket = async (ipcPath: string): Promise<boolean> => {

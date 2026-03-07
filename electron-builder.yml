@@ -21,19 +21,18 @@ files:
   - '!node_modules/bcrypto/build/Release/{obj.target,.deps}/**'
   - '!node_modules/bcrypto/build/**/*.{mk,Makefile}'
 buildDependenciesFromSource: true
-extraFiles:
+extraResources:
   - from: 'resources/bin/${os}/${arch}'
-    to: 'Resources/bin'
+    to: 'bin'
     filter:
       - '**/*'
   - from: 'resources/genesis'
-    to: 'Resources/genesis'
+    to: 'genesis'
     filter:
       - '**/*'
 asarUnpack:
   - node_modules/better-sqlite3
   - node_modules/bcrypto
-  - resources/**
 win:
   executableName: waterfall
   signtoolOptions:
@@ -72,6 +71,8 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Utility
+  executableArgs:
+    - --no-sandbox
 appImage:
   artifactName: ${name}-${version}-${arch}.${ext}
 npmRebuild: false
