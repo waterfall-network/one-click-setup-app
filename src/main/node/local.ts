@@ -613,6 +613,9 @@ class LocalNode extends EventEmitter {
       args.push(`--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`)
       args.push(`--deposit-contract=${getValidatorAddress(this.model.network)}`)
     }
+    if (this.model.network === Network.testnet9) {
+      args.push('--min-sync-peers=1')
+    }
     this.coordinatorBeacon = new Child({
       binPath: this.appEnv.getCoordinatorBeaconBinPath(this.model.network),
       args: args,
@@ -671,6 +674,7 @@ class LocalNode extends EventEmitter {
       binPath: this.appEnv.getCoordinatorValidatorBinPath(this.model.network),
       args: [
         '--accept-terms-of-use',
+        `${getCoordinatorNetwork(this.model.network)}`,
         '--grpc-max-msg-size=15900000',
         `--beacon-rpc-provider=localhost:${this.model.coordinatorHttpValidatorApiPort}`,
         `--wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)}`,
