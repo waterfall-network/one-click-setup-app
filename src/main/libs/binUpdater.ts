@@ -40,10 +40,10 @@ export function setWfbinsDir(dir: string): void {
 }
 
 // Remote manifest URL
-const MANIFEST_URL = 'https://storage.waterfall.network/bin/latest.json'
+const MANIFEST_URL = import.meta.env.MAIN_VITE_BIN_MANIFEST_URL as string
 
 // Base URL prepended to the per-file url from the manifest
-const BINARY_BASE_URL = 'https://storage.waterfall.network/bin/'
+const BINARY_BASE_URL = import.meta.env.MAIN_VITE_BIN_BASE_URL as string
 
 // The three mainnet binaries managed on all platforms (base names, without .exe)
 export const BINARY_NAMES = [
