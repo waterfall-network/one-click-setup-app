@@ -54,7 +54,7 @@ export const createStartupSteps = ({
   },
   {
     title: 'Updating node binaries',
-    detail: 'Checking node binaries in ~/.wfbins…',
+    detail: 'Checking node binaries…',
     // updateProgress is provided by the runner and streams live detail text to the UI.
     run: async (updateProgress) => await syncBinaries(updateProgress)
   },
