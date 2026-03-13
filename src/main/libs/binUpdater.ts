@@ -273,10 +273,7 @@ export async function getBinaryStatus(): Promise<BinaryStatus> {
 export async function downloadBinaries(
   onProgress: (progress: DownloadProgress) => void
 ): Promise<string> {
-  if (!fs.existsSync(getWfbinsDir())) {
-    fs.mkdirSync(getWfbinsDir(), { recursive: true })
-    log.info(`binUpdater: created ${getWfbinsDir()}`)
-  }
+  await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
 
   const entries = await fetchEntries()
 
@@ -347,10 +344,7 @@ export async function syncBinaries(
   log.info('binUpdater: starting binary sync (startup)')
   onProgress('Checking node binaries…')
 
-  if (!fs.existsSync(getWfbinsDir())) {
-    fs.mkdirSync(getWfbinsDir(), { recursive: true })
-    log.info(`binUpdater: created ${getWfbinsDir()}`)
-  }
+  await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
 
   onProgress('Fetching binary manifest from storage.waterfall.network…')
   let entries: ManifestEntry[]
