@@ -39,11 +39,11 @@ export function setWfbinsDir(dir: string): void {
   _wfbinsDir = dir || DEFAULT_WFBINS_DIR
 }
 
-// Remote manifest URL
-const MANIFEST_URL = import.meta.env.MAIN_VITE_BIN_MANIFEST_URL as string
-
 // Base URL prepended to the per-file url from the manifest
 const BINARY_BASE_URL = import.meta.env.MAIN_VITE_BIN_BASE_URL as string
+
+// Remote manifest URL (env takes priority, falls back to BINARY_BASE_URL + latest.json)
+const MANIFEST_URL = (import.meta.env.MAIN_VITE_BIN_MANIFEST_URL as string) || `${BINARY_BASE_URL}latest.json`
 
 // The three mainnet binaries managed on all platforms (base names, without .exe)
 export const BINARY_NAMES = [
