@@ -46,8 +46,7 @@ import { runStartup } from './startup/runner'
 import type { StartupStatus } from './startup/types'
 import { initializeTrayAndHandlers } from './app/initializeTrayAndHandlers'
 import { syncBinaries } from './libs/binUpdater'
-import { getMain } from './libs/db'
-import NodeModel from './models/node'
+import { hasConfiguredNodes } from './models/node'
 
 app.commandLine.appendSwitch('no-sandbox')
 
@@ -180,18 +179,8 @@ if (!gotTheLock) {
 
     const startupSteps = createStartupSteps({
       runMigrations: async () => await runMigrations(),
-      syncBinaries: async (updateProgress) => {
-        // Open a short-lived connection to check whether any nodes are
-        // configured. This runs after migrations so the schema is ready.
-        const db = getMain(appEnv.mainDB)
-        let hasNodes = false
-        try {
-          hasNodes = new NodeModel(db).getAll().length > 0
-        } finally {
-          db.close()
-        }
-        await syncBinaries(hasNodes, updateProgress, eventBus)
-      },
+      hasConfiguredNodes: () => hasConfiguredNodes(appEnv.mainDB),
+      syncBinaries: async (hasNodes, updateProgress) => await syncBinaries(hasNodes, updateProgress, eventBus),
       checkForUpdates,
       initializeSettings: async () => await settings.initialize(),
       initializeNode: async () => await node.initialize(),

@@ -16,6 +16,7 @@
  */
 import log from 'electron-log/node'
 import Database from 'better-sqlite3'
+import { getMain } from '../libs/db'
 import {
   Network,
   COORDINATOR_HTTP_API_PORT,
@@ -400,3 +401,13 @@ class NodeModel {
   }
 }
 export default NodeModel
+
+/** Opens a short-lived DB connection to check whether any nodes are configured. */
+export function hasConfiguredNodes(dbPath: string): boolean {
+  const db = getMain(dbPath)
+  try {
+    return new NodeModel(db).getAll().length > 0
+  } finally {
+    db.close()
+  }
+}
