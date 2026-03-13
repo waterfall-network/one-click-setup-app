@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoStartNodes: true,
   monitoringInterval: 12000,
   logLevel: 'debug',
+  binariesPath: '',
   createdAt: '',
   updatedAt: ''
 }
@@ -94,7 +95,12 @@ export const useSettingsPage = (modal: ModalApi) => {
     patch: Partial<
       Pick<
         Settings,
-        'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'
+        | 'theme'
+        | 'autoStartApp'
+        | 'autoStartNodes'
+        | 'monitoringInterval'
+        | 'logLevel'
+        | 'binariesPath'
       >
     >
   ) => {

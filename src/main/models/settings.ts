@@ -42,6 +42,7 @@ interface SettingsRow {
   autoStartNodes: number
   monitoringInterval: number
   logLevel: LogLevel
+  binariesPath: string
   createdAt: string
   updatedAt: string
 }
@@ -53,12 +54,21 @@ export interface Settings {
   autoStartNodes: boolean
   monitoringInterval: number
   logLevel: LogLevel
+  binariesPath: string
   createdAt: string
   updatedAt: string
 }
 
 export type UpdateSettings = Partial<
-  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'>
+  Pick<
+    Settings,
+    | 'theme'
+    | 'autoStartApp'
+    | 'autoStartNodes'
+    | 'monitoringInterval'
+    | 'logLevel'
+    | 'binariesPath'
+  >
 >
 
 class SettingsModel {
@@ -151,6 +161,13 @@ class SettingsModel {
         return false
       }
       updateData.logLevel = data.logLevel
+    }
+
+    if (data.binariesPath !== undefined) {
+      if (typeof data.binariesPath !== 'string') {
+        return false
+      }
+      updateData.binariesPath = data.binariesPath
     }
 
     const keys = Object.keys(updateData)

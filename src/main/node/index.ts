@@ -41,7 +41,7 @@ import { checkPort } from '../libs/fs'
 import {
   getBinaryStatus,
   downloadBinaries,
-  WFBINS_DIR,
+  getWfbinsDir,
   type DownloadProgress
 } from '../libs/binUpdater'
 
@@ -107,7 +107,7 @@ class Node {
           sender.send('binaries:progress', progress)
         }
       })
-      log.info('node:binaries-download-complete, wfBinsPath:', WFBINS_DIR)
+      log.info('node:binaries-download-complete, wfBinsPath:', getWfbinsDir())
     })
     this.eventBus.onEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(
       EventName.FinishDownloadSnapshot,

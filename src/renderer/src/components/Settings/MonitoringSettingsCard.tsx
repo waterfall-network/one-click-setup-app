@@ -18,8 +18,9 @@ import { Card } from '@renderer/ui-kit/Card'
 import { Slider } from '@renderer/ui-kit/Slider'
 import { Text } from '@renderer/ui-kit/Typography'
 import { Select } from '@renderer/ui-kit/Select'
-import { ButtonPrimary } from '@renderer/ui-kit/Button'
-import { DownloadOutlined } from '@ant-design/icons'
+import { ButtonPrimary, AntdButton } from '@renderer/ui-kit/Button'
+import { DownloadOutlined, FolderOpenOutlined } from '@ant-design/icons'
+import { Input } from '@renderer/ui-kit/Input'
 import { styled } from 'styled-components'
 import { LogLevel } from '@renderer/types/settings'
 
@@ -28,11 +29,15 @@ interface MonitoringSettingsCardProps {
   logLevel: LogLevel
   intervalMin: number
   intervalMax: number
+  binariesPath: string
+  defaultBinariesPath: string
   onIntervalChange: (value: number) => void
   onIntervalCommit: (value: number) => void
   onLogLevelChange: (value: LogLevel) => void
   onExportMainLog: () => void
   exportMainLogLoading: boolean
+  onSelectBinariesPath: () => void
+  onClearBinariesPath: () => void
 }
 
 export const MonitoringSettingsCard = ({
@@ -40,11 +45,15 @@ export const MonitoringSettingsCard = ({
   logLevel,
   intervalMin,
   intervalMax,
+  binariesPath,
+  defaultBinariesPath,
   onIntervalChange,
   onIntervalCommit,
   onLogLevelChange,
   onExportMainLog,
-  exportMainLogLoading
+  exportMainLogLoading,
+  onSelectBinariesPath,
+  onClearBinariesPath
 }: MonitoringSettingsCardProps) => {
   return (
     <Card title="Monitoring">
@@ -87,6 +96,21 @@ export const MonitoringSettingsCard = ({
           >
             Save main.log
           </ButtonPrimary>
+        </ControlsRow>
+        <Text>Node binaries directory</Text>
+        <ControlsRow>
+          <Input
+            readOnly
+            value={binariesPath || defaultBinariesPath}
+            placeholder={defaultBinariesPath}
+            style={{ flex: 1 }}
+          />
+          <AntdButton icon={<FolderOpenOutlined />} onClick={onSelectBinariesPath}>
+            Browse
+          </AntdButton>
+          {binariesPath && (
+            <AntdButton onClick={onClearBinariesPath}>Reset to default</AntdButton>
+          )}
         </ControlsRow>
       </Container>
     </Card>

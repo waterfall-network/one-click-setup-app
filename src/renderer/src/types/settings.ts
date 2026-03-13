@@ -24,12 +24,21 @@ export interface Settings {
   autoStartNodes: boolean
   monitoringInterval: number
   logLevel: LogLevel
+  binariesPath: string
   createdAt: string
   updatedAt: string
 }
 
 export type UpdateSettings = Partial<
-  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'>
+  Pick<
+    Settings,
+    | 'theme'
+    | 'autoStartApp'
+    | 'autoStartNodes'
+    | 'monitoringInterval'
+    | 'logLevel'
+    | 'binariesPath'
+  >
 >
 
 export interface ExportConfigResult {

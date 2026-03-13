@@ -25,9 +25,11 @@ import { BackupSettingsCard } from '@renderer/components/Settings/BackupSettings
 import { DangerZoneSettingsCard } from '@renderer/components/Settings/DangerZoneSettingsCard'
 import { SyncProgressModal } from '@renderer/components/Settings/SyncProgressModal'
 import { useSettingsPage } from '@renderer/hooks/settingsPage'
+import { selectDirectory } from '@renderer/api/os'
 
 const INTERVAL_MIN = 5000
 const INTERVAL_MAX = 60000
+const DEFAULT_BINARIES_PATH = `${window.os?.homedir ?? '~'}/.wf/bin_files`
 
 export const SettingsPageContent = () => {
   const [modal, contextHolder] = Modal.useModal()
@@ -81,6 +83,8 @@ export const SettingsPageContent = () => {
           logLevel={settingsForm.logLevel}
           intervalMin={INTERVAL_MIN}
           intervalMax={INTERVAL_MAX}
+          binariesPath={settingsForm.binariesPath}
+          defaultBinariesPath={DEFAULT_BINARIES_PATH}
           onIntervalChange={(value) =>
             setSettingsForm((prev) => ({ ...prev, monitoringInterval: value }))
           }
@@ -88,6 +92,11 @@ export const SettingsPageContent = () => {
           onLogLevelChange={(value) => void updateSettingsField({ logLevel: value })}
           onExportMainLog={() => void handleExportMainLog()}
           exportMainLogLoading={exportMainLogPending}
+          onSelectBinariesPath={async () => {
+            const dir = await selectDirectory(settingsForm.binariesPath || DEFAULT_BINARIES_PATH)
+            if (dir) void updateSettingsField({ binariesPath: dir })
+          }}
+          onClearBinariesPath={() => void updateSettingsField({ binariesPath: '' })}
         />
 
         <BackupSettingsCard

@@ -17,7 +17,7 @@
 import path from 'node:path'
 import { Network } from './env'
 import { platform, arch } from 'node:os'
-import { WFBINS_DIR, getBinaryFilename } from './binUpdater'
+import { getWfbinsDir, getBinaryFilename } from './binUpdater'
 
 interface Options {
   isPackaged: boolean
@@ -82,15 +82,15 @@ class AppEnv {
   }
 
   getValidatorBinPath = (_network: Network) => {
-    return path.resolve(path.join(WFBINS_DIR, getBinaryFilename('verifier-mainnet')))
+    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('verifier-mainnet')))
   }
 
   getCoordinatorBeaconBinPath = (_network: Network) => {
-    return path.resolve(path.join(WFBINS_DIR, getBinaryFilename('coordinator-beacon-mainnet')))
+    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('coordinator-beacon-mainnet')))
   }
 
   getCoordinatorValidatorBinPath = (_network: Network) => {
-    return path.resolve(path.join(WFBINS_DIR, getBinaryFilename('coordinator-validator-mainnet')))
+    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('coordinator-validator-mainnet')))
   }
 
   getCoordinatorBeaconGenesisPath = (network: Network) =>

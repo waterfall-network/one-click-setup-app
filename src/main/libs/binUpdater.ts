@@ -23,8 +23,21 @@ import * as http from 'node:http'
 import { URL } from 'node:url'
 import log from 'electron-log/node'
 
-// Directory where managed node binaries are stored
-export const WFBINS_DIR = path.join(os.homedir(), '.wfbins')
+// Default directory where managed node binaries are stored
+export const DEFAULT_WFBINS_DIR = path.join(os.homedir(), '.wf', 'bin_files')
+
+// Active directory – can be overridden at runtime via setWfbinsDir()
+let _wfbinsDir = DEFAULT_WFBINS_DIR
+
+/** Returns the currently configured binaries directory */
+export function getWfbinsDir(): string {
+  return _wfbinsDir
+}
+
+/** Overrides the binaries directory (empty string resets to default) */
+export function setWfbinsDir(dir: string): void {
+  _wfbinsDir = dir || DEFAULT_WFBINS_DIR
+}
 
 // Remote manifest URL
 const MANIFEST_URL = 'https://storage.waterfall.network/bin/latest.json'
@@ -69,7 +82,7 @@ interface LatestManifest {
 /** Status of a single binary file */
 export interface BinaryFileStatus {
   name: BinaryName
-  /** Whether the file currently exists in WFBINS_DIR */
+  /** Whether the file currently exists in getWfbinsDir() */
   exists: boolean
   /** Expected file size in bytes from the manifest (0 if manifest was unreachable) */
   size: number
@@ -77,7 +90,7 @@ export interface BinaryFileStatus {
 
 /** Aggregated binary readiness status returned to the renderer */
 export interface BinaryStatus {
-  /** true when all three files exist in WFBINS_DIR */
+  /** true when all three files exist in getWfbinsDir() */
   ready: boolean
   files: BinaryFileStatus[]
 }
@@ -110,31 +123,6 @@ function computeFileHash(filePath: string): Promise<string> {
   })
 }
 
-/** Fetch a URL and return the response body as a string (follows one redirect) */
-function fetchText(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url)
-    const client = parsed.protocol === 'https:' ? https : http
-
-    const req = client.get(url, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-        fetchText(res.headers.location).then(resolve).catch(reject)
-        return
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} fetching ${url}`))
-        return
-      }
-      let body = ''
-      res.on('data', (chunk: Buffer) => (body += chunk.toString()))
-      res.on('end', () => resolve(body))
-      res.on('error', reject)
-    })
-
-    req.setTimeout(15_000, () => req.destroy(new Error('Request timed out')))
-    req.on('error', reject)
-  })
-}
 
 /** Download a remote file to destPath, reporting byte-level progress via onProgress */
 function downloadToFile(
@@ -229,8 +217,9 @@ function findEntry(entries: ManifestEntry[], name: BinaryName): ManifestEntry | 
 
 /** Fetch the manifest and return the entries array for the current platform/arch, or throw */
 async function fetchEntries(): Promise<ManifestEntry[]> {
-  const raw = await fetchText(MANIFEST_URL)
-  const manifest = JSON.parse(raw) as LatestManifest
+  const res = await fetch(MANIFEST_URL)
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching manifest`)
+  const manifest = (await res.json()) as LatestManifest
   const plat = getManifestPlatformKey()
   const archKey = getManifestArchKey()
   const platFiles = manifest?.files?.[plat] as Record<string, ManifestEntry[]> | undefined
@@ -259,7 +248,7 @@ export async function getBinaryStatus(): Promise<BinaryStatus> {
   }
 
   const files: BinaryFileStatus[] = BINARY_NAMES.map((name) => {
-    const filePath = path.join(WFBINS_DIR, getBinaryFilename(name))
+    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
     const entry = findEntry(entries, name)
     return {
       name,
@@ -275,18 +264,18 @@ export async function getBinaryStatus(): Promise<BinaryStatus> {
 }
 
 /**
- * Downloads missing or outdated binaries into WFBINS_DIR and reports granular
+ * Downloads missing or outdated binaries into getWfbinsDir() and reports granular
  * per-file progress via onProgress. Intended for on-demand invocation from
  * the renderer (node add / node start flows).
  *
- * Returns WFBINS_DIR on success; throws on unrecoverable errors.
+ * Returns getWfbinsDir() on success; throws on unrecoverable errors.
  */
 export async function downloadBinaries(
   onProgress: (progress: DownloadProgress) => void
 ): Promise<string> {
-  if (!fs.existsSync(WFBINS_DIR)) {
-    fs.mkdirSync(WFBINS_DIR, { recursive: true })
-    log.info(`binUpdater: created ${WFBINS_DIR}`)
+  if (!fs.existsSync(getWfbinsDir())) {
+    fs.mkdirSync(getWfbinsDir(), { recursive: true })
+    log.info(`binUpdater: created ${getWfbinsDir()}`)
   }
 
   const entries = await fetchEntries()
@@ -297,7 +286,7 @@ export async function downloadBinaries(
       throw new Error(`Manifest is missing a valid entry for binary "${name}"`)
     }
 
-    const filePath = path.join(WFBINS_DIR, getBinaryFilename(name))
+    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
 
     // Check if already up-to-date
     onProgress({ file: name, phase: 'checking', received: 0, total: 0 })
@@ -338,13 +327,13 @@ export async function downloadBinaries(
   }
 
   log.info('binUpdater: downloadBinaries complete')
-  return WFBINS_DIR
+  return getWfbinsDir()
 }
 
 /**
  * Startup-flow entry point: ensures binaries are present and up-to-date.
  * Skipped when hasNodes is false.
- * Returns WFBINS_DIR on success or null if the step was skipped.
+ * Returns getWfbinsDir() on success or null if the step was skipped.
  */
 export async function syncBinaries(
   hasNodes: boolean,
@@ -358,9 +347,9 @@ export async function syncBinaries(
   log.info('binUpdater: starting binary sync (startup)')
   onProgress('Checking node binaries…')
 
-  if (!fs.existsSync(WFBINS_DIR)) {
-    fs.mkdirSync(WFBINS_DIR, { recursive: true })
-    log.info(`binUpdater: created ${WFBINS_DIR}`)
+  if (!fs.existsSync(getWfbinsDir())) {
+    fs.mkdirSync(getWfbinsDir(), { recursive: true })
+    log.info(`binUpdater: created ${getWfbinsDir()}`)
   }
 
   onProgress('Fetching binary manifest from storage.waterfall.network…')
@@ -379,7 +368,7 @@ export async function syncBinaries(
     if (!entry?.sha512 || !entry?.url) {
       throw new Error(`Manifest is missing a valid entry for binary "${name}"`)
     }
-    const filePath = path.join(WFBINS_DIR, getBinaryFilename(name))
+    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
     onProgress(`Verifying ${name}…`)
     if (!fs.existsSync(filePath)) {
       toDownload.push(name)
@@ -396,12 +385,12 @@ export async function syncBinaries(
 
   if (toDownload.length === 0) {
     onProgress('Node binaries are up-to-date')
-    return WFBINS_DIR
+    return getWfbinsDir()
   }
 
   for (const name of toDownload) {
     const entry = findEntry(entries, name)!
-    const destPath = path.join(WFBINS_DIR, getBinaryFilename(name))
+    const destPath = path.join(getWfbinsDir(), getBinaryFilename(name))
     const downloadUrl = BINARY_BASE_URL + entry.url
     log.info(`binUpdater: downloading ${name}`)
     try {
@@ -435,5 +424,5 @@ export async function syncBinaries(
 
   onProgress('Node binaries updated successfully')
   log.info('binUpdater: binary sync complete')
-  return WFBINS_DIR
+  return getWfbinsDir()
 }

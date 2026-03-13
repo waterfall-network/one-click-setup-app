@@ -15,6 +15,7 @@
  *
  */
 import { IpcMain, IpcMainInvokeEvent, app } from 'electron'
+import { setWfbinsDir } from '../libs/binUpdater'
 import { copyFile, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import log from 'electron-log/node'
@@ -80,7 +81,8 @@ class Settings {
     autoStartApp: true,
     autoStartNodes: true,
     monitoringInterval: 12000,
-    logLevel: LogLevel.debug
+    logLevel: LogLevel.debug,
+    binariesPath: ''
   }
 
   constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus) {
@@ -112,6 +114,7 @@ class Settings {
     if (settings) {
       this._setAutoStart(settings.autoStartApp)
       this._setLogLevel(settings.logLevel)
+      setWfbinsDir(settings.binariesPath)
     }
 
     return true
@@ -149,6 +152,9 @@ class Settings {
     }
     if (updateData.logLevel !== undefined) {
       this._setLogLevel(updateData.logLevel)
+    }
+    if (updateData.binariesPath !== undefined) {
+      setWfbinsDir(updateData.binariesPath)
     }
 
     const settings = this.settingsModel.get()
@@ -405,6 +411,13 @@ class Settings {
         return null
       }
       validated.logLevel = payload.logLevel
+    }
+
+    if (payload.binariesPath !== undefined) {
+      if (typeof payload.binariesPath !== 'string') {
+        return null
+      }
+      validated.binariesPath = payload.binariesPath
     }
 
     if (Object.keys(validated).length === 0) {
