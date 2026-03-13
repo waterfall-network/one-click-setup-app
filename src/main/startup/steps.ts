@@ -19,6 +19,10 @@ import type { StartupStep } from './types'
 
 interface CreateStartupStepsParams {
   runMigrations: () => Promise<unknown>
+  /** Verifies / downloads node binaries into ~/.wfbins.
+   *  Receives an updateProgress callback so it can stream detail text to the UI.
+   *  A no-op (returns immediately) when no nodes exist. */
+  syncBinaries: (updateProgress: (detail: string) => void) => Promise<unknown>
   checkForUpdates: () => void
   initializeSettings: () => Promise<unknown>
   initializeNode: () => Promise<unknown>
@@ -32,6 +36,7 @@ interface CreateStartupStepsParams {
 
 export const createStartupSteps = ({
   runMigrations,
+  syncBinaries,
   checkForUpdates,
   initializeSettings,
   initializeNode,
@@ -46,6 +51,12 @@ export const createStartupSteps = ({
     title: 'Preparing database',
     detail: 'Running data migrations.',
     run: async () => await runMigrations()
+  },
+  {
+    title: 'Updating node binaries',
+    detail: 'Checking node binaries in ~/.wfbins…',
+    // updateProgress is provided by the runner and streams live detail text to the UI.
+    run: async (updateProgress) => await syncBinaries(updateProgress)
   },
   {
     title: 'Checking for updates',

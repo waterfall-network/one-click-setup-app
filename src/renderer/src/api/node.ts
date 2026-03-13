@@ -62,6 +62,17 @@ export const remove = async (ids: number[] | bigint[], withData = false) => {
   return await window.node.remove(ids, withData)
 }
 
+export type { BinaryStatus, DownloadProgress } from '../../preload/node'
+
+export const getBinaryStatus = (): Promise<import('../../preload/node').BinaryStatus> =>
+  window.node.getBinaryStatus()
+
+export const downloadBinaries = (): Promise<void> => window.node.downloadBinaries()
+
+export const onBinaryProgress = (
+  callback: (progress: import('../../preload/node').DownloadProgress) => void
+): (() => void) => window.node.onBinaryProgress(callback)
+
 export const getLastSnapshots = async (): Promise<Snapshots | null> => {
   const data = await window.os.fetchJSON(`${LAST_SNAPSHOT_URL}?date=${new Date().getTime()}`)
   if (data && isSnapshots(data)) {

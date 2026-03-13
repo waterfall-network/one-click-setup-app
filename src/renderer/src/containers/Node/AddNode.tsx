@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import React from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { NodeAddForm } from '@renderer/components/Node/AddNode/Form'
 import { useAddNode } from '@renderer/hooks/node'
 import {
@@ -43,6 +43,13 @@ import { addParams } from '@renderer/helpers/navigation'
 import { AddNodeStepKeys, getAddNodeSteps } from '@renderer/helpers/node'
 import { styled } from 'styled-components'
 import { Alert } from '@renderer/ui-kit/Alert'
+import {
+  getBinaryStatus,
+  downloadBinaries,
+  onBinaryProgress,
+  type BinaryStatus,
+  type DownloadProgress
+} from '@renderer/api/node'
 
 export const AddNode: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -341,8 +348,105 @@ const ProviderNameSelection: React.FC<SelectionBasePropsT> = ({
   )
 }
 
+const formatMb = (bytes: number) => (bytes / 1_048_576).toFixed(0)
+
+/** Panel that checks and, if needed, downloads Linux node binaries before the node is created */
+const BinaryDownloadPanel: React.FC<{
+  onReady: () => void
+}> = ({ onReady }) => {
+  const [status, setStatus] = useState<BinaryStatus | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [progress, setProgress] = useState<DownloadProgress | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const unsubRef = useRef<(() => void) | null>(null)
+
+  const checkStatus = useCallback(async () => {
+    try {
+      const s = await getBinaryStatus()
+      setStatus(s)
+      if (s.ready) onReady()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [onReady])
+
+  useEffect(() => {
+    checkStatus()
+    return () => {
+      unsubRef.current?.()
+    }
+  }, [checkStatus])
+
+  const handleDownload = async () => {
+    setError(null)
+    setDownloading(true)
+    unsubRef.current = onBinaryProgress((p) => setProgress(p))
+    try {
+      await downloadBinaries()
+      unsubRef.current?.()
+      unsubRef.current = null
+      setDownloading(false)
+      await checkStatus()
+    } catch (e) {
+      unsubRef.current?.()
+      unsubRef.current = null
+      setDownloading(false)
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  if (status === null) {
+    return <BinaryPanelWrap><p>Checking node binaries…</p></BinaryPanelWrap>
+  }
+
+  if (status.ready) return null
+
+  const totalMb = status.files.reduce((s, f) => s + f.size, 0)
+
+  const progressLabel = (() => {
+    if (!progress) return null
+    if (progress.phase === 'checking') return `Checking ${progress.file}…`
+    if (progress.phase === 'verifying') return `Verifying ${progress.file}…`
+    if (progress.phase === 'installed') return `${progress.file} — installed`
+    if (progress.phase === 'up_to_date') return `${progress.file} — up-to-date`
+    if (progress.phase === 'downloading') {
+      const pct = progress.total > 0 ? Math.round((progress.received / progress.total) * 100) : 0
+      const mb = (progress.received / 1_048_576).toFixed(1)
+      const tot = (progress.total / 1_048_576).toFixed(1)
+      return `Downloading ${progress.file}: ${mb} / ${tot} MB (${pct}%)`
+    }
+    return null
+  })()
+
+  return (
+    <BinaryPanelWrap>
+      <Alert
+        type="warning"
+        title={`Node binaries are required (~${formatMb(totalMb)} MB total).`}
+      />
+      <BinaryFileList>
+        {status.files.map((f) => (
+          <BinaryFileRow key={f.name}>
+            <span>{f.name}</span>
+            <span>{f.exists ? '✓ present' : `${formatMb(f.size)} MB — missing`}</span>
+          </BinaryFileRow>
+        ))}
+      </BinaryFileList>
+      {progressLabel && <BinaryProgressText>{progressLabel}</BinaryProgressText>}
+      {error && <Alert type="error" title={`Download failed: ${error}`} />}
+      <BinaryDownloadButton onClick={handleDownload} disabled={downloading}>
+        {downloading ? 'Downloading…' : error ? 'Retry download' : 'Download binaries'}
+      </BinaryDownloadButton>
+    </BinaryPanelWrap>
+  )
+}
+
 const Preview: React.FC<PreviewPropsT> = ({ values, goNextStep, goPrevStep, isLoading }) => {
+  const isLocalNode = values[AddNodeFields.type] === Type.local
+  const [binariesReady, setBinariesReady] = useState(!isLocalNode)
+
   const canGoNext =
+    binariesReady &&
     !!values[AddNodeFields.type] &&
     !!values[AddNodeFields.network] &&
     !!values[AddNodeFields.name] &&
@@ -358,6 +462,9 @@ const Preview: React.FC<PreviewPropsT> = ({ values, goNextStep, goPrevStep, isLo
       isLoading={isLoading}
       showActionsDivider={false}
     >
+      {isLocalNode && !binariesReady && (
+        <BinaryDownloadPanel onReady={() => setBinariesReady(true)} />
+      )}
       <NodePreview values={values} />
     </NodeAddForm>
   )
@@ -395,4 +502,46 @@ type SelectionBasePropsT = {
 
 const SnapshotBlock = styled.div`
   margin-top: 14px;
+`
+
+const BinaryPanelWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+`
+
+const BinaryFileList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  opacity: 0.85;
+`
+
+const BinaryFileRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+`
+
+const BinaryProgressText = styled.p`
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 0;
+`
+
+const BinaryDownloadButton = styled.button`
+  align-self: flex-start;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  background: var(--ant-color-primary, #1677ff);
+  color: #fff;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `

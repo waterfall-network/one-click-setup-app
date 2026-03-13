@@ -61,8 +61,21 @@ export const runStartup = async ({
     if (delayMs > 0) {
       await sleep(delayMs)
     }
+    // Build a progress callback so steps can stream detail updates to the UI
+    // without waiting for the next step boundary.
+    const updateProgress = (detail: string): void => {
+      publishStatus({
+        phase: 'running',
+        title: step.title,
+        detail,
+        activeStep,
+        completedSteps: index,
+        totalSteps
+      })
+    }
+
     try {
-      await Promise.resolve(step.run())
+      await Promise.resolve(step.run(updateProgress))
       onStepDone?.(step)
     } catch (error) {
       onStepFailed?.(step, error)

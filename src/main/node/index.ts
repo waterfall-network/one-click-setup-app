@@ -38,10 +38,17 @@ import NodeModel, {
 import WorkerModel from '../models/worker'
 import SettingsModel from '../models/settings'
 import { checkPort } from '../libs/fs'
+import {
+  getBinaryStatus,
+  downloadBinaries,
+  WFBINS_DIR,
+  type DownloadProgress
+} from '../libs/binUpdater'
 
 enum ErrorResults {
   NODE_NOT_FOUND = 'Node Not Found',
-  NODE_NOT_CREATED = 'Node Not Created'
+  NODE_NOT_CREATED = 'Node Not Created',
+  BINARIES_NOT_READY = 'Node binaries are not ready. Please download them first.'
 }
 
 const getErrorMessage = (error: unknown): string =>
@@ -88,6 +95,20 @@ class Node {
     this.ipcMain.handle('node:checkPorts', (_event: IpcMainInvokeEvent, ports) =>
       this._checkPorts(ports)
     )
+    // Binary management
+    this.ipcMain.handle('binaries:getStatus', async () => {
+      return await getBinaryStatus()
+    })
+    this.ipcMain.handle('binaries:download', async (event) => {
+      const sender = event.sender
+      await downloadBinaries((progress: DownloadProgress) => {
+        // Stream per-file progress back to the renderer window that triggered the download
+        if (!sender.isDestroyed()) {
+          sender.send('binaries:progress', progress)
+        }
+      })
+      log.info('node:binaries-download-complete, wfBinsPath:', WFBINS_DIR)
+    })
     this.eventBus.onEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(
       EventName.FinishDownloadSnapshot,
       this._finishDownloadSnapshot
@@ -115,6 +136,8 @@ class Node {
     this.ipcMain.removeHandler('node:add')
     this.ipcMain.removeHandler('node:delete')
     this.ipcMain.removeHandler('node:checkPorts')
+    this.ipcMain.removeHandler('binaries:getStatus')
+    this.ipcMain.removeHandler('binaries:download')
 
     this.eventBus.offEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(
       EventName.FinishDownloadSnapshot,
@@ -129,6 +152,15 @@ class Node {
   private async _start(id: number): Promise<StatusResults | ErrorResults | boolean> {
     const startedAt = Date.now()
     log.debug('node:start-requested', { nodeId: id })
+    // Refuse to start a local node if managed binaries are not yet in place
+    const startNodeModel = this.nodeModel.getById(id)
+    if (startNodeModel?.type === NodeType.local) {
+      const status = await getBinaryStatus()
+      if (!status.ready) {
+        log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
+        return ErrorResults.BINARIES_NOT_READY
+      }
+    }
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -186,6 +218,18 @@ class Node {
       type: options.type,
       network: options.network
     })
+    // Local nodes require managed binaries to be present
+    if (options.type === NodeType.local) {
+      const status = await getBinaryStatus()
+      if (!status.ready) {
+        log.warn('node:add-blocked', {
+          name: options.name,
+          reason: 'binaries-not-ready',
+          durationMs: Date.now() - startedAt
+        })
+        return ErrorResults.BINARIES_NOT_READY
+      }
+    }
     const nodeModel = this.nodeModel.insert(options)
     if (!nodeModel) {
       log.error('node:add-failed', {

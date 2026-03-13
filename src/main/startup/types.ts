@@ -29,5 +29,8 @@ export interface StartupStatus {
 export interface StartupStep {
   title: string
   detail: string
-  run: () => Promise<void> | void
+  /** Called by the runner to execute the step.
+   *  updateProgress can be used to stream live detail text to the startup UI
+   *  without waiting for the next step boundary. */
+  run: (updateProgress: (detail: string) => void) => Promise<unknown> | void
 }

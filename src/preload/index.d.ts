@@ -19,7 +19,6 @@ import path from 'node:path'
 import { node } from './node'
 import { worker } from './worker'
 import { settings } from './settings'
-
 type State = {
   version: string
 }
