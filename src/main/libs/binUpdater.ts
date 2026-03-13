@@ -351,37 +351,39 @@ export async function syncBinaries(
   log.info('binUpdater: starting binary sync (startup)')
   onProgress('Checking node binaries…')
 
-  const progressHandler = (e: Event<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
-    const { file, phase, received, total } = e.payload
-    switch (phase) {
-      case 'checking':
-        onProgress(`Verifying ${file}…`)
-        break
-      case 'downloading':
-        if (total > 0) {
-          const pct = Math.round((received / total) * 100)
-          const mb = (received / 1_048_576).toFixed(1)
-          const totalMb = (total / 1_048_576).toFixed(1)
-          onProgress(`Downloading ${file}: ${mb} / ${totalMb} MB (${pct}%)`)
-        } else {
-          onProgress(`Downloading ${file}: ${(received / 1_048_576).toFixed(1)} MB`)
-        }
-        break
-      case 'verifying':
-        onProgress(`Verifying downloaded ${file}…`)
-        break
-      case 'installed':
-        onProgress(`${file} installed`)
-        break
-    }
-  }
-
-  eventBus.onEvent(EventName.BinaryDownloadProgress, progressHandler)
-  try {
-    await downloadBinaries(eventBus)
-  } finally {
-    eventBus.offEvent(EventName.BinaryDownloadProgress, progressHandler)
-  }
+  // Detailed per-file progress in the startup splash screen.
+  // To re-enable: uncomment the block below and remove the bare downloadBinaries call.
+  // const progressHandler = (e: Event<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
+  //   const { file, phase, received, total } = e.payload
+  //   switch (phase) {
+  //     case 'checking':
+  //       onProgress(`Verifying ${file}…`)
+  //       break
+  //     case 'downloading':
+  //       if (total > 0) {
+  //         const pct = Math.round((received / total) * 100)
+  //         const mb = (received / 1_048_576).toFixed(1)
+  //         const totalMb = (total / 1_048_576).toFixed(1)
+  //         onProgress(`Downloading ${file}: ${mb} / ${totalMb} MB (${pct}%)`)
+  //       } else {
+  //         onProgress(`Downloading ${file}: ${(received / 1_048_576).toFixed(1)} MB`)
+  //       }
+  //       break
+  //     case 'verifying':
+  //       onProgress(`Verifying downloaded ${file}…`)
+  //       break
+  //     case 'installed':
+  //       onProgress(`${file} installed`)
+  //       break
+  //   }
+  // }
+  // eventBus.onEvent(EventName.BinaryDownloadProgress, progressHandler)
+  // try {
+  //   await downloadBinaries(eventBus)
+  // } finally {
+  //   eventBus.offEvent(EventName.BinaryDownloadProgress, progressHandler)
+  // }
+  await downloadBinaries(eventBus)
 
   onProgress('Node binaries updated successfully')
   log.info('binUpdater: binary sync complete')
