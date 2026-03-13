@@ -190,7 +190,7 @@ if (!gotTheLock) {
         } finally {
           db.close()
         }
-        await syncBinaries(hasNodes, updateProgress)
+        await syncBinaries(hasNodes, updateProgress, eventBus)
       },
       checkForUpdates,
       initializeSettings: async () => await settings.initialize(),

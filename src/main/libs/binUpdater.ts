@@ -22,7 +22,7 @@ import * as https from 'node:https'
 import * as http from 'node:http'
 import { URL } from 'node:url'
 import log from 'electron-log/node'
-import EventBus, { EventName } from './EventBus'
+import EventBus, { EventName, type Event, type BinaryDownloadProgressPayload } from './EventBus'
 
 // Default directory where managed node binaries are stored
 export const DEFAULT_WFBINS_DIR = path.join(os.homedir(), '.wf', 'bin_files')
@@ -333,7 +333,8 @@ export async function downloadBinaries(eventBus: EventBus): Promise<string> {
  */
 export async function syncBinaries(
   hasNodes: boolean,
-  onProgress: BinUpdateProgress
+  onProgress: BinUpdateProgress,
+  eventBus: EventBus
 ): Promise<string | null> {
   if (!hasNodes) {
     log.info('binUpdater: no nodes configured, skipping binary sync')
@@ -343,76 +344,36 @@ export async function syncBinaries(
   log.info('binUpdater: starting binary sync (startup)')
   onProgress('Checking node binaries…')
 
-  await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
-
-  onProgress('Fetching binary manifest from storage.waterfall.network…')
-  let entries: ManifestEntry[]
-  try {
-    entries = await fetchEntries()
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    log.error(`binUpdater: manifest fetch failed: ${msg}`)
-    throw new Error(`Failed to fetch binary manifest: ${msg}`)
-  }
-
-  const toDownload: BinaryName[] = []
-  for (const name of BINARY_NAMES) {
-    const entry = findEntry(entries, name)
-    if (!entry?.sha512 || !entry?.url) {
-      throw new Error(`Manifest is missing a valid entry for binary "${name}"`)
-    }
-    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
-    onProgress(`Verifying ${name}…`)
-    if (!fs.existsSync(filePath)) {
-      toDownload.push(name)
-      continue
-    }
-    try {
-      const hash = await computeFileHash(filePath)
-      if (hash.toLowerCase() !== entry.sha512.toLowerCase()) toDownload.push(name)
-      else log.info(`binUpdater: ${name} is up-to-date`)
-    } catch {
-      toDownload.push(name)
-    }
-  }
-
-  if (toDownload.length === 0) {
-    onProgress('Node binaries are up-to-date')
-    return getWfbinsDir()
-  }
-
-  for (const name of toDownload) {
-    const entry = findEntry(entries, name)!
-    const destPath = path.join(getWfbinsDir(), getBinaryFilename(name))
-    const downloadUrl = BINARY_BASE_URL + entry.url
-    log.info(`binUpdater: downloading ${name}`)
-    try {
-      await downloadToFile(downloadUrl, destPath, (received, total) => {
+  const progressHandler = (e: Event<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
+    const { file, phase, received, total } = e.payload
+    switch (phase) {
+      case 'checking':
+        onProgress(`Verifying ${file}…`)
+        break
+      case 'downloading':
         if (total > 0) {
           const pct = Math.round((received / total) * 100)
           const mb = (received / 1_048_576).toFixed(1)
           const totalMb = (total / 1_048_576).toFixed(1)
-          onProgress(`Downloading ${name}: ${mb} / ${totalMb} MB (${pct}%)`)
+          onProgress(`Downloading ${file}: ${mb} / ${totalMb} MB (${pct}%)`)
         } else {
-          onProgress(`Downloading ${name}: ${(received / 1_048_576).toFixed(1)} MB`)
+          onProgress(`Downloading ${file}: ${(received / 1_048_576).toFixed(1)} MB`)
         }
-      })
-      onProgress(`Verifying downloaded ${name}…`)
-      const hash = await computeFileHash(destPath)
-      if (hash.toLowerCase() !== entry.sha512.toLowerCase()) {
-        fs.unlinkSync(destPath)
-        throw new Error(`SHA-512 hash mismatch for ${name} after download`)
-      }
-      if (process.platform !== 'win32') {
-        fs.chmodSync(destPath, 0o755)
-      }
-      log.info(`binUpdater: ${name} installed`)
-      onProgress(`${name} installed`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      log.error(`binUpdater: failed to install ${name}: ${msg}`)
-      throw new Error(`Failed to install ${name}: ${msg}`)
+        break
+      case 'verifying':
+        onProgress(`Verifying downloaded ${file}…`)
+        break
+      case 'installed':
+        onProgress(`${file} installed`)
+        break
     }
+  }
+
+  eventBus.onEvent(EventName.BinaryDownloadProgress, progressHandler)
+  try {
+    await downloadBinaries(eventBus)
+  } finally {
+    eventBus.offEvent(EventName.BinaryDownloadProgress, progressHandler)
   }
 
   onProgress('Node binaries updated successfully')
