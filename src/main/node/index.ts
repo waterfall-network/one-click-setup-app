@@ -22,7 +22,8 @@ import EventBus, {
   EventName,
   EventName as EventBusEventName,
   Event as EventBusEvent,
-  FinishDownloadSnapshotPayload
+  FinishDownloadSnapshotPayload,
+  BinaryDownloadProgressPayload
 } from '../libs/EventBus'
 import LocalNode, { StatusResult, StatusResults } from './local'
 import ProviderNode from './provider'
@@ -41,8 +42,7 @@ import { checkPort } from '../libs/fs'
 import {
   getBinaryStatus,
   downloadBinaries,
-  getWfbinsDir,
-  type DownloadProgress
+  getWfbinsDir
 } from '../libs/binUpdater'
 
 enum ErrorResults {
@@ -101,12 +101,17 @@ class Node {
     })
     this.ipcMain.handle('binaries:download', async (event) => {
       const sender = event.sender
-      await downloadBinaries((progress: DownloadProgress) => {
-        // Stream per-file progress back to the renderer window that triggered the download
+      const onProgress = (e: EventBusEvent<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
         if (!sender.isDestroyed()) {
-          sender.send('binaries:progress', progress)
+          sender.send('binaries:progress', e.payload)
         }
-      })
+      }
+      this.eventBus.onEvent(EventName.BinaryDownloadProgress, onProgress)
+      try {
+        await downloadBinaries(this.eventBus)
+      } finally {
+        this.eventBus.offEvent(EventName.BinaryDownloadProgress, onProgress)
+      }
       log.info('node:binaries-download-complete, wfBinsPath:', getWfbinsDir())
     })
     this.eventBus.onEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(

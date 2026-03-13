@@ -24,7 +24,8 @@ export enum EventName {
   StopDownloadSnapshot = 'StopDownloadSnapshot',
   StartStatusMonitoring = 'StartStatusMonitoring',
   StopStatusMonitoring = 'StopStatusMonitoring',
-  SettingsUpdated = 'SettingsUpdated'
+  SettingsUpdated = 'SettingsUpdated',
+  BinaryDownloadProgress = 'BinaryDownloadProgress'
 }
 
 export interface Event<T extends EventName, P> {
@@ -42,6 +43,13 @@ export type ResumeDownloadSnapshotPayload = {
   nodeId: number
 }
 export type StopDownloadSnapshotPayload = null
+export type BinaryDownloadProgressPayload = {
+  file: string
+  phase: 'checking' | 'downloading' | 'verifying' | 'installed' | 'up_to_date'
+  received: number
+  total: number
+}
+
 export type SettingsUpdatedPayload = {
   theme: 'light' | 'dark' | 'system'
   autoStartApp: boolean

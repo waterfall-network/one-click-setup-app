@@ -22,6 +22,7 @@ import * as https from 'node:https'
 import * as http from 'node:http'
 import { URL } from 'node:url'
 import log from 'electron-log/node'
+import EventBus, { EventName } from './EventBus'
 
 // Default directory where managed node binaries are stored
 export const DEFAULT_WFBINS_DIR = path.join(os.homedir(), '.wf', 'bin_files')
@@ -265,14 +266,12 @@ export async function getBinaryStatus(): Promise<BinaryStatus> {
 
 /**
  * Downloads missing or outdated binaries into getWfbinsDir() and reports granular
- * per-file progress via onProgress. Intended for on-demand invocation from
- * the renderer (node add / node start flows).
+ * per-file progress via eventBus (BinaryDownloadProgress). Intended for on-demand
+ * invocation from the renderer (node add / node start flows).
  *
  * Returns getWfbinsDir() on success; throws on unrecoverable errors.
  */
-export async function downloadBinaries(
-  onProgress: (progress: DownloadProgress) => void
-): Promise<string> {
+export async function downloadBinaries(eventBus: EventBus): Promise<string> {
   await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
 
   const entries = await fetchEntries()
@@ -286,13 +285,13 @@ export async function downloadBinaries(
     const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
 
     // Check if already up-to-date
-    onProgress({ file: name, phase: 'checking', received: 0, total: 0 })
+    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'checking', received: 0, total: 0 })
     if (fs.existsSync(filePath)) {
       try {
         const hash = await computeFileHash(filePath)
         if (hash.toLowerCase() === entry.sha512.toLowerCase()) {
           log.info(`binUpdater: ${name} is up-to-date`)
-          onProgress({ file: name, phase: 'up_to_date', received: 0, total: 0 })
+          eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'up_to_date', received: 0, total: 0 })
           continue
         }
       } catch {
@@ -304,11 +303,11 @@ export async function downloadBinaries(
     const downloadUrl = BINARY_BASE_URL + entry.url
     log.info(`binUpdater: downloading ${name} from ${downloadUrl}`)
     await downloadToFile(downloadUrl, filePath, (received, total) => {
-      onProgress({ file: name, phase: 'downloading', received, total })
+      eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'downloading', received, total })
     })
 
     // Verify hash after download
-    onProgress({ file: name, phase: 'verifying', received: 0, total: 0 })
+    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'verifying', received: 0, total: 0 })
     const actualHash = await computeFileHash(filePath)
     if (actualHash.toLowerCase() !== entry.sha512.toLowerCase()) {
       fs.unlinkSync(filePath)
@@ -320,7 +319,7 @@ export async function downloadBinaries(
       fs.chmodSync(filePath, 0o755)
     }
     log.info(`binUpdater: ${name} installed`)
-    onProgress({ file: name, phase: 'installed', received: 0, total: 0 })
+    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'installed', received: 0, total: 0 })
   }
 
   log.info('binUpdater: downloadBinaries complete')
