@@ -235,6 +235,13 @@ async function fetchEntries(): Promise<ManifestEntry[]> {
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Returns true when all binary files exist on disk — no network required. */
+export function areBinariesReady(): boolean {
+  return BINARY_NAMES.every((name) =>
+    fs.existsSync(path.join(getWfbinsDir(), getBinaryFilename(name)))
+  )
+}
+
 /**
  * Returns the current binary readiness status for the renderer.
  * Tries to fetch the manifest to include expected file sizes; if the network

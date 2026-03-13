@@ -41,6 +41,7 @@ import SettingsModel from '../models/settings'
 import { checkPort } from '../libs/fs'
 import {
   getBinaryStatus,
+  areBinariesReady,
   downloadBinaries,
   getWfbinsDir
 } from '../libs/binUpdater'
@@ -159,12 +160,9 @@ class Node {
     log.debug('node:start-requested', { nodeId: id })
     // Refuse to start a local node if managed binaries are not yet in place
     const startNodeModel = this.nodeModel.getById(id)
-    if (startNodeModel?.type === NodeType.local) {
-      const status = await getBinaryStatus()
-      if (!status.ready) {
-        log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
-        return ErrorResults.BINARIES_NOT_READY
-      }
+    if (startNodeModel?.type === NodeType.local && !areBinariesReady()) {
+      log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
+      return ErrorResults.BINARIES_NOT_READY
     }
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
@@ -224,16 +222,13 @@ class Node {
       network: options.network
     })
     // Local nodes require managed binaries to be present
-    if (options.type === NodeType.local) {
-      const status = await getBinaryStatus()
-      if (!status.ready) {
-        log.warn('node:add-blocked', {
-          name: options.name,
-          reason: 'binaries-not-ready',
-          durationMs: Date.now() - startedAt
-        })
-        return ErrorResults.BINARIES_NOT_READY
-      }
+    if (options.type === NodeType.local && !areBinariesReady()) {
+      log.warn('node:add-blocked', {
+        name: options.name,
+        reason: 'binaries-not-ready',
+        durationMs: Date.now() - startedAt
+      })
+      return ErrorResults.BINARIES_NOT_READY
     }
     const nodeModel = this.nodeModel.insert(options)
     if (!nodeModel) {
