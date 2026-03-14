@@ -41,7 +41,7 @@ import { SearchKeys } from '@renderer/constants/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { addParams } from '@renderer/helpers/navigation'
 import { AddNodeStepKeys, getAddNodeSteps } from '@renderer/helpers/node'
-import { styled } from 'styled-components'
+import { Flex } from '@renderer/ui-kit/Flex'
 import BinaryDownloadPanel from '@renderer/components/Node/BinaryDownloadPanel'
 
 export const AddNode: React.FC = () => {
@@ -219,13 +219,13 @@ const FolderSelection: React.FC<
         // error={'The directory and network does not match'}
       />
       {snapshot && (
-        <SnapshotBlock>
+        <Flex style={{ marginTop: 14 }}>
           <NodeSnapshotInput
             value={isSnapshot}
             handleChange={onSelectSnapshot}
             snapshot={snapshot}
           />
-        </SnapshotBlock>
+        </Flex>
       )}
     </NodeAddForm>
   )
@@ -401,7 +401,4 @@ type SelectionBasePropsT = {
   goPrevStep: () => void
 }
 
-const SnapshotBlock = styled.div`
-  margin-top: 14px;
-`
 

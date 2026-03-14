@@ -14,20 +14,12 @@
  * limitations under the License.
  *
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { styled } from 'styled-components'
+import React from 'react'
 import { Alert } from '@renderer/ui-kit/Alert'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
-import {
-  getBinaryStatus,
-  downloadBinaries,
-  onBinaryProgress,
-  type BinaryStatus,
-  type DownloadProgress
-} from '@renderer/api/node'
-
-const formatMb = (bytes: number) => (bytes / 1_048_576).toFixed(0)
+import { Flex } from '@renderer/ui-kit/Flex'
+import { useBinaryDownload } from '@renderer/hooks/node'
 
 type BinaryDownloadPanelProps = {
   onReady: () => void
@@ -35,115 +27,25 @@ type BinaryDownloadPanelProps = {
 
 /** Panel that checks and, if needed, downloads Linux node binaries before the node is created */
 const BinaryDownloadPanel: React.FC<BinaryDownloadPanelProps> = ({ onReady }) => {
-  const [status, setStatus] = useState<BinaryStatus | null>(null)
-  const [downloading, setDownloading] = useState(false)
-  const [progress, setProgress] = useState<DownloadProgress | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const unsubRef = useRef<(() => void) | null>(null)
+  const { checking, downloading, error, onDownload } = useBinaryDownload(onReady)
 
-  const checkStatus = useCallback(async () => {
-    try {
-      const s = await getBinaryStatus()
-      setStatus(s)
-      if (s.ready) onReady()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }, [onReady])
-
-  useEffect(() => {
-    checkStatus()
-    return () => {
-      unsubRef.current?.()
-    }
-  }, [checkStatus])
-
-  const handleDownload = async () => {
-    setError(null)
-    setDownloading(true)
-    unsubRef.current = onBinaryProgress((p) => setProgress(p))
-    try {
-      await downloadBinaries()
-      unsubRef.current?.()
-      unsubRef.current = null
-      setDownloading(false)
-      await checkStatus()
-    } catch (e) {
-      unsubRef.current?.()
-      unsubRef.current = null
-      setDownloading(false)
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  const progressLabel = (() => {
-    if (!progress) return null
-    if (progress.phase === 'checking') return `Checking ${progress.file}…`
-    if (progress.phase === 'verifying') return `Verifying ${progress.file}…`
-    if (progress.phase === 'installed') return `${progress.file} — installed`
-    if (progress.phase === 'up_to_date') return `${progress.file} — up-to-date`
-    if (progress.phase === 'downloading') {
-      const pct = progress.total > 0 ? Math.round((progress.received / progress.total) * 100) : 0
-      const mb = (progress.received / 1_048_576).toFixed(1)
-      const tot = (progress.total / 1_048_576).toFixed(1)
-      return `Downloading ${progress.file}: ${mb} / ${tot} MB (${pct}%)`
-    }
-    return null
-  })()
-
-  if (status === null) {
+  if (checking) {
     return (
-      <Wrap>
+      <Flex vertical gap={10} style={{ marginBottom: 16 }}>
         <Text size="sm">Checking node binaries…</Text>
-      </Wrap>
+      </Flex>
     )
   }
 
-  if (status.ready) return null
-
-  const totalMb = status.files.reduce((s, f) => s + f.size, 0)
-
   return (
-    <Wrap>
-      <Alert
-        type="warning"
-        title={`Node binaries are required (~${formatMb(totalMb)} MB total).`}
-      />
-      <FileList>
-        {status.files.map((f) => (
-          <FileRow key={f.name}>
-            <Text size="sm">{f.name}</Text>
-            <Text size="sm">{f.exists ? '✓ present' : `${formatMb(f.size)} MB — missing`}</Text>
-          </FileRow>
-        ))}
-      </FileList>
-      {progressLabel && <Text size="xsm">{progressLabel}</Text>}
+    <Flex vertical gap={10} style={{ marginBottom: 16 }}>
+      <Alert type="warning" title="Node binaries are required. Please download them to continue." />
       {error && <Alert type="error" title={`Download failed: ${error}`} />}
-      <ButtonPrimary onClick={handleDownload} disabled={downloading}>
+      <ButtonPrimary onClick={onDownload} disabled={downloading}>
         {downloading ? 'Downloading…' : error ? 'Retry download' : 'Download binaries'}
       </ButtonPrimary>
-    </Wrap>
+    </Flex>
   )
 }
 
 export default BinaryDownloadPanel
-
-const Wrap = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
-`
-
-const FileList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  opacity: 0.85;
-`
-
-const FileRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-`
