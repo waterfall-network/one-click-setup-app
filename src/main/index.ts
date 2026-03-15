@@ -180,7 +180,12 @@ if (!gotTheLock) {
     const startupSteps = createStartupSteps({
       runMigrations: async () => await runMigrations(),
       hasConfiguredNodes: () => hasConfiguredNodes(appEnv.mainDB),
-      syncBinaries: async (hasNodes, updateProgress) => await syncBinaries(hasNodes, updateProgress, eventBus),
+      syncBinaries: async (hasNodes, updateProgress) => {
+        const result = await syncBinaries(hasNodes, updateProgress, eventBus)
+        if (result?.version) {
+          settings.updateBinariesVersion(result.version)
+        }
+      },
       checkForUpdates,
       initializeSettings: async () => await settings.initialize(),
       initializeNode: async () => await node.initialize(),
@@ -202,6 +207,7 @@ if (!gotTheLock) {
           trayIcon,
           ipcMain,
           appVersion: appEnv.version,
+          getBinariesVersion: () => settings.getSettings()?.binariesVersion ?? '',
           checkForUpdates,
           quit,
           getMainWindow: () => mainWindow

@@ -21,6 +21,7 @@ import { worker } from './worker'
 import { settings } from './settings'
 type State = {
   version: string
+  binariesVersion: string
 }
 
 type StartupPhase = 'running' | 'done' | 'error'

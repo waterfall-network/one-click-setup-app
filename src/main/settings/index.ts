@@ -129,6 +129,14 @@ class Settings {
     this.ipcMain.removeHandler('settings:resetFactory')
   }
 
+  public getSettings(): SettingsType | null {
+    return this.settingsModel.get()
+  }
+
+  public updateBinariesVersion(version: string): void {
+    this.settingsModel.update({ binariesVersion: version })
+  }
+
   private _get(): SettingsType | null {
     return this.settingsModel.get()
   }

@@ -108,10 +108,14 @@ class Node {
         }
       }
       this.eventBus.onEvent(EventName.BinaryDownloadProgress, onProgress)
+      let downloadResult: { dir: string; version: string } | undefined
       try {
-        await downloadBinaries(this.eventBus)
+        downloadResult = await downloadBinaries(this.eventBus)
       } finally {
         this.eventBus.offEvent(EventName.BinaryDownloadProgress, onProgress)
+      }
+      if (downloadResult?.version) {
+        this.settingsModel.update({ binariesVersion: downloadResult.version })
       }
       log.info('node:binaries-download-complete, wfBinsPath:', getWfbinsDir())
     })

@@ -43,6 +43,7 @@ interface SettingsRow {
   monitoringInterval: number
   logLevel: LogLevel
   binariesPath: string
+  binariesVersion: string
   createdAt: string
   updatedAt: string
 }
@@ -55,6 +56,7 @@ export interface Settings {
   monitoringInterval: number
   logLevel: LogLevel
   binariesPath: string
+  binariesVersion: string
   createdAt: string
   updatedAt: string
 }
@@ -68,6 +70,7 @@ export type UpdateSettings = Partial<
     | 'monitoringInterval'
     | 'logLevel'
     | 'binariesPath'
+    | 'binariesVersion'
   >
 >
 
@@ -168,6 +171,13 @@ class SettingsModel {
         return false
       }
       updateData.binariesPath = data.binariesPath
+    }
+
+    if (data.binariesVersion !== undefined) {
+      if (typeof data.binariesVersion !== 'string') {
+        return false
+      }
+      updateData.binariesVersion = data.binariesVersion
     }
 
     const keys = Object.keys(updateData)

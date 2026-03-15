@@ -216,8 +216,8 @@ function findEntry(entries: ManifestEntry[], name: BinaryName): ManifestEntry | 
   })
 }
 
-/** Fetch the manifest and return the entries array for the current platform/arch, or throw */
-async function fetchEntries(): Promise<ManifestEntry[]> {
+/** Fetch the manifest and return the entries array + version for the current platform/arch, or throw */
+async function fetchEntries(): Promise<{ entries: ManifestEntry[]; version: string }> {
   const res = await fetch(MANIFEST_URL)
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching manifest`)
   const manifest = (await res.json()) as LatestManifest
@@ -228,7 +228,7 @@ async function fetchEntries(): Promise<ManifestEntry[]> {
   if (!Array.isArray(entries) || entries.length === 0) {
     throw new Error(`Binary manifest is missing the files.${plat}.${archKey} array`)
   }
-  return entries
+  return { entries, version: manifest.version ?? '' }
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +250,8 @@ export function areBinariesReady(): boolean {
 export async function getBinaryStatus(): Promise<BinaryStatus> {
   let entries: ManifestEntry[] = []
   try {
-    entries = await fetchEntries()
+    const result = await fetchEntries()
+    entries = result.entries
   } catch (err) {
     log.warn('binUpdater:getStatus manifest fetch failed, reporting sizes as 0', err)
   }
@@ -276,12 +277,12 @@ export async function getBinaryStatus(): Promise<BinaryStatus> {
  * per-file progress via eventBus (BinaryDownloadProgress). Intended for on-demand
  * invocation from the renderer (node add / node start flows).
  *
- * Returns getWfbinsDir() on success; throws on unrecoverable errors.
+ * Returns { dir, version } on success; throws on unrecoverable errors.
  */
-export async function downloadBinaries(eventBus: EventBus): Promise<string> {
+export async function downloadBinaries(eventBus: EventBus): Promise<{ dir: string; version: string }> {
   await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
 
-  const entries = await fetchEntries()
+  const { entries, version } = await fetchEntries()
 
   for (const name of BINARY_NAMES) {
     const entry = findEntry(entries, name)
@@ -330,7 +331,7 @@ export async function downloadBinaries(eventBus: EventBus): Promise<string> {
   }
 
   log.info('binUpdater: downloadBinaries complete')
-  return getWfbinsDir()
+  return { dir: getWfbinsDir(), version }
 }
 
 /**
@@ -342,7 +343,7 @@ export async function syncBinaries(
   hasNodes: boolean,
   onProgress: BinUpdateProgress,
   eventBus: EventBus
-): Promise<string | null> {
+): Promise<{ dir: string; version: string } | null> {
   if (!hasNodes) {
     log.info('binUpdater: no nodes configured, skipping binary sync')
     return null
@@ -383,9 +384,9 @@ export async function syncBinaries(
   // } finally {
   //   eventBus.offEvent(EventName.BinaryDownloadProgress, progressHandler)
   // }
-  await downloadBinaries(eventBus)
+  const result = await downloadBinaries(eventBus)
 
   onProgress('Node binaries updated successfully')
   log.info('binUpdater: binary sync complete')
-  return getWfbinsDir()
+  return result
 }

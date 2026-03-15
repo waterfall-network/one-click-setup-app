@@ -70,6 +70,7 @@ export const PageRender: React.FC<PropsWithChildren> = ({ children }) => {
           <Menu menuItems={menuItems} active={active_root_key} />
           <VersionButton type="button" onClick={() => navigate(routes.changelog)}>
             <VersionCaption size="sm">{appState?.version ?? 'Waterfall'}</VersionCaption>
+            {appState?.binariesVersion && <VersionCaption size="sm">{appState.binariesVersion}</VersionCaption>}
           </VersionButton>
         </SidebarContent>
       </AppSideBar>
