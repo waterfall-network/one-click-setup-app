@@ -612,6 +612,7 @@ class LocalNode extends EventEmitter {
     if (this.model.network !== Network.mainnet) {
       args.push(`--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`)
       args.push(`--deposit-contract=${getValidatorAddress(this.model.network)}`)
+      args.push(`--min-sync-peers=1`)
     }
     this.coordinatorBeacon = new Child({
       binPath: this.appEnv.getCoordinatorBeaconBinPath(this.model.network),

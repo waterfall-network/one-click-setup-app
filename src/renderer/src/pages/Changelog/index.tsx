@@ -49,6 +49,16 @@ const breadcrumb = [
 
 const changelogData: ChangelogVersion[] = [
   {
+    version: '0.6.1 beta',
+    date: '17.03.2026',
+    changes: [
+      {
+        type: ChangeType.Update,
+        description: 'Updated TESTNET9 bootnodes and non-mainnet sync peer settings'
+      }
+    ]
+  },
+  {
     version: '0.6.0 beta',
     date: '17.02.2026',
     changes: [
