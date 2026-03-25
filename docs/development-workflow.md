@@ -44,7 +44,7 @@ Use `bd` as the project task tracker:
 2. Set `in_progress` before implementation.
 3. Link discovered work via `discovered-from` dependency.
 4. Close issue after code, checks, and docs updates.
-5. Run `bd sync` before push.
+5. Use standard git push workflow (no Dolt remote sync configured).
 
 ## Local development cycle
 
