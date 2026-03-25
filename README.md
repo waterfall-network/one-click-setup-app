@@ -67,4 +67,4 @@ $ npm run build:linux
 
 ## License
 
-[APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+This project is licensed under the Apache-2.0 License. See the [LICENSE](./LICENSE.md) file for details.

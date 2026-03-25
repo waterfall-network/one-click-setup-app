@@ -9,6 +9,7 @@ certs
 package-lock.json.backup
 resources/bin
 .cursor
+tmp
 
 # bv (beads viewer) local config and caches
 .bv/

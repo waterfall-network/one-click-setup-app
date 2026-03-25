@@ -189,6 +189,10 @@ These rules extend (and do not replace) the Beads workflow above.
    - Add short, user-facing bullet(s) describing the work completed in that commit
    - Keep change bullets ordered by type: `New`, `Improve`, `Update`, `Fix`
 
+8. License header for new files:
+   - Every new source file must include the standard Apache 2.0 header at the top, following the same format used in existing files
+   - Use company name `Digital Clever Solution Inc.` in the copyright line
+
 <!-- bv-agent-instructions-v1 -->
 
 ---
