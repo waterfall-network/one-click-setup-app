@@ -20,27 +20,31 @@ If install fails on Intel macOS with native modules (`node-gyp`, `@chainsafe/bls
 
 ### Mac arm64
 
-- https://storage.waterfall.network/bin/mainnet/latest/mac-arm64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/mac-arm64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/mac-arm64/verifier-mainnet
+- https://storage.waterfall.network/bin/latest/mac/arm64/coordinator-beacon-mainnet
+- https://storage.waterfall.network/bin/latest/mac/arm64/coordinator-validator-mainnet
+- https://storage.waterfall.network/bin/latest/mac/arm64/verifier-mainnet
 
 Save to `./resources/bin/mac/arm64`
 
 ### Mac x64
 
-- https://storage.waterfall.network/bin/mainnet/latest/mac-x64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/mac-x64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/mac-x64/verifier-mainnet
+- https://storage.waterfall.network/bin/latest/mac/x64/coordinator-beacon-mainnet
+- https://storage.waterfall.network/bin/latest/mac/x64/coordinator-validator-mainnet
+- https://storage.waterfall.network/bin/latest/mac/x64/verifier-mainnet
 
 Save to `./resources/bin/mac/x64`
 
 ### Windows x64
 
-- https://storage.waterfall.network/bin/mainnet/latest/win-x64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/win-x64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/mainnet/latest/win-x64/verifier-mainnet
+- https://storage.waterfall.network/bin/latest/win/x64/coordinator-beacon-mainnet.exe
+- https://storage.waterfall.network/bin/latest/win/x64/coordinator-validator-mainnet.exe
+- https://storage.waterfall.network/bin/latest/win/x64/verifier-mainnet.exe
 
-Save to `./resources/bin/win/x64`
+### Linux
+
+- https://storage.waterfall.network/bin/latest/linux/x64/coordinator-beacon-mainnet
+- https://storage.waterfall.network/bin/latest/linux/x64/coordinator-validator-mainnet
+- https://storage.waterfall.network/bin/latest/linux/x64/verifier-mainnet
 
 ### Development
 
@@ -63,4 +67,4 @@ $ npm run build:linux
 
 ## License
 
-[APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+This project is licensed under the Apache-2.0 License. See the [LICENSE](./LICENSE.md) file for details.

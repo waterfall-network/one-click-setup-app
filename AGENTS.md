@@ -24,8 +24,7 @@ Start here first:
 - PR checks: `docs/pr-checklist.md`
 - Packaging/release: `docs/build-and-release.md`
 
-<!-- BEGIN BEADS INTEGRATION -->
-
+<!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:f65d5d33 -->
 ## Issue Tracking with bd (beads)
 
 **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
@@ -33,7 +32,7 @@ Start here first:
 ### Why bd?
 
 - Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Auto-syncs to JSONL for version control
+- Git-friendly: Dolt-powered version control with native sync
 - Agent-optimized: JSON output, ready work detection, discovered-from links
 - Prevents duplicate tracking systems and confusion
 
@@ -55,7 +54,7 @@ bd create "Issue title" --description="What this issue is about" -p 1 --deps dis
 **Claim and update:**
 
 ```bash
-bd update bd-42 --status in_progress --json
+bd update <id> --claim --json
 bd update bd-42 --priority 1 --json
 ```
 
@@ -84,18 +83,28 @@ bd close bd-42 --reason "Completed" --json
 ### Workflow for AI Agents
 
 1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
+2. **Claim your task atomically**: `bd update <id> --claim`
 3. **Work on it**: Implement, test, document
 4. **Discover new work?** Create linked issue:
    - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
 5. **Complete**: `bd close <id> --reason "Done"`
 
+### Quality
+- Use `--acceptance` and `--design` fields when creating issues
+- Use `--validate` to check description completeness
+
+### Lifecycle
+- `bd defer <id>` / `bd supersede <id>` for issue management
+- `bd stale` / `bd orphans` / `bd lint` for hygiene
+- `bd human <id>` to flag for human decisions
+- `bd formula list` / `bd mol pour <name>` for structured workflows
+
 ### Auto-Sync
 
-bd automatically syncs with git:
+bd automatically syncs via Dolt:
 
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
+- Each write auto-commits to Dolt history
+- Remote Dolt sync is not configured in this project
 - No manual export/import needed!
 
 ### Important Rules
@@ -109,6 +118,31 @@ bd automatically syncs with git:
 - ❌ Do NOT duplicate tracking systems
 
 For more details, see README.md and docs/QUICKSTART.md.
+
+## Session Completion
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
 
 <!-- END BEADS INTEGRATION -->
 
@@ -155,6 +189,10 @@ These rules extend (and do not replace) the Beads workflow above.
    - Add short, user-facing bullet(s) describing the work completed in that commit
    - Keep change bullets ordered by type: `New`, `Improve`, `Update`, `Fix`
 
+8. License header for new files:
+   - Every new source file must include the standard Apache 2.0 header at the top, following the same format used in existing files
+   - Use company name `Digital Clever Solution Inc.` in the copyright line
+
 <!-- bv-agent-instructions-v1 -->
 
 ---
@@ -174,19 +212,18 @@ bd ready              # Show issues ready to work (no blockers)
 bd list --status=open # All open issues
 bd show <id>          # Full issue details with dependencies
 bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
+bd update <id> --claim
 bd close <id> --reason="Completed"
 bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
 ```
 
 ### Workflow Pattern
 
 1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress`
+2. **Claim**: Use `bd update <id> --claim`
 3. **Work**: Implement the task
 4. **Complete**: Use `bd close <id>`
-5. **Sync**: Always run `bd sync` at session end
+5. **Sync**: Follow standard git sync only
 
 ### Key Concepts
 
@@ -203,9 +240,8 @@ bd sync               # Commit and push changes
 git status              # Check what changed
 # update changelog       # Add short bullet(s) under the release matching package.json version
 git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
 git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
+git pull --rebase       # Update branch before pushing
 git push                # Push to remote
 ```
 
@@ -215,6 +251,6 @@ git push                # Push to remote
 - Update status as you work (in_progress → closed)
 - Create new issues with `bd create` when you discover tasks
 - Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
+- Finish with a clean issue state in `bd` and pushed git branch
 
 <!-- end-bv-agent-instructions -->

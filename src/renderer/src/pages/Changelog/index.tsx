@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,28 @@ const breadcrumb = [
 ]
 
 const changelogData: ChangelogVersion[] = [
+  {
+    version: '0.6.1 beta',
+    date: '17.03.2026',
+    changes: [
+      {
+        type: ChangeType.New,
+        description: 'Added Linux support'
+      },
+      {
+        type: ChangeType.Update,
+        description: 'Updated Electron to the latest version'
+      },
+      {
+        type: ChangeType.Update,
+        description: 'Updated TESTNET9 bootnodes and non-mainnet sync peer settings'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Improved node start reliability and port availability checks'
+      }
+    ]
+  },
   {
     version: '0.6.0 beta',
     date: '17.02.2026',

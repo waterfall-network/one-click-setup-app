@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Blue Wave Inc.
+ * Copyright 2026   Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -612,6 +612,7 @@ class LocalNode extends EventEmitter {
     if (this.model.network !== Network.mainnet) {
       args.push(`--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`)
       args.push(`--deposit-contract=${getValidatorAddress(this.model.network)}`)
+      args.push(`--min-sync-peers=1`)
     }
     if (this.model.network === Network.testnet9) {
       args.push('--min-sync-peers=1')
