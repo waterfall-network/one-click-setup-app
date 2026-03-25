@@ -65,6 +65,10 @@ const changelogData: ChangelogVersion[] = [
         description: 'Updated TESTNET9 bootnodes and non-mainnet sync peer settings'
       },
       {
+        type: ChangeType.Update,
+        description: 'Standardized Apache license headers and copyright year to 2026'
+      },
+      {
         type: ChangeType.Fix,
         description: 'Improved node start reliability and port availability checks'
       }
