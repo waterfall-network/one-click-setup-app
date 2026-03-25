@@ -46,6 +46,8 @@ import { runStartup } from './startup/runner'
 import type { StartupStatus } from './startup/types'
 import { initializeTrayAndHandlers } from './app/initializeTrayAndHandlers'
 
+app.commandLine.appendSwitch('no-sandbox')
+
 log.transports.file.level = 'debug'
 autoUpdater.logger = log
 

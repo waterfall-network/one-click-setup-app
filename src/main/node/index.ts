@@ -300,7 +300,12 @@ class Node {
         return true
       }
 
-      await node.start()
+      try {
+        await node.start()
+      } catch (error) {
+        log.error('node:start-failed', { nodeId: nodeModel.id, error: getErrorMessage(error) })
+        return false
+      }
       if (nodeModel.type === NodeType.local) {
         const pids = node.getPids()
         this.nodeModel.update(nodeModel.id, {

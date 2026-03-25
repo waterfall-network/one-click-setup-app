@@ -22,7 +22,7 @@ import LogoSrc from '/logo.svg'
 import { LayoutHeaderActionT } from '@renderer/types/layout'
 import { IconButton } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
-import { isWindows } from '@renderer/helpers/common'
+import { isMac } from '@renderer/helpers/common'
 
 type HeaderComponentPropsT = {
   title: string
@@ -32,12 +32,12 @@ type HeaderComponentPropsT = {
 export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightActions }) => {
   return (
     <AppHeader>
-      <DummyNativeActions order={isWindows ? 3 : 1} />
+      <DummyNativeActions order={!isMac ? 3 : 1} />
       <Part align={'center'} order={2}>
         <AppLogo />
         <AppTitle>{title}</AppTitle>
       </Part>
-      <Part justify={'space-between'} align={'center'} order={isWindows ? 1 : 3}>
+      <Part justify={'space-between'} align={'center'} order={!isMac ? 1 : 3}>
         {rightActions?.map((el) => (
           <Button icon={el.icon} key={el.key} onClick={el.onClick} />
         ))}
