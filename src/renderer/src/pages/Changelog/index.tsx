@@ -50,7 +50,7 @@ const breadcrumb = [
 const changelogData: ChangelogVersion[] = [
   {
     version: '0.6.1 beta',
-    date: '17.03.2026',
+    date: '26.03.2026',
     changes: [
       {
         type: ChangeType.New,
