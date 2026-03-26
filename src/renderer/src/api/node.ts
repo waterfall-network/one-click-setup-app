@@ -18,9 +18,6 @@ import { Node, NewNode } from '@renderer/types/node'
 import { LAST_SNAPSHOT_URL } from '@renderer/constants/env'
 import { Snapshots } from '../types/node'
 import { isSnapshots } from '../helpers/node'
-import type { BinaryStatus, DownloadProgress } from '../../preload/node'
-
-export type { BinaryStatus, DownloadProgress } from '../../preload/node'
 
 export enum StatusResult {
   success = 'success',
@@ -63,15 +60,6 @@ export const checkPorts = async (ports: number[]): Promise<boolean[]> => {
 export const remove = async (ids: number[] | bigint[], withData = false) => {
   return await window.node.remove(ids, withData)
 }
-
-export const getBinaryStatus = (): Promise<BinaryStatus> =>
-  window.node.getBinaryStatus()
-
-export const downloadBinaries = (): Promise<void> => window.node.downloadBinaries()
-
-export const onBinaryProgress = (
-  callback: (progress: DownloadProgress) => void
-): (() => void) => window.node.onBinaryProgress(callback)
 
 export const getLastSnapshots = async (): Promise<Snapshots | null> => {
   const data = await window.os.fetchJSON(`${LAST_SNAPSHOT_URL}?date=${new Date().getTime()}`)

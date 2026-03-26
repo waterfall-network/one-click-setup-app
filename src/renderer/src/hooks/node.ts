@@ -23,8 +23,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   add,
   checkPorts,
-  downloadBinaries,
-  getBinaryStatus,
   getAll,
   getById,
   getLastSnapshots,
@@ -310,43 +308,6 @@ export const useControl = (id?: string) => {
   }, [id])
 
   return { onStart, onStop, onRestart, status }
-}
-
-export const useBinaryDownload = (onReady: () => void) => {
-  const [checking, setChecking] = useState(true)
-  const [downloading, setDownloading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const checkStatus = useCallback(async () => {
-    setChecking(true)
-    try {
-      const s = await getBinaryStatus()
-      if (s.ready) onReady()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setChecking(false)
-    }
-  }, [onReady])
-
-  useEffect(() => {
-    checkStatus()
-  }, [checkStatus])
-
-  const onDownload = useCallback(async () => {
-    setError(null)
-    setDownloading(true)
-    try {
-      await downloadBinaries()
-      await checkStatus()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setDownloading(false)
-    }
-  }, [checkStatus])
-
-  return { checking, downloading, error, onDownload }
 }
 
 export const useRemove = (id?: string) => {

@@ -19,11 +19,10 @@ import log from 'electron-log/node'
 import { getMain } from '../libs/db'
 import AppEnv from '../libs/appEnv'
 import EventBus, {
+  Event as EventBusEvent,
   EventName,
   EventName as EventBusEventName,
-  Event as EventBusEvent,
-  FinishDownloadSnapshotPayload,
-  BinaryDownloadProgressPayload
+  FinishDownloadSnapshotPayload
 } from '../libs/EventBus'
 import LocalNode, { StatusResult, StatusResults } from './local'
 import ProviderNode from './provider'
@@ -39,12 +38,7 @@ import NodeModel, {
 import WorkerModel from '../models/worker'
 import SettingsModel from '../models/settings'
 import { checkPort } from '../libs/fs'
-import {
-  getBinaryStatus,
-  areBinariesReady,
-  downloadBinaries,
-  getWfbinsDir
-} from '../libs/binUpdater'
+import BinUpdater from '../libs/binUpdater'
 
 enum ErrorResults {
   NODE_NOT_FOUND = 'Node Not Found',
@@ -59,6 +53,7 @@ class Node {
   private ipcMain: IpcMain
   private appEnv: AppEnv
   private eventBus: EventBus
+  private binUpdater: BinUpdater
   private nodeModel: NodeModel
   private workerModel: WorkerModel
   private settingsModel: SettingsModel
@@ -67,10 +62,11 @@ class Node {
     [key: string]: LocalNode | ProviderNode
   }
 
-  constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus) {
+  constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus, binUpdater: BinUpdater) {
     this.ipcMain = ipcMain
     this.appEnv = appEnv
     this.eventBus = eventBus
+    this.binUpdater = binUpdater
     this.nodes = {}
     const db = getMain(this.appEnv.mainDB)
     this.nodeModel = new NodeModel(db)
@@ -96,29 +92,6 @@ class Node {
     this.ipcMain.handle('node:checkPorts', (_event: IpcMainInvokeEvent, ports) =>
       this._checkPorts(ports)
     )
-    // Binary management
-    this.ipcMain.handle('binaries:getStatus', async () => {
-      return await getBinaryStatus()
-    })
-    this.ipcMain.handle('binaries:download', async (event) => {
-      const sender = event.sender
-      const onProgress = (e: EventBusEvent<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
-        if (!sender.isDestroyed()) {
-          sender.send('binaries:progress', e.payload)
-        }
-      }
-      this.eventBus.onEvent(EventName.BinaryDownloadProgress, onProgress)
-      let downloadResult: { dir: string; version: string } | undefined
-      try {
-        downloadResult = await downloadBinaries(this.eventBus)
-      } finally {
-        this.eventBus.offEvent(EventName.BinaryDownloadProgress, onProgress)
-      }
-      if (downloadResult?.version) {
-        this.settingsModel.update({ binariesVersion: downloadResult.version })
-      }
-      log.info('node:binaries-download-complete, wfBinsPath:', getWfbinsDir())
-    })
     this.eventBus.onEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(
       EventName.FinishDownloadSnapshot,
       this._finishDownloadSnapshot
@@ -146,8 +119,6 @@ class Node {
     this.ipcMain.removeHandler('node:add')
     this.ipcMain.removeHandler('node:delete')
     this.ipcMain.removeHandler('node:checkPorts')
-    this.ipcMain.removeHandler('binaries:getStatus')
-    this.ipcMain.removeHandler('binaries:download')
 
     this.eventBus.offEvent<EventBusEventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>(
       EventName.FinishDownloadSnapshot,
@@ -162,12 +133,7 @@ class Node {
   private async _start(id: number): Promise<StatusResults | ErrorResults | boolean> {
     const startedAt = Date.now()
     log.debug('node:start-requested', { nodeId: id })
-    // Refuse to start a local node if managed binaries are not yet in place
     const startNodeModel = this.nodeModel.getById(id)
-    if (startNodeModel?.type === NodeType.local && !areBinariesReady()) {
-      log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
-      return ErrorResults.BINARIES_NOT_READY
-    }
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -179,7 +145,19 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    const result = await this.nodes[id.toString()].start()
+    let result: StatusResults
+    try {
+      result = await this.nodes[id.toString()].start()
+    } catch (error) {
+      if (
+        startNodeModel?.type === NodeType.local &&
+        getErrorMessage(error) === LocalNode.BINARIES_NOT_READY_ERROR
+      ) {
+        log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
+        return ErrorResults.BINARIES_NOT_READY
+      }
+      throw error
+    }
     log.info('node:start-finished', { nodeId: id, durationMs: Date.now() - startedAt })
     return result
   }
@@ -225,15 +203,6 @@ class Node {
       type: options.type,
       network: options.network
     })
-    // Local nodes require managed binaries to be present
-    if (options.type === NodeType.local && !areBinariesReady()) {
-      log.warn('node:add-blocked', {
-        name: options.name,
-        reason: 'binaries-not-ready',
-        durationMs: Date.now() - startedAt
-      })
-      return ErrorResults.BINARIES_NOT_READY
-    }
     const nodeModel = this.nodeModel.insert(options)
     if (!nodeModel) {
       log.error('node:add-failed', {
@@ -261,7 +230,7 @@ class Node {
     if (!this.nodes[nodeModel.id.toString()]) {
       this.nodes[nodeModel.id.toString()] =
         nodeModel.type === NodeType.local
-          ? new LocalNode(nodeModel, this.appEnv)
+          ? new LocalNode(nodeModel, this.appEnv, this.binUpdater)
           : new ProviderNode(nodeModel, this.appEnv)
     }
     const node = this.nodes[nodeModel.id.toString()]
@@ -420,7 +389,7 @@ class Node {
 
       const node =
         nodeModel.type === NodeType.local
-          ? new LocalNode(nodeModel, this.appEnv)
+          ? new LocalNode(nodeModel, this.appEnv, this.binUpdater)
           : new ProviderNode(nodeModel, this.appEnv)
 
       if (withData) {

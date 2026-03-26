@@ -19,12 +19,10 @@ import type { StartupStep } from './types'
 
 interface CreateStartupStepsParams {
   runMigrations: () => Promise<unknown>
-  /** Returns true when at least one node is configured in the database. */
-  hasConfiguredNodes: () => boolean
-  /** Verifies / downloads node binaries into ~/.wfbins.
-   *  Receives hasNodes flag and an updateProgress callback.
-   *  A no-op (returns immediately) when hasNodes is false. */
-  syncBinaries: (hasNodes: boolean, updateProgress: (detail: string) => void) => Promise<unknown>
+  /** Verifies / downloads managed node binaries into the app data directory.
+   *  Receives an updateProgress callback.
+   *  A no-op when there are no local nodes configured. */
+  syncBinaries: (updateProgress: (detail: string) => void) => Promise<unknown>
   checkForUpdates: () => void
   initializeSettings: () => Promise<unknown>
   initializeNode: () => Promise<unknown>
@@ -38,7 +36,6 @@ interface CreateStartupStepsParams {
 
 export const createStartupSteps = ({
   runMigrations,
-  hasConfiguredNodes,
   syncBinaries,
   checkForUpdates,
   initializeSettings,
@@ -59,7 +56,7 @@ export const createStartupSteps = ({
     title: 'Updating node binaries',
     detail: 'Checking node binaries…',
     // updateProgress is provided by the runner and streams live detail text to the UI.
-    run: async (updateProgress) => await syncBinaries(hasConfiguredNodes(), updateProgress)
+    run: async (updateProgress) => await syncBinaries(updateProgress)
   },
   {
     title: 'Checking for updates',

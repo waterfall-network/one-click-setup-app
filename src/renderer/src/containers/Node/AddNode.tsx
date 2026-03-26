@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import React, { useState } from 'react'
+import React from 'react'
 import { NodeAddForm } from '@renderer/components/Node/AddNode/Form'
 import { useAddNode } from '@renderer/hooks/node'
 import {
@@ -41,8 +41,8 @@ import { SearchKeys } from '@renderer/constants/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { addParams } from '@renderer/helpers/navigation'
 import { AddNodeStepKeys, getAddNodeSteps } from '@renderer/helpers/node'
-import { Flex } from '@renderer/ui-kit/Flex'
-import BinaryDownloadPanel from '@renderer/components/Node/BinaryDownloadPanel'
+import { styled } from 'styled-components'
+import { Alert } from '@renderer/ui-kit/Alert'
 
 export const AddNode: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -219,13 +219,13 @@ const FolderSelection: React.FC<
         // error={'The directory and network does not match'}
       />
       {snapshot && (
-        <Flex style={{ marginTop: 14 }}>
+        <SnapshotBlock>
           <NodeSnapshotInput
             value={isSnapshot}
             handleChange={onSelectSnapshot}
             snapshot={snapshot}
           />
-        </Flex>
+        </SnapshotBlock>
       )}
     </NodeAddForm>
   )
@@ -341,13 +341,8 @@ const ProviderNameSelection: React.FC<SelectionBasePropsT> = ({
   )
 }
 
-
 const Preview: React.FC<PreviewPropsT> = ({ values, goNextStep, goPrevStep, isLoading }) => {
-  const isLocalNode = values[AddNodeFields.type] === Type.local
-  const [binariesReady, setBinariesReady] = useState(!isLocalNode)
-
   const canGoNext =
-    binariesReady &&
     !!values[AddNodeFields.type] &&
     !!values[AddNodeFields.network] &&
     !!values[AddNodeFields.name] &&
@@ -363,9 +358,6 @@ const Preview: React.FC<PreviewPropsT> = ({ values, goNextStep, goPrevStep, isLo
       isLoading={isLoading}
       showActionsDivider={false}
     >
-      {isLocalNode && !binariesReady && (
-        <BinaryDownloadPanel onReady={() => setBinariesReady(true)} />
-      )}
       <NodePreview values={values} />
     </NodeAddForm>
   )
@@ -401,4 +393,6 @@ type SelectionBasePropsT = {
   goPrevStep: () => void
 }
 
-
+const SnapshotBlock = styled.div`
+  margin-top: 14px;
+`

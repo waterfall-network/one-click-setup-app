@@ -42,7 +42,6 @@ interface SettingsRow {
   autoStartNodes: number
   monitoringInterval: number
   logLevel: LogLevel
-  binariesPath: string
   binariesVersion: string
   createdAt: string
   updatedAt: string
@@ -55,7 +54,6 @@ export interface Settings {
   autoStartNodes: boolean
   monitoringInterval: number
   logLevel: LogLevel
-  binariesPath: string
   binariesVersion: string
   createdAt: string
   updatedAt: string
@@ -69,7 +67,6 @@ export type UpdateSettings = Partial<
     | 'autoStartNodes'
     | 'monitoringInterval'
     | 'logLevel'
-    | 'binariesPath'
     | 'binariesVersion'
   >
 >
@@ -164,13 +161,6 @@ class SettingsModel {
         return false
       }
       updateData.logLevel = data.logLevel
-    }
-
-    if (data.binariesPath !== undefined) {
-      if (typeof data.binariesPath !== 'string') {
-        return false
-      }
-      updateData.binariesPath = data.binariesPath
     }
 
     if (data.binariesVersion !== undefined) {

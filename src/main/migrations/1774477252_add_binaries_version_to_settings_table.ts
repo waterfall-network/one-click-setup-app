@@ -25,6 +25,10 @@ export function up(next: () => void): void {
   db.exec(`
     ALTER TABLE settings
     ADD COLUMN binariesVersion TEXT NOT NULL DEFAULT '';
+
+    UPDATE settings
+    SET updatedAt = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')
+    WHERE id = 1;
   `)
 
   next()
@@ -41,16 +45,15 @@ export function down(next: () => void): void {
       autoStartNodes INTEGER NOT NULL DEFAULT 1,
       monitoringInterval INTEGER NOT NULL DEFAULT 12000,
       logLevel TEXT NOT NULL DEFAULT 'debug',
-      binariesPath TEXT NOT NULL DEFAULT '',
       createdAt DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
       updatedAt DATETIME NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
     );
 
     INSERT INTO settings_old (
-      id, theme, autoStartApp, autoStartNodes, monitoringInterval, logLevel, binariesPath, createdAt, updatedAt
+      id, theme, autoStartApp, autoStartNodes, monitoringInterval, logLevel, createdAt, updatedAt
     )
     SELECT
-      id, theme, autoStartApp, autoStartNodes, monitoringInterval, logLevel, binariesPath, createdAt, updatedAt
+      id, theme, autoStartApp, autoStartNodes, monitoringInterval, logLevel, createdAt, updatedAt
     FROM settings;
 
     DROP TABLE settings;

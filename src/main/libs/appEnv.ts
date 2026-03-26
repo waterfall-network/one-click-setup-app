@@ -15,9 +15,8 @@
  *
  */
 import path from 'node:path'
-import { Network } from './env'
+import { BIN_BASE_URL, Network } from './env'
 import { platform, arch } from 'node:os'
-import { getWfbinsDir, getBinaryFilename } from './binUpdater'
 
 interface Options {
   isPackaged: boolean
@@ -32,6 +31,7 @@ class AppEnv {
   public userData: string = ''
   public version: string = ''
   public mainDB: string = ''
+  public binariesDir: string = ''
 
   constructor(options: Options) {
     this.isPackaged = options.isPackaged
@@ -39,6 +39,15 @@ class AppEnv {
     this.userData = options.userData
     this.version = options.version
     this.mainDB = path.join(this.userData, 'wf.db')
+    this.binariesDir = path.join(this.userData, 'bin')
+  }
+
+  getUserDataPath(): string {
+    return this.userData
+  }
+
+  getMainDBPath(): string {
+    return this.mainDB
   }
 
   getPlatform(): 'linux' | 'mac' | 'win' | null {
@@ -70,9 +79,19 @@ class AppEnv {
   }
 
   getBinariesPath(): string {
-    return this.isPackaged
-      ? path.join(process.resourcesPath, './bin')
-      : path.join(this.appPath, 'resources', 'bin', this.getPlatform()!, this.getArch()!)
+    return this.binariesDir
+  }
+
+  getManagedBinaryBaseUrl(): string {
+    return BIN_BASE_URL as string
+  }
+
+  getManagedBinaryManifestUrl(): string {
+    return `${this.getManagedBinaryBaseUrl()}latest.json`
+  }
+
+  getManagedBinaryFilename(name: string): string {
+    return this.getPlatform() === 'win' ? `${name}.exe` : name
   }
 
   getGenesisPath(): string {
@@ -82,15 +101,24 @@ class AppEnv {
   }
 
   getValidatorBinPath = (_network: Network) => {
-    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('verifier-mainnet')))
+    return path.resolve(
+      path.join(this.getBinariesPath(), this.getManagedBinaryFilename('verifier-mainnet'))
+    )
   }
 
   getCoordinatorBeaconBinPath = (_network: Network) => {
-    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('coordinator-beacon-mainnet')))
+    return path.resolve(
+      path.join(this.getBinariesPath(), this.getManagedBinaryFilename('coordinator-beacon-mainnet'))
+    )
   }
 
   getCoordinatorValidatorBinPath = (_network: Network) => {
-    return path.resolve(path.join(getWfbinsDir(), getBinaryFilename('coordinator-validator-mainnet')))
+    return path.resolve(
+      path.join(
+        this.getBinariesPath(),
+        this.getManagedBinaryFilename('coordinator-validator-mainnet')
+      )
+    )
   }
 
   getCoordinatorBeaconGenesisPath = (network: Network) =>

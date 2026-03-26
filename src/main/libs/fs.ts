@@ -23,13 +23,21 @@ import {
   appendFile,
   rm,
   unlink,
+  rename,
+  copyFile,
+  mkdtemp,
+  chmod,
   constants
 } from 'node:fs/promises'
+import * as fs from 'node:fs'
 import { join } from 'path'
 import * as net from 'node:net'
 import * as os from 'node:os'
 import log from 'electron-log/node'
 import * as https from 'node:https'
+import * as http from 'node:http'
+import * as crypto from 'node:crypto'
+import { URL } from 'node:url'
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -333,5 +341,118 @@ export const readJSON = async (filePath: string): Promise<string> => {
     return await readFile(filePath, { encoding: 'utf-8' })
   } catch {
     return ''
+  }
+}
+
+export const fetchJSONFromUrl = async <T>(url: string): Promise<T> => {
+  const timeoutMs = 15000
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      redirect: 'follow',
+      signal: controller.signal
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} fetching ${url}`)
+    }
+    return (await response.json()) as T
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export const createTempDir = async (prefix: string): Promise<string> => {
+  return await mkdtemp(join(os.tmpdir(), prefix))
+}
+
+export const copyFileReplace = async (sourcePath: string, targetPath: string): Promise<void> => {
+  await copyFile(sourcePath, targetPath)
+}
+
+export const fileExists = async (filePath: string): Promise<boolean> => {
+  try {
+    await access(filePath, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const computeFileSha512 = async (filePath: string): Promise<string> => {
+  return await new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha512')
+    const stream = fs.createReadStream(filePath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', reject)
+  })
+}
+
+export const downloadToFileAtomic = async (
+  url: string,
+  destPath: string,
+  onProgress?: (received: number, total: number) => void,
+  redirectsLeft = 5
+): Promise<void> => {
+  if (redirectsLeft < 0) {
+    throw new Error(`Too many redirects downloading ${url}`)
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const parsed = new URL(url)
+    const client = parsed.protocol === 'https:' ? https : http
+    const req = client.get(url, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        void downloadToFileAtomic(res.headers.location, destPath, onProgress, redirectsLeft - 1)
+          .then(resolve)
+          .catch(reject)
+        return
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} downloading ${url}`))
+        return
+      }
+
+      const total = parseInt(res.headers['content-length'] ?? '0', 10)
+      let received = 0
+      const tmpPath = `${destPath}.tmp`
+      const stream = fs.createWriteStream(tmpPath)
+
+      res.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        stream.write(chunk)
+        onProgress?.(received, total)
+      })
+
+      res.on('end', () => {
+        stream.end()
+        stream.on('close', () => {
+          void rename(tmpPath, destPath)
+            .then(() => resolve())
+            .catch((err) => {
+              void unlink(tmpPath).catch(() => {})
+              reject(err)
+            })
+        })
+        stream.on('error', (err) => {
+          void unlink(tmpPath).catch(() => {})
+          reject(err)
+        })
+      })
+
+      res.on('error', (err) => {
+        stream.destroy()
+        void unlink(tmpPath).catch(() => {})
+        reject(err)
+      })
+    })
+    req.on('error', reject)
+  })
+}
+
+export const makeFileExecutableIfNeeded = async (filePath: string): Promise<void> => {
+  if (process.platform !== 'win32') {
+    await chmod(filePath, 0o755)
   }
 }

@@ -57,8 +57,17 @@ const changelogData: ChangelogVersion[] = [
         description: 'Added Linux support'
       },
       {
+        type: ChangeType.Improve,
+        description:
+          'Moved managed binary sync to backend runtime flow with startup progress updates'
+      },
+      {
         type: ChangeType.Update,
         description: 'Updated Electron to the latest version'
+      },
+      {
+        type: ChangeType.Update,
+        description: 'Simplified settings storage for binaries to version-only tracking'
       },
       {
         type: ChangeType.Update,
@@ -71,6 +80,14 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Fix,
         description: 'Improved node start reliability and port availability checks'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Fixed macOS local node command execution for paths containing spaces'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Added staged binary downloads with hash verification before install'
       }
     ]
   },

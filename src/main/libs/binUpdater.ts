@@ -14,379 +14,218 @@
  * limitations under the License.
  *
  */
-import * as fs from 'node:fs'
-import * as crypto from 'node:crypto'
 import * as path from 'node:path'
-import * as os from 'node:os'
-import * as https from 'node:https'
-import * as http from 'node:http'
-import { URL } from 'node:url'
 import log from 'electron-log/node'
-import EventBus, { EventName, type Event, type BinaryDownloadProgressPayload } from './EventBus'
+import AppEnv from './appEnv'
+import NodeModel, { Type } from '../models/node'
+import SettingsModel from '../models/settings'
+import {
+  copyFileReplace,
+  checkOrCreateDir,
+  computeFileSha512,
+  createTempDir,
+  downloadToFileAtomic,
+  deleteFolderRecursive,
+  fetchJSONFromUrl,
+  fileExists,
+  makeFileExecutableIfNeeded,
+  deleteFile
+} from './fs'
+import {
+  findManifestEntryByFilename,
+  type LatestManifest,
+  type ManifestEntry,
+  resolveManifestEntries
+} from './binaries/manifest'
+import { MANAGED_BINARY_NAMES, type ManagedBinaryName } from './binaries/managed'
+import { BinaryHashMismatchError, BinaryManifestError } from './binaries/errors'
 
-// Default directory where managed node binaries are stored
-export const DEFAULT_WFBINS_DIR = path.join(os.homedir(), '.wf', 'bin_files')
-
-// Active directory – can be overridden at runtime via setWfbinsDir()
-let _wfbinsDir = DEFAULT_WFBINS_DIR
-
-/** Returns the currently configured binaries directory */
-export function getWfbinsDir(): string {
-  return _wfbinsDir
-}
-
-/** Overrides the binaries directory (empty string resets to default) */
-export function setWfbinsDir(dir: string): void {
-  _wfbinsDir = dir || DEFAULT_WFBINS_DIR
-}
-
-// Base URL prepended to the per-file url from the manifest
-const BINARY_BASE_URL = import.meta.env.MAIN_VITE_BIN_BASE_URL as string
-
-// Remote manifest URL (env takes priority, falls back to BINARY_BASE_URL + latest.json)
-const MANIFEST_URL = (import.meta.env.MAIN_VITE_BIN_MANIFEST_URL as string) || `${BINARY_BASE_URL}latest.json`
-
-// The three mainnet binaries managed on all platforms (base names, without .exe)
-export const BINARY_NAMES = [
-  'coordinator-beacon-mainnet',
-  'coordinator-validator-mainnet',
-  'verifier-mainnet'
-] as const
-
-export type BinaryName = (typeof BINARY_NAMES)[number]
-
-/**
- * Returns the actual filename for the current platform.
- * On Windows the executables carry a .exe suffix.
- */
-export function getBinaryFilename(name: BinaryName): string {
-  return process.platform === 'win32' ? `${name}.exe` : name
-}
-
-// Actual manifest shape:
-// { version, files: { linux: { x64: Array<{ url, sha512, size }> }, mac: { x64: [...], arm64: [...] }, win: { x64: [...] } } }
-interface ManifestEntry {
-  url: string    // e.g. "0.25/linux/x64/coordinator-beacon-mainnet"
-  sha512: string // SHA-512 hex digest
-  size: string   // file size in bytes (as string)
-}
-
-interface LatestManifest {
+export interface BinaryUpdateResult {
+  dir: string
   version: string
-  files: {
-    linux?: { x64?: ManifestEntry[] }
-    mac?: { x64?: ManifestEntry[]; arm64?: ManifestEntry[] }
-    win?: { x64?: ManifestEntry[] }
-  }
+  updated: boolean
 }
 
-/** Status of a single binary file */
-export interface BinaryFileStatus {
-  name: BinaryName
-  /** Whether the file currently exists in getWfbinsDir() */
-  exists: boolean
-  /** Expected file size in bytes from the manifest (0 if manifest was unreachable) */
-  size: number
-}
-
-/** Aggregated binary readiness status returned to the renderer */
-export interface BinaryStatus {
-  /** true when all three files exist in getWfbinsDir() */
-  ready: boolean
-  files: BinaryFileStatus[]
-}
-
-/** Per-file progress event emitted during downloadBinaries() */
-export interface DownloadProgress {
-  file: BinaryName
-  phase: 'checking' | 'downloading' | 'verifying' | 'installed' | 'up_to_date'
-  /** Bytes received so far (meaningful only during 'downloading') */
-  received: number
-  /** Total expected bytes (meaningful only during 'downloading') */
-  total: number
-}
-
-/** Callback type for reporting startup-flow progress (string detail) */
 export type BinUpdateProgress = (detail: string) => void
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/** Compute the SHA-512 hex digest of a file on disk */
-function computeFileHash(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha512')
-    const stream = fs.createReadStream(filePath)
-    stream.on('data', (chunk) => hash.update(chunk))
-    stream.on('end', () => resolve(hash.digest('hex')))
-    stream.on('error', reject)
-  })
+type ManifestData = {
+  entries: ManifestEntry[]
+  version: string
 }
 
+class BinUpdater {
+  private appEnv: AppEnv
+  private settingsModel: SettingsModel
+  private nodeModel: NodeModel
 
-/** Download a remote file to destPath, reporting byte-level progress via onProgress */
-function downloadToFile(
-  url: string,
-  destPath: string,
-  onProgress: (received: number, total: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url)
-    const client = parsed.protocol === 'https:' ? https : http
-
-    const req = client.get(url, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-        downloadToFile(res.headers.location, destPath, onProgress).then(resolve).catch(reject)
-        return
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HTTP ${res.statusCode} downloading ${url}`))
-        return
-      }
-
-      const total = parseInt(res.headers['content-length'] ?? '0', 10)
-      let received = 0
-
-      // Write to a temp file first to avoid leaving corrupt binaries on failure
-      const tmpPath = `${destPath}.tmp`
-      const fileStream = fs.createWriteStream(tmpPath)
-
-      res.on('data', (chunk: Buffer) => {
-        received += chunk.length
-        fileStream.write(chunk)
-        onProgress(received, total)
-      })
-
-      res.on('end', () => {
-        fileStream.end()
-        fileStream.on('close', () => {
-          fs.rename(tmpPath, destPath, (err) => {
-            if (err) {
-              fs.unlink(tmpPath, () => {})
-              reject(err)
-            } else {
-              resolve()
-            }
-          })
-        })
-        fileStream.on('error', (err) => {
-          fs.unlink(tmpPath, () => {})
-          reject(err)
-        })
-      })
-
-      res.on('error', (err) => {
-        fileStream.destroy()
-        fs.unlink(tmpPath, () => {})
-        reject(err)
-      })
-    })
-
-    req.on('error', reject)
-  })
-}
-
-/** Map Node.js process.platform to the manifest platform key */
-function getManifestPlatformKey(): 'linux' | 'mac' | 'win' {
-  switch (process.platform) {
-    case 'darwin':
-      return 'mac'
-    case 'win32':
-      return 'win'
-    default:
-      return 'linux'
-  }
-}
-
-/** Map Node.js process.arch to the manifest architecture key */
-function getManifestArchKey(): 'x64' | 'arm64' {
-  return process.arch === 'arm64' ? 'arm64' : 'x64'
-}
-
-/**
- * Find a manifest entry whose url path ends with the actual binary filename
- * for the current platform (includes .exe on Windows).
- */
-function findEntry(entries: ManifestEntry[], name: BinaryName): ManifestEntry | undefined {
-  const filename = getBinaryFilename(name)
-  return entries.find((e) => {
-    const parts = e.url.split('/')
-    return parts[parts.length - 1] === filename
-  })
-}
-
-/** Fetch the manifest and return the entries array + version for the current platform/arch, or throw */
-async function fetchEntries(): Promise<{ entries: ManifestEntry[]; version: string }> {
-  const res = await fetch(MANIFEST_URL)
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching manifest`)
-  const manifest = (await res.json()) as LatestManifest
-  const plat = getManifestPlatformKey()
-  const archKey = getManifestArchKey()
-  const platFiles = manifest?.files?.[plat] as Record<string, ManifestEntry[]> | undefined
-  const entries = platFiles?.[archKey]
-  if (!Array.isArray(entries) || entries.length === 0) {
-    throw new Error(`Binary manifest is missing the files.${plat}.${archKey} array`)
-  }
-  return { entries, version: manifest.version ?? '' }
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/** Returns true when all binary files exist on disk — no network required. */
-export function areBinariesReady(): boolean {
-  return BINARY_NAMES.every((name) =>
-    fs.existsSync(path.join(getWfbinsDir(), getBinaryFilename(name)))
-  )
-}
-
-/**
- * Returns the current binary readiness status for the renderer.
- * Tries to fetch the manifest to include expected file sizes; if the network
- * is unavailable the sizes are reported as 0 but existence is still checked.
- */
-export async function getBinaryStatus(): Promise<BinaryStatus> {
-  let entries: ManifestEntry[] = []
-  try {
-    const result = await fetchEntries()
-    entries = result.entries
-  } catch (err) {
-    log.warn('binUpdater:getStatus manifest fetch failed, reporting sizes as 0', err)
+  constructor(appEnv: AppEnv, settingsModel: SettingsModel, nodeModel: NodeModel) {
+    this.appEnv = appEnv
+    this.settingsModel = settingsModel
+    this.nodeModel = nodeModel
   }
 
-  const files: BinaryFileStatus[] = BINARY_NAMES.map((name) => {
-    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
-    const entry = findEntry(entries, name)
-    return {
-      name,
-      exists: fs.existsSync(filePath),
-      size: entry ? parseInt(entry.size, 10) : 0
+  private getBinariesDir(): string {
+    return this.appEnv.getBinariesPath()
+  }
+
+  private getManifestPlatformKey(): 'linux' | 'mac' | 'win' {
+    const platform = this.appEnv.getPlatform()
+    if (!platform) {
+      throw new BinaryManifestError('Unsupported platform for managed binaries')
     }
-  })
-
-  return {
-    ready: files.every((f) => f.exists),
-    files
+    return platform
   }
-}
 
-/**
- * Downloads missing or outdated binaries into getWfbinsDir() and reports granular
- * per-file progress via eventBus (BinaryDownloadProgress). Intended for on-demand
- * invocation from the renderer (node add / node start flows).
- *
- * Returns { dir, version } on success; throws on unrecoverable errors.
- */
-export async function downloadBinaries(eventBus: EventBus): Promise<{ dir: string; version: string }> {
-  await fs.promises.mkdir(getWfbinsDir(), { recursive: true })
+  private getManifestArchKey(): 'x64' | 'arm64' {
+    const arch = this.appEnv.getArch()
+    if (!arch) {
+      throw new BinaryManifestError('Unsupported architecture for managed binaries')
+    }
+    return arch
+  }
 
-  const { entries, version } = await fetchEntries()
+  private async loadManifestData(): Promise<ManifestData> {
+    const manifestUrl = this.appEnv.getManagedBinaryManifestUrl()
+    const manifest = await fetchJSONFromUrl<LatestManifest>(manifestUrl)
+    const entries = resolveManifestEntries(
+      manifest,
+      this.getManifestPlatformKey(),
+      this.getManifestArchKey()
+    )
+    return { entries, version: manifest.version ?? '' }
+  }
 
-  for (const name of BINARY_NAMES) {
-    const entry = findEntry(entries, name)
-    if (!entry?.sha512 || !entry?.url) {
-      throw new Error(`Manifest is missing a valid entry for binary "${name}"`)
+  private async areManagedFilesPresent(): Promise<boolean> {
+    const checks = await Promise.all(
+      MANAGED_BINARY_NAMES.map((name) =>
+        fileExists(path.join(this.getBinariesDir(), this.appEnv.getManagedBinaryFilename(name)))
+      )
+    )
+    return checks.every(Boolean)
+  }
+
+  private async shouldUpdate(targetVersion: string): Promise<boolean> {
+    const currentVersion = this.settingsModel.get()?.binariesVersion ?? ''
+    const binariesReady = await this.areManagedFilesPresent()
+    return !(targetVersion && currentVersion === targetVersion && binariesReady)
+  }
+
+  private async downloadAndVerifyOne(
+    binaryName: ManagedBinaryName,
+    entry: ManifestEntry,
+    stagingDir: string,
+    onProgress?: BinUpdateProgress
+  ): Promise<void> {
+    if (!entry.sha512 || !entry.url) {
+      throw new BinaryManifestError(`Manifest is missing a valid entry for binary "${binaryName}"`)
     }
 
-    const filePath = path.join(getWfbinsDir(), getBinaryFilename(name))
+    const fileName = this.appEnv.getManagedBinaryFilename(binaryName)
+    const filePath = path.join(stagingDir, fileName)
+    const downloadUrl = `${this.appEnv.getManagedBinaryBaseUrl()}${entry.url}`
+    const manifestSize = parseInt(entry.size, 10)
+    let lastPercent = -1
 
-    // Check if already up-to-date
-    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'checking', received: 0, total: 0 })
-    if (fs.existsSync(filePath)) {
-      try {
-        const hash = await computeFileHash(filePath)
-        if (hash.toLowerCase() === entry.sha512.toLowerCase()) {
-          log.info(`binUpdater: ${name} is up-to-date`)
-          eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'up_to_date', received: 0, total: 0 })
-          continue
+    log.info(`binUpdater: downloading ${binaryName} from ${downloadUrl}`)
+    await downloadToFileAtomic(downloadUrl, filePath, (received, total) => {
+      const expectedTotal = total > 0 ? total : manifestSize
+      if (expectedTotal > 0) {
+        const percent = Math.min(100, Math.round((received / expectedTotal) * 100))
+        if (percent !== lastPercent) {
+          lastPercent = percent
+          onProgress?.(`Downloading ${fileName}… ${percent}%`)
         }
-      } catch {
-        // Hash failed — fall through to download
+        return
       }
-    }
-
-    // Download
-    const downloadUrl = BINARY_BASE_URL + entry.url
-    log.info(`binUpdater: downloading ${name} from ${downloadUrl}`)
-    await downloadToFile(downloadUrl, filePath, (received, total) => {
-      eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'downloading', received, total })
+      onProgress?.(`Downloading ${fileName}… ${(received / 1_048_576).toFixed(1)} MB`)
     })
+    onProgress?.(`Verifying ${fileName}…`)
 
-    // Verify hash after download
-    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'verifying', received: 0, total: 0 })
-    const actualHash = await computeFileHash(filePath)
+    const actualHash = await computeFileSha512(filePath)
     if (actualHash.toLowerCase() !== entry.sha512.toLowerCase()) {
-      fs.unlinkSync(filePath)
-      throw new Error(`SHA-512 hash mismatch for ${name} after download`)
+      await deleteFile(filePath)
+      throw new BinaryHashMismatchError(binaryName)
     }
 
-    // chmod +x is only meaningful on POSIX platforms
-    if (process.platform !== 'win32') {
-      fs.chmodSync(filePath, 0o755)
+    await makeFileExecutableIfNeeded(filePath)
+    log.info(`binUpdater: ${binaryName} staged`)
+  }
+
+  private async installOneFromStaging(
+    binaryName: ManagedBinaryName,
+    stagingDir: string
+  ): Promise<void> {
+    const fileName = this.appEnv.getManagedBinaryFilename(binaryName)
+    const sourcePath = path.join(stagingDir, fileName)
+    const targetPath = path.join(this.getBinariesDir(), fileName)
+
+    await copyFileReplace(sourcePath, targetPath)
+    await makeFileExecutableIfNeeded(targetPath)
+    log.info(`binUpdater: ${binaryName} installed`)
+  }
+
+  private persistVersion(version: string): void {
+    if (version) {
+      this.settingsModel.update({ binariesVersion: version })
     }
-    log.info(`binUpdater: ${name} installed`)
-    eventBus.emitEvent(EventName.BinaryDownloadProgress, { file: name, phase: 'installed', received: 0, total: 0 })
   }
 
-  log.info('binUpdater: downloadBinaries complete')
-  return { dir: getWfbinsDir(), version }
-}
+  public async downloadBinaries(onProgress?: BinUpdateProgress): Promise<BinaryUpdateResult> {
+    const binariesDir = this.getBinariesDir()
+    if (!(await checkOrCreateDir(binariesDir))) {
+      throw new Error(`Failed to prepare binaries directory: ${binariesDir}`)
+    }
 
-/**
- * Startup-flow entry point: ensures binaries are present and up-to-date.
- * Skipped when hasNodes is false.
- * Returns getWfbinsDir() on success or null if the step was skipped.
- */
-export async function syncBinaries(
-  hasNodes: boolean,
-  onProgress: BinUpdateProgress,
-  eventBus: EventBus
-): Promise<{ dir: string; version: string } | null> {
-  if (!hasNodes) {
-    log.info('binUpdater: no nodes configured, skipping binary sync')
-    return null
+    const { entries, version } = await this.loadManifestData()
+
+    if (!(await this.shouldUpdate(version))) {
+      onProgress?.('Node binaries are up to date')
+      log.info('binUpdater: binaries are up-to-date by manifest version', { version })
+      return { dir: binariesDir, version, updated: false }
+    }
+
+    const stagingDir = await createTempDir('wf-binaries-')
+    try {
+      for (const name of MANAGED_BINARY_NAMES) {
+        const fileName = this.appEnv.getManagedBinaryFilename(name)
+        const entry = findManifestEntryByFilename(entries, fileName)
+        if (!entry) {
+          throw new BinaryManifestError(`Manifest is missing binary entry for ${fileName}`)
+        }
+        await this.downloadAndVerifyOne(name, entry, stagingDir, onProgress)
+      }
+
+      for (const name of MANAGED_BINARY_NAMES) {
+        const fileName = this.appEnv.getManagedBinaryFilename(name)
+        onProgress?.(`Installing ${fileName}…`)
+        await this.installOneFromStaging(name, stagingDir)
+      }
+    } finally {
+      await deleteFolderRecursive(stagingDir)
+    }
+
+    this.persistVersion(version)
+    log.info('binUpdater: downloadBinaries complete')
+    return { dir: binariesDir, version, updated: true }
   }
 
-  log.info('binUpdater: starting binary sync (startup)')
-  onProgress('Checking node binaries…')
+  public async syncBinaries(onProgress: BinUpdateProgress): Promise<BinaryUpdateResult | null> {
+    if (!this.nodeModel.hasConfiguredNodesByType(Type.local)) {
+      log.info('binUpdater: no local nodes configured, skipping binary sync')
+      return null
+    }
 
-  // Detailed per-file progress in the startup splash screen.
-  // To re-enable: uncomment the block below and remove the bare downloadBinaries call.
-  // const progressHandler = (e: Event<EventName.BinaryDownloadProgress, BinaryDownloadProgressPayload>) => {
-  //   const { file, phase, received, total } = e.payload
-  //   switch (phase) {
-  //     case 'checking':
-  //       onProgress(`Verifying ${file}…`)
-  //       break
-  //     case 'downloading':
-  //       if (total > 0) {
-  //         const pct = Math.round((received / total) * 100)
-  //         const mb = (received / 1_048_576).toFixed(1)
-  //         const totalMb = (total / 1_048_576).toFixed(1)
-  //         onProgress(`Downloading ${file}: ${mb} / ${totalMb} MB (${pct}%)`)
-  //       } else {
-  //         onProgress(`Downloading ${file}: ${(received / 1_048_576).toFixed(1)} MB`)
-  //       }
-  //       break
-  //     case 'verifying':
-  //       onProgress(`Verifying downloaded ${file}…`)
-  //       break
-  //     case 'installed':
-  //       onProgress(`${file} installed`)
-  //       break
-  //   }
-  // }
-  // eventBus.onEvent(EventName.BinaryDownloadProgress, progressHandler)
-  // try {
-  //   await downloadBinaries(eventBus)
-  // } finally {
-  //   eventBus.offEvent(EventName.BinaryDownloadProgress, progressHandler)
-  // }
-  const result = await downloadBinaries(eventBus)
+    log.info('binUpdater: starting binary sync (startup)')
+    onProgress('Checking node binaries…')
 
-  onProgress('Node binaries updated successfully')
-  log.info('binUpdater: binary sync complete')
-  return result
+    const result = await this.downloadBinaries(onProgress)
+    onProgress(
+      result.updated ? 'Node binaries updated successfully' : 'Node binaries are up to date'
+    )
+
+    log.info('binUpdater: binary sync complete')
+    return result
+  }
 }
+
+export default BinUpdater

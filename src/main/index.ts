@@ -45,8 +45,10 @@ import { createStartupSteps } from './startup/steps'
 import { runStartup } from './startup/runner'
 import type { StartupStatus } from './startup/types'
 import { initializeTrayAndHandlers } from './app/initializeTrayAndHandlers'
-import { syncBinaries } from './libs/binUpdater'
-import { hasConfiguredNodes } from './models/node'
+import BinUpdater from './libs/binUpdater'
+import { getMain } from './libs/db'
+import SettingsModel from './models/settings'
+import NodeModel from './models/node'
 
 app.commandLine.appendSwitch('no-sandbox')
 
@@ -68,10 +70,14 @@ const appEnv = new AppEnv({
   userData: app.getPath('userData'),
   version: app.getVersion()
 })
-const node = new Node(ipcMain, appEnv, eventBus)
+const mainDb = getMain(appEnv.getMainDBPath())
+const settingsModel = new SettingsModel(mainDb)
+const nodeModel = new NodeModel(mainDb)
+const settings = new Settings(ipcMain, appEnv, eventBus)
+const binUpdater = new BinUpdater(appEnv, settingsModel, nodeModel)
+const node = new Node(ipcMain, appEnv, eventBus, binUpdater)
 const worker = new Worker(ipcMain, appEnv)
 const fsHandle = new FsHandle(ipcMain)
-const settings = new Settings(ipcMain, appEnv, eventBus)
 const statusWorker = new StatusWorker(appEnv, eventBus)
 const snapshotWorker = new SnapshotWorker(appEnv, eventBus)
 
@@ -179,12 +185,8 @@ if (!gotTheLock) {
 
     const startupSteps = createStartupSteps({
       runMigrations: async () => await runMigrations(),
-      hasConfiguredNodes: () => hasConfiguredNodes(appEnv.mainDB),
-      syncBinaries: async (hasNodes, updateProgress) => {
-        const result = await syncBinaries(hasNodes, updateProgress, eventBus)
-        if (result?.version) {
-          settings.updateBinariesVersion(result.version)
-        }
+      syncBinaries: async (updateProgress) => {
+        await binUpdater.syncBinaries(updateProgress)
       },
       checkForUpdates,
       initializeSettings: async () => await settings.initialize(),
@@ -207,7 +209,7 @@ if (!gotTheLock) {
           trayIcon,
           ipcMain,
           appVersion: appEnv.version,
-          getBinariesVersion: () => settings.getSettings()?.binariesVersion ?? '',
+          getBinariesVersion: () => settingsModel.get()?.binariesVersion ?? '',
           checkForUpdates,
           quit,
           getMainWindow: () => mainWindow

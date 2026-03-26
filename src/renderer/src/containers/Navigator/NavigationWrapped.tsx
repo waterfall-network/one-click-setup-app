@@ -69,8 +69,12 @@ export const PageRender: React.FC<PropsWithChildren> = ({ children }) => {
         <SidebarContent>
           <Menu menuItems={menuItems} active={active_root_key} />
           <VersionButton type="button" onClick={() => navigate(routes.changelog)}>
-            <VersionCaption size="sm">{appState?.version ?? 'Waterfall'}</VersionCaption>
-            {appState?.binariesVersion && <VersionCaption size="sm">{appState.binariesVersion}</VersionCaption>}
+            <VersionRow>
+              <VersionCaption size="sm">{appState?.version ?? 'Waterfall'}</VersionCaption>
+              {appState?.binariesVersion && (
+                <VersionCaption size="sm">{appState.binariesVersion}</VersionCaption>
+              )}
+            </VersionRow>
           </VersionButton>
         </SidebarContent>
       </AppSideBar>
@@ -90,10 +94,20 @@ const SidebarContent = styled.div`
   padding: 8px 6px 12px;
 `
 
+const VersionRow = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 8px;
+`
+
 const VersionCaption = styled(Text)`
   display: inline-flex;
-  align-self: flex-start;
-  margin: 10px 8px 0;
+  align-self: center;
+  margin: 0;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -108,8 +122,9 @@ const VersionCaption = styled(Text)`
 
 const VersionButton = styled.button`
   appearance: none;
-  display: inline-flex;
-  align-self: flex-start;
+  display: block;
+  width: 100%;
+  align-self: stretch;
   border: 0;
   background: transparent;
   padding: 0;
