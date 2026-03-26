@@ -700,7 +700,6 @@ class LocalNode extends EventEmitter {
       binPath: this.appEnv.getCoordinatorValidatorBinPath(this.model.network),
       args: [
         '--accept-terms-of-use',
-        `${getCoordinatorNetwork(this.model.network)}`,
         '--grpc-max-msg-size=15900000',
         `--beacon-rpc-provider=localhost:${this.model.coordinatorHttpValidatorApiPort}`,
         `--wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)}`,
