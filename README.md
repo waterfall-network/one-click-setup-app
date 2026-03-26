@@ -16,35 +16,10 @@ $ npm install
 
 If install fails on Intel macOS with native modules (`node-gyp`, `@chainsafe/blst`, `python`), see `docs/getting-started.md#troubleshooting-intel-macos--node-22-native-modules`.
 
-### Download binaries
+### Binaries
 
-### Mac arm64
-
-- https://storage.waterfall.network/bin/latest/mac/arm64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/latest/mac/arm64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/latest/mac/arm64/verifier-mainnet
-
-Save to `./resources/bin/mac/arm64`
-
-### Mac x64
-
-- https://storage.waterfall.network/bin/latest/mac/x64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/latest/mac/x64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/latest/mac/x64/verifier-mainnet
-
-Save to `./resources/bin/mac/x64`
-
-### Windows x64
-
-- https://storage.waterfall.network/bin/latest/win/x64/coordinator-beacon-mainnet.exe
-- https://storage.waterfall.network/bin/latest/win/x64/coordinator-validator-mainnet.exe
-- https://storage.waterfall.network/bin/latest/win/x64/verifier-mainnet.exe
-
-### Linux
-
-- https://storage.waterfall.network/bin/latest/linux/x64/coordinator-beacon-mainnet
-- https://storage.waterfall.network/bin/latest/linux/x64/coordinator-validator-mainnet
-- https://storage.waterfall.network/bin/latest/linux/x64/verifier-mainnet
+Managed node binaries are downloaded automatically by the app when needed
+(during startup for configured local nodes, and before local node start at runtime).
 
 ### Development
 
