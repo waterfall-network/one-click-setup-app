@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import { Network } from '@renderer/types/node'
 export const NetworkOptions = [
   { value: Network.mainnet, label: 'Mainnet', disabled: false },
   { value: Network.testnet8, label: 'Testnet8', disabled: true },
-  { value: Network.testnet9, label: 'Testnet9', disabled: true }
+  { value: Network.testnet9, label: 'Testnet9', disabled: false }
 ]
 
 export const SLOTS_PER_EPOCH = 32

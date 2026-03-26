@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,13 @@
  * limitations under the License.
  *
  */
-import { palette } from './palette'
+import { darkPalette, lightPalette } from './palette'
 
-export const theme = {
-  palette: palette
-}
+export type ThemeMode = 'light' | 'dark'
+
+export const createTheme = (mode: ThemeMode = 'light') => ({
+  mode,
+  palette: mode === 'dark' ? darkPalette : lightPalette
+})
+
+export const theme = createTheme('light')

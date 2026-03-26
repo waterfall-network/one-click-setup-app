@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,18 @@
  * limitations under the License.
  *
  */
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PageHeader } from '../Page/Header'
+import { PageBody } from '../Page/Body'
 import { Content } from './Content'
 
 export const Page = ({ title }) => {
   return (
     <Layout>
       <PageHeader title={title} />
-      <Content />
+      <PageBody>
+        <Content />
+      </PageBody>
     </Layout>
   )
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,12 +29,14 @@ export enum Type {
 export enum Status {
   stopped = 'stopped',
   running = 'running',
-  syncing = 'syncing'
+  syncing = 'syncing',
+  starting = 'starting'
 }
 export enum CoordinatorStatus {
   stopped = 'stopped',
   running = 'running',
-  syncing = 'syncing'
+  syncing = 'syncing',
+  starting = 'starting'
 }
 
 export enum CoordinatorValidatorStatus {
@@ -45,7 +47,8 @@ export enum CoordinatorValidatorStatus {
 export enum ValidatorStatus {
   stopped = 'stopped',
   running = 'running',
-  syncing = 'syncing'
+  syncing = 'syncing',
+  starting = 'starting'
 }
 
 export enum DownloadStatus {
@@ -116,8 +119,8 @@ type OptionalNewNodeFields = Partial<
     | 'downloadBytes'
   >
 >
-export interface NewNode extends RequiredNewNodeFields, OptionalNewNodeFields {}
-export interface UpdateNode extends Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>> {}
+export type NewNode = RequiredNewNodeFields & OptionalNewNodeFields
+export type UpdateNode = Partial<Omit<Node, 'id' | 'createdAt' | 'updatedAt'>>
 export enum NodesListDataFields {
   id = 'id',
   name = 'name',

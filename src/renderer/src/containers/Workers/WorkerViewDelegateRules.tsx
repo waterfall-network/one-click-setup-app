@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,5 +20,9 @@ import { WorkerViewTabProps } from '@renderer/types/workers'
 
 import { DelegateRules } from '../../components/DelegateRules'
 export const WorkerViewDelegateRules: React.FC<WorkerViewTabProps> = ({ item }) => {
-  return <TabContent>{item && <DelegateRules delegateRules={item.delegate} />}</TabContent>
+  return (
+    <TabContent variant="text">
+      {item && <DelegateRules delegateRules={item.delegate} />}
+    </TabContent>
+  )
 }

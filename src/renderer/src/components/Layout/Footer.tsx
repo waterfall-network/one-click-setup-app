@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 import { FOOTER_HEIGHT } from '@renderer/constants/layout'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import React from 'react'
 import { styled } from 'styled-components'
 
@@ -39,18 +39,25 @@ export const FooterComponent: React.FC<PropsT> = ({ leftSide, centerSide, rightS
 
 const StyledFooter = styled(Layout.Footer)`
   height: ${FOOTER_HEIGHT}px;
-  background-color: ${({ theme }) => theme.palette.background.gray};
+  background-color: ${({ theme }) => theme.palette.background.lightGray};
   color: ${({ theme }) => theme.palette.text.black};
+  border-top: 1px solid ${({ theme }) => theme.palette.semantic.chrome.footerTopBorder};
   padding: 0 10px 0 0;
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
+  backdrop-filter: blur(6px);
 `
 
 const SidePart = styled.div`
-  background-color: ${({ theme }) => theme.palette.background.blue};
+  background-color: ${({ theme }) => theme.palette.background.gray};
   width: 200px;
   height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-right: 1px solid ${({ theme }) => theme.palette.semantic.chrome.footerSideBorder};
 `
 
 const Main = styled.div`

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,3 +16,8 @@
  */
 export const HEADER_HEIGHT = 40
 export const FOOTER_HEIGHT = 26
+
+export const PAGE_BODY_PADDING_TOP = 16
+export const PAGE_BODY_PADDING_SIDE = 40
+export const PAGE_BODY_PADDING_BOTTOM = 20
+export const PAGE_BODY_HEADER_UNDERLAP = 78

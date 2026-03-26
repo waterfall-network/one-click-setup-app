@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 import path from 'node:path'
-import { Network } from './env'
+import { BIN_BASE_URL, Network } from './env'
 import { platform, arch } from 'node:os'
 
 interface Options {
@@ -31,6 +31,7 @@ class AppEnv {
   public userData: string = ''
   public version: string = ''
   public mainDB: string = ''
+  public binariesDir: string = ''
 
   constructor(options: Options) {
     this.isPackaged = options.isPackaged
@@ -38,6 +39,15 @@ class AppEnv {
     this.userData = options.userData
     this.version = options.version
     this.mainDB = path.join(this.userData, 'wf.db')
+    this.binariesDir = path.join(this.userData, 'bin')
+  }
+
+  getUserDataPath(): string {
+    return this.userData
+  }
+
+  getMainDBPath(): string {
+    return this.mainDB
   }
 
   getPlatform(): 'linux' | 'mac' | 'win' | null {
@@ -69,9 +79,19 @@ class AppEnv {
   }
 
   getBinariesPath(): string {
-    return this.isPackaged
-      ? path.join(process.resourcesPath, './bin')
-      : path.join(this.appPath, 'resources', 'bin', this.getPlatform()!, this.getArch()!)
+    return this.binariesDir
+  }
+
+  getManagedBinaryBaseUrl(): string {
+    return BIN_BASE_URL as string
+  }
+
+  getManagedBinaryManifestUrl(): string {
+    return `${this.getManagedBinaryBaseUrl()}latest.json`
+  }
+
+  getManagedBinaryFilename(name: string): string {
+    return this.getPlatform() === 'win' ? `${name}.exe` : name
   }
 
   getGenesisPath(): string {
@@ -80,12 +100,26 @@ class AppEnv {
       : path.join(this.appPath, 'resources', 'genesis')
   }
 
-  getValidatorBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./verifier-${network}`))
-  getCoordinatorBeaconBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./coordinator-beacon-${network}`))
-  getCoordinatorValidatorBinPath = (network: Network) =>
-    path.resolve(path.join(this.getBinariesPath(), `./coordinator-validator-${network}`))
+  getValidatorBinPath = (_network: Network) => {
+    return path.resolve(
+      path.join(this.getBinariesPath(), this.getManagedBinaryFilename('verifier-mainnet'))
+    )
+  }
+
+  getCoordinatorBeaconBinPath = (_network: Network) => {
+    return path.resolve(
+      path.join(this.getBinariesPath(), this.getManagedBinaryFilename('coordinator-beacon-mainnet'))
+    )
+  }
+
+  getCoordinatorValidatorBinPath = (_network: Network) => {
+    return path.resolve(
+      path.join(
+        this.getBinariesPath(),
+        this.getManagedBinaryFilename('coordinator-validator-mainnet')
+      )
+    )
+  }
 
   getCoordinatorBeaconGenesisPath = (network: Network) =>
     path.resolve(path.join(this.getGenesisPath(), `./coordinator-genesis-${network}.ssz`))
@@ -100,9 +134,10 @@ class AppEnv {
     const platform = this.getPlatform()
     if (platform === 'win') {
       return `\\\\.\\pipe\\wf-${num}.ipc`
-    } else {
-      return path.resolve(`/tmp/wf-${num}.ipc`)
     }
+    const linuxRuntimeDir =
+      platform === 'linux' && process.env.XDG_RUNTIME_DIR ? process.env.XDG_RUNTIME_DIR : '/tmp'
+    return path.resolve(path.join(linuxRuntimeDir, `wf-${num}.ipc`))
   }
 }
 

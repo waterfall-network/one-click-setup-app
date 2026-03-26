@@ -13,28 +13,39 @@ files:
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!resources/{bin,genesis}/**/*'
+  # Native modules: exclude build artifacts and sources (keep only .node + lib)
+  - '!node_modules/better-sqlite3/{deps,src,binding.gyp}/**'
+  - '!node_modules/better-sqlite3/build/Release/{obj,.deps}/**'
+  - '!node_modules/better-sqlite3/build/**/*.{mk,Makefile}'
+  - '!node_modules/bcrypto/{deps,src,binding.gyp,CMakeLists.txt}/**'
+  - '!node_modules/bcrypto/build/Release/{obj.target,.deps}/**'
+  - '!node_modules/bcrypto/build/**/*.{mk,Makefile}'
 buildDependenciesFromSource: true
-extraFiles:
-  - from: 'resources/bin/${os}/${arch}'
-    to: 'Resources/bin'
-    filter:
-      - '**/*'
+extraResources:
   - from: 'resources/genesis'
-    to: 'Resources/genesis'
+    to: 'genesis'
     filter:
       - '**/*'
-#asarUnpack:
-#  - node_modules/better-sqlite3
-#  - node_modules/bcrypto
-#  - resources/**
+asarUnpack:
+  - node_modules/better-sqlite3
+  - node_modules/bcrypto
 win:
   executableName: waterfall
-  certificateSubjectName: 'Fuente Labs LLC'
+  signtoolOptions:
+    certificateSha1: '384bb4405b099e15a1d249a1ec07bf5d06b2ac05'
+    signingHashAlgorithms:
+      - sha1
+      - sha256
+    rfc3161TimeStampServer: 'http://timestamp.sectigo.com'
 nsis:
   artifactName: ${name}-setup-${version}-${arch}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+# Compression: maximum = smaller size, longer build; ULFO = better DMG compression on macOS 10.11+
+compression: maximum
+dmg:
+  format: ULFO
 mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
@@ -44,11 +55,11 @@ mac:
     - dmg
     - zip
   extendInfo:
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   artifactName: ${name}-${version}-${arch}.${ext}
-  notarize:
-    teamId: 'BR22ZLPXU8'
+  hardenedRuntime: true
+  notarize: true
 linux:
   target:
     - AppImage
@@ -56,6 +67,8 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Utility
+  executableArgs:
+    - --no-sandbox
 appImage:
   artifactName: ${name}-${version}-${arch}.${ext}
 npmRebuild: false

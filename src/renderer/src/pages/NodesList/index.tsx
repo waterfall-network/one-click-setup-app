@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,18 @@
 import { PageHeader } from '@renderer/components/Page/Header'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
 import { Alert } from '@renderer/ui-kit/Alert'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PlusCircleOutlined } from '@ant-design/icons'
 import { NodesList } from '@renderer/containers/Node/NodesList'
 import { PageBody } from '@renderer/components/Page/Body'
 import { routes } from '@renderer/constants/navigation'
 
 import { useGetAll, useGoNode } from '@renderer/hooks/node'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 
 export const NodeListPage = () => {
-  const { isLoading, data, error } = useGetAll({ refetchInterval: 5000 })
+  const monitoringInterval = useMonitoringInterval()
+  const { isLoading, data, error } = useGetAll({ refetchInterval: monitoringInterval })
   const { goView } = useGoNode()
   const breadcrumb = [
     {
@@ -44,7 +46,7 @@ export const NodeListPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <NodesList data={data} onRowClick={goView} />
       </PageBody>
     </Layout>

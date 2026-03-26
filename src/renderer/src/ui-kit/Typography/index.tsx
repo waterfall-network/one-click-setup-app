@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 import { Typography } from 'antd'
 import React, { PropsWithChildren } from 'react'
 import styled from 'styled-components'
-import { theme } from '../theme'
 const { Title, Text: AntdText } = Typography
 
 type TextPropsT = PropsWithChildren & {
@@ -33,11 +32,6 @@ const Text: React.FC<TextPropsT> = ({ color = 'black', size = 'md', children, ..
   )
 }
 
-const colors = {
-  black: theme.palette.text.black,
-  white: theme.palette.text.white,
-  red: theme.palette.text.red
-}
 const sizes = {
   xsm: '10px',
   sm: '14px',
@@ -46,7 +40,17 @@ const sizes = {
 }
 
 const StyledText = styled(AntdText)<TextPropsT>`
-  color: ${({ color }) => colors[color || 'black']};
+  color: ${({ theme, color }) => {
+    switch (color) {
+      case 'white':
+        return theme.palette.text.white
+      case 'red':
+        return theme.palette.text.red
+      case 'black':
+      default:
+        return theme.palette.text.black
+    }
+  }};
   font-size: ${({ size }) => sizes[size || 'md']};
 `
 

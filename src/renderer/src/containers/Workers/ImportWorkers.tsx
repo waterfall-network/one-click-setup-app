@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  *
  */
 import React from 'react'
-import { Flex, Input, Select, StepProps } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { ImportWorkersStepKeys } from '@renderer/helpers/workers'
 import { useImportWorker } from '@renderer/hooks/workers'
-import { StepsWithActiveContent } from '@renderer/ui-kit/Steps/Steps'
+import { StepsWithActiveContent, StepsProps } from '@renderer/ui-kit/Steps'
 import { AddWorkerForm } from '@renderer/components/Workers/AddWorker/AddWorkerForm'
 import {
   DisplayKeysFields,
@@ -28,11 +28,14 @@ import {
 import { Text } from '@renderer/ui-kit/Typography'
 import { WorkerKeysTable } from '@renderer/components/Workers/AddWorker/WorkerKeysTable'
 import { WorkerTransactionTable } from '@renderer/components/Workers/AddWorker/WorkerTransactionTable'
-import { MnemonicInput } from '@renderer/ui-kit/Mnemonic/MnemonicInput'
+import { MnemonicInput } from '@renderer/ui-kit/Mnemonic'
+import { Input } from '@renderer/ui-kit/Input'
+import { Select } from '@renderer/ui-kit/Select'
 
+type StepItem = NonNullable<StepsProps['items']>[number]
 type ImportWorkerPropsT = {
-  steps: Partial<StepProps>[]
-  stepsWithKeys: Partial<StepProps & { key: string }>[]
+  steps: Partial<StepItem>[]
+  stepsWithKeys: Partial<StepItem & { key: string }>[]
   step: number
   onChangeStep: (value: number) => void
   goNextStep: () => void
@@ -88,13 +91,13 @@ export const ImportWorkers: React.FC<ImportWorkerPropsT> = ({
     const activeStep = index === step
     return {
       title: el?.title,
-      description: activeStep ? currentKey && StepComponent[currentKey] : null
+      content: activeStep ? currentKey && StepComponent[currentKey] : null
     }
   })
   return (
     <>
       <StepsWithActiveContent
-        direction="vertical"
+        orientation="vertical"
         current={step}
         onChange={onChangeStep}
         items={stepsWithContent}

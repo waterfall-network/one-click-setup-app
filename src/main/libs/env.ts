@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ export enum Network {
 }
 
 export const DATA_PATH = ENV.VITE_DATA_PATH
+export const BIN_BASE_URL = ENV.MAIN_VITE_BIN_BASE_URL
 export const getCoordinatorBootnode = (network: Network): string =>
   ENV[`MAIN_VITE_COORDINATOR_BOOTNODE_${network.toUpperCase()}`]
 
@@ -107,4 +108,18 @@ export const getStakeAmount = (network: Network): number => {
   return 32000
 }
 
-export const getRPC = (network: Network): string => ENV[`VITE_RPC_${network.toUpperCase()}`]
+export const getRPCs = (network: Network): string[] => {
+  const rpcEnv = ENV[`VITE_RPC_${network.toUpperCase()}`]
+  if (!rpcEnv) {
+    return []
+  }
+  return rpcEnv
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0)
+}
+
+export const getRPC = (network: Network): string => {
+  const rpcs = getRPCs(network)
+  return rpcs.length > 0 ? rpcs[0] : ''
+}

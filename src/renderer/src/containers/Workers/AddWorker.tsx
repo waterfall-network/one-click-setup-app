@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 import React, { useEffect, useState } from 'react'
-import { Flex, Input, InputNumber, Select } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { AddWorkerStepKeys } from '@renderer/helpers/workers'
 import { isAddress } from '../../helpers/common'
 import { useAddWorker } from '@renderer/hooks/workers'
@@ -23,11 +23,9 @@ import { AddWorkerForm } from '@renderer/components/Workers/AddWorker/AddWorkerF
 import { AddWorkerPreview } from '@renderer/components/Workers/AddWorker/AddWorkerPreview'
 import { AddWorkerFields, AddWorkerFormValuesT, DelegateRulesT } from '@renderer/types/workers'
 import { Type as NodeType } from '@renderer/types/node'
-import { ButtonPrimary } from '@renderer/ui-kit/Button'
-import { StepsWithActiveContent } from '@renderer/ui-kit/Steps/Steps'
-import { GenerateMnemonic } from '@renderer/ui-kit/Mnemonic/GenerateMnemonic'
-import { VerifyMnemonic } from '@renderer/ui-kit/Mnemonic/VerifyMnemonic'
-import { MnemonicInput } from '@renderer/ui-kit/Mnemonic/MnemonicInput'
+import { ButtonPrimary, ButtonTextPrimary } from '@renderer/ui-kit/Button'
+import { StepsWithActiveContent } from '@renderer/ui-kit/Steps'
+import { GenerateMnemonic, VerifyMnemonic, MnemonicInput } from '@renderer/ui-kit/Mnemonic'
 import { Node } from '@renderer/types/node'
 import { verifyMnemonic } from '../../helpers/workers'
 import { getAddWorkerSteps } from '@renderer/helpers/workers'
@@ -38,6 +36,8 @@ import { SearchKeys } from '@renderer/constants/navigation'
 import { useGetAll, useGetById } from '@renderer/hooks/node'
 import { DataFile } from '@renderer/ui-kit/DataFile'
 import { Text } from '@renderer/ui-kit/Typography'
+import { Input, InputNumber } from '@renderer/ui-kit/Input'
+import { Select } from '@renderer/ui-kit/Select'
 import { DelegateRules as DelegateRulesComponent } from '../../components/DelegateRules'
 
 type AddWorkerPropsT = {
@@ -197,13 +197,13 @@ export const AddWorker: React.FC<AddWorkerPropsT> = ({ mode }) => {
     const activeStep = index === step
     return {
       title: el?.title,
-      description: activeStep ? currentKey && StepComponent[currentKey] : null
+      content: activeStep ? currentKey && StepComponent[currentKey] : null
     }
   })
   return (
     <>
       <StepsWithActiveContent
-        direction="vertical"
+        orientation="vertical"
         current={step}
         onChange={onChangeStep}
         items={stepsWithContent}
@@ -247,16 +247,16 @@ const SaveMnemonic: React.FC<BasePropsT & { phrase: string[]; onSaveFile: () => 
     setCopy(true)
   }
   useEffect(() => {
-    copy && setTimeout(() => setCopy(false), 2500)
+    if (copy) setTimeout(() => setCopy(false), 2500)
   }, [copy])
   return (
     <AddWorkerForm
       title="Save next phrases to restore keys in future:"
       extra={
         <Flex gap={10}>
-          <ButtonPrimary ghost onClick={handleCopy}>
+          <ButtonTextPrimary ghost onClick={handleCopy}>
             {copy ? 'Copied' : 'Copy'}
-          </ButtonPrimary>
+          </ButtonTextPrimary>
           <ButtonPrimary onClick={() => onSaveFile()}>Save in a file</ButtonPrimary>
         </Flex>
       }
@@ -445,6 +445,7 @@ const Preview: React.FC<
       nextText={mode === 'import' ? 'Import' : 'Add'}
       isLoading={isLoading}
       error={error}
+      showActionsDivider={false}
     >
       <AddWorkerPreview data={values} node={node} deposit={deposit} />
     </AddWorkerForm>

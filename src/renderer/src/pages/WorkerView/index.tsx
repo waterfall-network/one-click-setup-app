@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 import { useMemo, useState } from 'react'
 import { PageBody } from '@renderer/components/Page/Body'
 import { PageHeader } from '@renderer/components/Page/Header'
-import { Flex, Layout, Popover } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { IconButton } from '@renderer/ui-kit/Button'
+import { Popover } from '@renderer/ui-kit/Popover'
 import {
   CloseOutlined,
   CaretRightOutlined,
@@ -34,6 +36,7 @@ import { WorkerViewCoordinator } from '@renderer/containers/Workers/WorkerViewCo
 import { WorkerViewInformation } from '@renderer/containers/Workers/WorkerViewInformation'
 import { WorkerViewDelegateRules } from '@renderer/containers/Workers/WorkerViewDelegateRules'
 import { useGetById } from '../../hooks/workers'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
 import { getViewLink } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { getActions } from '../../helpers/workers'
@@ -96,7 +99,14 @@ const getTabs = (worker?: Worker) => {
 export const WorkerViewPage = () => {
   const workerId = useParams()?.id
   const [actionModal, setActionModal] = useState<null | ActionTxType>(null)
-  const { isLoading, data: worker, error } = useGetById(workerId, { refetchInterval: 5000 })
+  const monitoringInterval = useMonitoringInterval()
+  const {
+    isLoading,
+    data: worker,
+    error
+  } = useGetById(workerId, {
+    refetchInterval: monitoringInterval
+  })
 
   const tabs = useMemo(() => getTabs(worker), [worker])
   const [activeKey, setActiveKey] = useState(tabs[0].key)
@@ -208,7 +218,7 @@ export const WorkerViewPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <Tabs items={tabs} onChange={onTabChange} activeKey={activeKey} />
         <ActionModal id={workerId} type={actionModal} onClose={() => onActionModalChange(null)} />
       </PageBody>

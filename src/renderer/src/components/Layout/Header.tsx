@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
  */
 import React from 'react'
 import styled from 'styled-components'
-import { Layout, Flex } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
+import { Flex } from '@renderer/ui-kit/Flex'
 import LogoSrc from '/logo.svg'
 import { LayoutHeaderActionT } from '@renderer/types/layout'
 import { IconButton } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
-import { isWindows } from '@renderer/helpers/common'
+import { isMac } from '@renderer/helpers/common'
 
 type HeaderComponentPropsT = {
   title: string
@@ -31,13 +32,15 @@ type HeaderComponentPropsT = {
 export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightActions }) => {
   return (
     <AppHeader>
-      <DummyNativeActions order={isWindows ? 3 : 1} />
+      <DummyNativeActions order={!isMac ? 3 : 1} />
       <Part align={'center'} order={2}>
         <AppLogo />
         <AppTitle>{title}</AppTitle>
       </Part>
-      <Part justify={'space-between'} align={'center'} order={isWindows ? 1 : 3}>
-        {rightActions?.map((el) => <Button icon={el.icon} key={el.key} onClick={el.onClick} />)}
+      <Part justify={'space-between'} align={'center'} order={!isMac ? 1 : 3}>
+        {rightActions?.map((el) => (
+          <Button icon={el.icon} key={el.key} onClick={el.onClick} />
+        ))}
       </Part>
     </AppHeader>
   )
@@ -45,20 +48,39 @@ export const HeaderComponent: React.FC<HeaderComponentPropsT> = ({ title, rightA
 
 const Button = styled(IconButton)`
   -webkit-app-region: no-drag;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  .anticon {
+    color: ${({ theme }) => theme.palette.text.white} !important;
+  }
+  &:hover,
+  &:focus,
+  &:active {
+    background: ${({ theme }) => theme.palette.semantic.headerBar.actionHoverBackground} !important;
+    border-color: transparent !important;
+  }
 `
 
 const AppHeader = styled(Layout.Header)`
   height: 40px;
-  background-color: ${({ theme }) => theme.palette.background.blue};
+  background: linear-gradient(
+    90deg,
+    ${({ theme }) => theme.palette.semantic.headerBar.backgroundStart} 0%,
+    ${({ theme }) => theme.palette.semantic.headerBar.backgroundEnd} 100%
+  );
   -webkit-app-region: drag;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 10px;
+  border-bottom: 1px solid ${({ theme }) => theme.palette.semantic.headerBar.borderBottom};
+  backdrop-filter: blur(6px);
 `
 
-const AppTitle = styled(Text)`
-  color: ${({ theme }) => theme.palette.text.white};
+const AppTitle = styled(Text).attrs({
+  color: 'white'
+})`
   padding: 0 8px;
 `
 const AppLogo = styled.img.attrs({ src: LogoSrc, width: 24, height: 24 })``

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,29 @@
  * limitations under the License.
  *
  */
-import { Alert } from 'antd'
+import { Alert as AntdAlert, type AlertProps } from 'antd'
+import React from 'react'
+import { keyframes, styled } from 'styled-components'
 
-export { Alert }
+export { type AlertProps }
+
+export const Alert: React.FC<AlertProps> = (props) => <StyledAlert {...props} />
+
+const alertReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const StyledAlert = styled(AntdAlert)`
+  animation: ${alertReveal} 170ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`

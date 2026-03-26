@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,14 @@
  *
  */
 import React from 'react'
-import {
-  Input,
-  InputNumber,
-  Radio,
-  RadioChangeEvent,
-  Space,
-  Flex,
-  Checkbox,
-  CheckboxProps
-} from 'antd'
+import { Space } from '@renderer/ui-kit/Space'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { NetworkOptions } from '@renderer/constants/network'
 import { DataFolder } from '@renderer/ui-kit/DataFolder'
 import { Text } from '@renderer/ui-kit/Typography'
+import { Input, InputNumber } from '@renderer/ui-kit/Input'
+import { Radio, type RadioChangeEvent } from '@renderer/ui-kit/Radio'
+import { Checkbox, type CheckboxProps } from '@renderer/ui-kit/Checkbox'
 import { styled } from 'styled-components'
 import { Type as NODE_TYPE, NewNode, AddNodeFields } from '@renderer/types/node'
 import { IconButton } from '../../../ui-kit/Button'
@@ -47,15 +42,15 @@ export const NodeTypeInput: React.FC<{
 }> = ({ handleChange, value }) => {
   const onChange = (e: RadioChangeEvent) => handleChange(e.target.value)
   return (
-    <Radio.Group onChange={onChange} value={value}>
-      <Space direction="vertical">
+    <ChoiceGroup onChange={onChange} value={value}>
+      <ChoiceList orientation="vertical" size={10}>
         {node_type_options.map((item) => (
-          <Radio value={item.value} key={item.value} disabled={item?.disabled}>
+          <ChoiceItem value={item.value} key={item.value} disabled={item?.disabled}>
             {item.label}
-          </Radio>
+          </ChoiceItem>
         ))}
-      </Space>
-    </Radio.Group>
+      </ChoiceList>
+    </ChoiceGroup>
   )
 }
 
@@ -65,15 +60,15 @@ export const NodeNetworkInput: React.FC<{
 }> = ({ handleChange, value }) => {
   const onChange = (e: RadioChangeEvent) => handleChange(e.target.value)
   return (
-    <Radio.Group onChange={onChange} value={value}>
-      <Space direction="vertical">
+    <ChoiceGroup onChange={onChange} value={value}>
+      <ChoiceList orientation="vertical" size={10}>
         {NetworkOptions.map((item) => (
-          <Radio value={item.value} key={item.value} disabled={item?.disabled}>
+          <ChoiceItem value={item.value} key={item.value} disabled={item?.disabled}>
             {item.label}
-          </Radio>
+          </ChoiceItem>
         ))}
-      </Space>
-    </Radio.Group>
+      </ChoiceList>
+    </ChoiceGroup>
   )
 }
 
@@ -127,22 +122,24 @@ export const NodePortInput: React.FC<{
   onCheck: () => void
 }> = ({ handleChange, label, value, isCheck, onCheck }) => {
   return (
-    <TextItem gap={6} align="center">
+    <PortRow gap={10} align="center">
       <Label>{label}:</Label>
-      <InputNumber
-        placeholder="Type Port here"
-        onChange={handleChange}
-        value={value}
-        status={isCheck ? undefined : 'warning'}
-      />
+      <PortInputWrap>
+        <InputNumber
+          placeholder="Type Port here"
+          onChange={handleChange}
+          value={value}
+          status={isCheck ? undefined : 'warning'}
+        />
+      </PortInputWrap>
       <IconButton
         icon={<ReloadOutlined />}
         shape="default"
         size="middle"
-        type={'default'}
+        type="default"
         onClick={onCheck}
       />
-    </TextItem>
+    </PortRow>
   )
 }
 
@@ -151,6 +148,7 @@ export const NodePreview: React.FC<{
 }> = ({ values }) => {
   return (
     <TabContentWrapper>
+      <PreviewTitle>Review your node settings</PreviewTitle>
       <TextRow label="Name" value={values[AddNodeFields.name]} />
       <TextRow label="Type" value={values[AddNodeFields.type]} />
       <TextRow label="Network" value={values[AddNodeFields.network]} />
@@ -179,31 +177,75 @@ export const NodePreview: React.FC<{
 }
 
 const TabContentWrapper = styled.div`
-  //padding: 30px 30px 15px 5px;
-  /* border: 1px solid ${({ theme }) => theme.palette.background.gray}; */
-
-  //border-bottom-right-radius: 4px;
-  //border-bottom-left-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.nodeAdd.previewBorder};
+  border-radius: 12px;
+  padding: 14px 16px 6px;
+  background: ${({ theme }) => theme.palette.semantic.nodeAdd.previewBackground};
 `
+
+const PreviewTitle = styled(Text)`
+  display: inline-flex;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.78;
+`
+
 export const TextRow: React.FC<{ label: string; value?: string | number | React.ReactNode }> = ({
   label,
   value
 }) => {
   return (
-    <TextItem gap={6} align="center">
-      <Text>{label}:</Text>
+    <PreviewRow gap={6} align="center">
+      <PreviewLabel>{label}:</PreviewLabel>
       <Text>{value}</Text>
-    </TextItem>
+    </PreviewRow>
   )
 }
 
-const TextItem = styled(Flex)`
+const PreviewRow = styled(Flex)`
   margin-bottom: 20px;
 `
+
+const PreviewLabel = styled(Text)`
+  min-width: 170px;
+  opacity: 0.78;
+`
+
+const ChoiceGroup = styled(Radio.Group)`
+  width: 100%;
+`
+
+const ChoiceList = styled(Space)`
+  width: 100%;
+`
+
+const ChoiceItem = styled(Radio)`
+  width: 100%;
+  margin-inline-end: 0;
+  padding: 10px 12px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.nodeAdd.choiceBorder};
+  border-radius: 10px;
+  background: ${({ theme }) => theme.palette.semantic.nodeAdd.choiceBackground};
+`
+
+const PortRow = styled(Flex)`
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.nodeAdd.portBorder};
+  border-radius: 10px;
+  background: ${({ theme }) => theme.palette.semantic.nodeAdd.portBackground};
+`
+
+const PortInputWrap = styled.div`
+  min-width: 170px;
+`
+
 const StyledInput = styled(Input)`
   width: 100%;
   max-width: 360px;
 `
 const Label = styled(Text)`
-  min-width: 200px;
+  min-width: 190px;
+  opacity: 0.86;
 `

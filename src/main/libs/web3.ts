@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,23 @@
  */
 import * as net from 'node:net'
 import Web3 from 'web3'
+import log from 'electron-log/node'
 export const getWeb3 = (provider: string): Web3 => {
+  let _provider
   if (provider.includes('.ipc')) {
-    // Создайте экземпляр net.Socket
     const socket = new net.Socket()
-    return new Web3(new Web3.providers.IpcProvider(provider, socket))
+    _provider = new Web3.providers.IpcProvider(provider, socket)
+    _provider.on('connect', () => {
+      log.debug('connect', provider)
+    })
+    _provider.on('error', () => {
+      log.debug('error', provider)
+    })
+    _provider.on('end', () => {
+      log.debug('end', provider)
+    })
   } else {
-    return new Web3(provider)
+    _provider = new Web3.providers.HttpProvider(provider)
   }
+  return new Web3(_provider)
 }

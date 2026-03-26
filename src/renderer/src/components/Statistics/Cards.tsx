@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
  * limitations under the License.
  *
  */
-import { Card, Col, Flex, Row } from 'antd'
+import { Col, Row } from '@renderer/ui-kit/Grid'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Card } from '@renderer/ui-kit/Card'
 import React from 'react'
 
 type PropsT = {

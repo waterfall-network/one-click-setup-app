@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  */
 import React from 'react'
 
-import { TableColumnsType } from 'antd'
 import { Table } from '@renderer/ui-kit/Table'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 import { DisplayKeysDataType, DisplayKeysFields } from '@renderer/types/workers'
 
 type DataType = DisplayKeysDataType & {

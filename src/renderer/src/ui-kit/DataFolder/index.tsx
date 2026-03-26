@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 import React from 'react'
 import { styled } from 'styled-components'
-import { Input, Flex } from 'antd'
+import { Input } from '../Input'
 import { ButtonPrimary } from '../Button'
 
 type DataFolderPropsT = {
@@ -39,7 +39,7 @@ export const DataFolder: React.FC<DataFolderPropsT> = ({
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => handleChange(e.target.value)
   return (
     <Wrapper>
-      <InputWrapper gap={10}>
+      <InputWrapper>
         <StyledInput placeholder={placeholder} value={value} onChange={onChange} />
         {<ButtonPrimary onClick={() => onSelectDirectory()}>Select</ButtonPrimary>}
       </InputWrapper>
@@ -62,7 +62,10 @@ const Error = styled.div`
   margin-top: 4px;
   color: ${({ theme }) => theme.palette.text.red};
 `
-const InputWrapper = styled(Flex)`
+const InputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   max-width: 360px;
 

@@ -6,3 +6,16 @@ out
 .idea
 certs
 .env.local
+package-lock.json.backup
+resources/bin
+.cursor
+tmp
+
+# bv (beads viewer) local config and caches
+.bv/
+spec
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

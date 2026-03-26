@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,15 @@
  * limitations under the License.
  *
  */
-import { Page } from '@renderer/components/ComingSoon/Page'
+import { Layout } from '@renderer/ui-kit/Layout'
+import { PageHeader } from '@renderer/components/Page/Header'
+import { SettingsPageContent } from '@renderer/containers/Settings/SettingsPageContent'
 
 export const SettingsPage = () => {
-  return <Page title="Settings" />
+  return (
+    <Layout>
+      <PageHeader title="Settings" />
+      <SettingsPageContent />
+    </Layout>
+  )
 }

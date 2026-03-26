@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 import React from 'react'
 import { EarnedTableDataTypes } from '@renderer/types/statistics'
 import { Title } from '@renderer/ui-kit/Typography'
-import { Flex, Table } from 'antd'
+import { Table } from '@renderer/ui-kit/Table'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { styled } from 'styled-components'
 import { StockOutlined } from '@ant-design/icons'
 

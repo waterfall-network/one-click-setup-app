@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import EventBus, {
   Event,
   FinishDownloadSnapshotPayload,
   PauseDownloadSnapshotPayload,
-  ResumeDownloadSnapshotPayload
+  ResumeDownloadSnapshotPayload,
+  SettingsUpdatedPayload
 } from '../../libs/EventBus'
 import AppEnv from '../../libs/appEnv'
 import workerPath from './worker?modulePath'
@@ -42,6 +43,7 @@ class Snapshot {
     this._sendToEventBus = this._sendToEventBus.bind(this)
     this._pauseDownload = this._pauseDownload.bind(this)
     this._resumeDownload = this._resumeDownload.bind(this)
+    this._updateSettings = this._updateSettings.bind(this)
     this.onListeners()
   }
   private onListeners() {
@@ -55,6 +57,10 @@ class Snapshot {
       EventName.ResumeDownloadSnapshot,
       this._resumeDownload
     )
+    this.eventBus.onEvent<EventName.SettingsUpdated, SettingsUpdatedPayload>(
+      EventName.SettingsUpdated,
+      this._updateSettings
+    )
   }
   private offListeners() {
     this.worker.off('message', this._sendToEventBus)
@@ -65,6 +71,10 @@ class Snapshot {
     this.eventBus.offEvent<EventName.ResumeDownloadSnapshot, ResumeDownloadSnapshotPayload>(
       EventName.ResumeDownloadSnapshot,
       this._resumeDownload
+    )
+    this.eventBus.offEvent<EventName.SettingsUpdated, SettingsUpdatedPayload>(
+      EventName.SettingsUpdated,
+      this._updateSettings
     )
   }
 
@@ -80,6 +90,15 @@ class Snapshot {
     payload: Event<EventName.ResumeDownloadSnapshot, ResumeDownloadSnapshotPayload>
   ) {
     this.worker.postMessage({ type: EventName.ResumeDownloadSnapshot, payload })
+  }
+  private _updateSettings(event: Event<EventName.SettingsUpdated, SettingsUpdatedPayload>) {
+    this.worker.postMessage({
+      type: EventName.SettingsUpdated,
+      payload: {
+        monitoringInterval: event.payload.monitoringInterval,
+        logLevel: event.payload.logLevel
+      }
+    })
   }
 
   public start() {

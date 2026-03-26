@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ import log from 'electron-log/node'
 import { getMain } from '../libs/db'
 import AppEnv from '../libs/appEnv'
 import EventBus, {
+  Event as EventBusEvent,
   EventName,
   EventName as EventBusEventName,
-  Event as EventBusEvent,
   FinishDownloadSnapshotPayload
 } from '../libs/EventBus'
 import LocalNode, { StatusResult, StatusResults } from './local'
@@ -36,31 +36,42 @@ import NodeModel, {
   ValidatorStatus
 } from '../models/node'
 import WorkerModel from '../models/worker'
+import SettingsModel from '../models/settings'
 import { checkPort } from '../libs/fs'
+import BinUpdater from '../libs/binUpdater'
 
 enum ErrorResults {
   NODE_NOT_FOUND = 'Node Not Found',
-  NODE_NOT_CREATED = 'Node Not Created'
+  NODE_NOT_CREATED = 'Node Not Created',
+  BINARIES_NOT_READY = 'Node binaries are not ready. Please download them first.'
 }
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 class Node {
   private ipcMain: IpcMain
   private appEnv: AppEnv
   private eventBus: EventBus
+  private binUpdater: BinUpdater
   private nodeModel: NodeModel
   private workerModel: WorkerModel
+  private settingsModel: SettingsModel
 
   private nodes: {
     [key: string]: LocalNode | ProviderNode
   }
 
-  constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus) {
+  constructor(ipcMain: IpcMain, appEnv: AppEnv, eventBus: EventBus, binUpdater: BinUpdater) {
     this.ipcMain = ipcMain
     this.appEnv = appEnv
     this.eventBus = eventBus
+    this.binUpdater = binUpdater
     this.nodes = {}
-    this.nodeModel = new NodeModel(getMain(this.appEnv.mainDB))
-    this.workerModel = new WorkerModel(getMain(this.appEnv.mainDB))
+    const db = getMain(this.appEnv.mainDB)
+    this.nodeModel = new NodeModel(db)
+    this.workerModel = new WorkerModel(db)
+    this.settingsModel = new SettingsModel(db)
     this._finishDownloadSnapshot = this._finishDownloadSnapshot.bind(this)
   }
 
@@ -87,10 +98,11 @@ class Node {
     )
 
     const nodeModels = this.nodeModel.getAll()
+    const shouldAutoStartNodes = this.settingsModel.get()?.autoStartNodes ?? true
 
     let status = true
     for (const _nodeModel of nodeModels) {
-      const statusAdd = await this._addNode(_nodeModel)
+      const statusAdd = await this._addNode(_nodeModel, shouldAutoStartNodes)
       if (!statusAdd && status) {
         status = false
       }
@@ -119,6 +131,9 @@ class Node {
   }
 
   private async _start(id: number): Promise<StatusResults | ErrorResults | boolean> {
+    const startedAt = Date.now()
+    log.debug('node:start-requested', { nodeId: id })
+    const startNodeModel = this.nodeModel.getById(id)
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -130,10 +145,33 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].start()
+    let result: StatusResults
+    try {
+      if (startNodeModel?.type === NodeType.local) {
+        this.nodeModel.update(startNodeModel.id, {
+          coordinatorStatus: CoordinatorStatus.starting,
+          validatorStatus: ValidatorStatus.starting,
+          coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+        })
+      }
+      result = await this.nodes[id.toString()].start()
+    } catch (error) {
+      if (
+        startNodeModel?.type === NodeType.local &&
+        getErrorMessage(error) === LocalNode.BINARIES_NOT_READY_ERROR
+      ) {
+        log.warn('node:start-blocked', { nodeId: id, reason: 'binaries-not-ready' })
+        return ErrorResults.BINARIES_NOT_READY
+      }
+      throw error
+    }
+    log.info('node:start-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _stop(id: number): Promise<StatusResults | ErrorResults | boolean> {
+    const startedAt = Date.now()
+    log.debug('node:stop-requested', { nodeId: id })
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
@@ -145,10 +183,14 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].stop()
+    const result = await this.nodes[id.toString()].stop()
+    log.info('node:stop-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _restart(id: number): Promise<StatusResults | ErrorResults> {
+    const startedAt = Date.now()
+    log.debug('node:restart-requested', { nodeId: id })
     if (!this.nodes[id.toString()]) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel || nodeModel.downloadStatus !== DownloadStatus.finish) {
@@ -156,33 +198,87 @@ class Node {
       }
       await this._addNode(nodeModel)
     }
-    return this.nodes[id.toString()].restart()
+    const result = await this.nodes[id.toString()].restart()
+    log.info('node:restart-finished', { nodeId: id, durationMs: Date.now() - startedAt })
+    return result
   }
 
   private async _add(options: NewNode): Promise<NodeModelType | ErrorResults> {
+    const startedAt = Date.now()
+    log.debug('node:add-requested', {
+      name: options.name,
+      type: options.type,
+      network: options.network
+    })
     const nodeModel = this.nodeModel.insert(options)
     if (!nodeModel) {
+      log.error('node:add-failed', {
+        reason: ErrorResults.NODE_NOT_CREATED,
+        durationMs: Date.now() - startedAt
+      })
       return ErrorResults.NODE_NOT_CREATED
     }
-    const result = await this._addNode(nodeModel)
+    const result = await this._addNode(nodeModel, false)
     if (result) {
+      if (nodeModel.type === NodeType.local) {
+        this.nodeModel.update(nodeModel.id, {
+          coordinatorStatus: CoordinatorStatus.starting,
+          validatorStatus: ValidatorStatus.starting,
+          coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+        })
+        const nodeId = Number(nodeModel.id)
+        if (!Number.isNaN(nodeId)) {
+          void (async () => {
+            try {
+              const startResult = await this._start(nodeId)
+              if (startResult === false || typeof startResult === 'string') {
+                this.nodeModel.update(nodeModel.id, {
+                  coordinatorStatus: CoordinatorStatus.stopped,
+                  validatorStatus: ValidatorStatus.stopped,
+                  coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+                })
+                log.warn('node:add-background-start-incomplete', {
+                  nodeId: nodeModel.id,
+                  result: startResult
+                })
+              }
+            } catch (error) {
+              this.nodeModel.update(nodeModel.id, {
+                coordinatorStatus: CoordinatorStatus.stopped,
+                validatorStatus: ValidatorStatus.stopped,
+                coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+              })
+              log.error('node:add-background-start-failed', {
+                nodeId: nodeModel.id,
+                error: getErrorMessage(error)
+              })
+            }
+          })()
+        }
+      }
+      log.info('node:add-finished', { nodeId: nodeModel.id, durationMs: Date.now() - startedAt })
       return nodeModel
     }
+    log.error('node:add-failed', {
+      nodeId: nodeModel.id,
+      reason: ErrorResults.NODE_NOT_CREATED,
+      durationMs: Date.now() - startedAt
+    })
     return ErrorResults.NODE_NOT_CREATED
   }
 
-  private async _addNode(nodeModel: NodeModelType) {
+  private async _addNode(nodeModel: NodeModelType, autoStart = true) {
     if (nodeModel === null) return false
     if (nodeModel.downloadStatus !== DownloadStatus.finish) return true
     if (!this.nodes[nodeModel.id.toString()]) {
       this.nodes[nodeModel.id.toString()] =
         nodeModel.type === NodeType.local
-          ? new LocalNode(nodeModel, this.appEnv)
+          ? new LocalNode(nodeModel, this.appEnv, this.binUpdater)
           : new ProviderNode(nodeModel, this.appEnv)
     }
     const node = this.nodes[nodeModel.id.toString()]
     const initNodeStatus = await node.initialize()
-    log.debug('initNodeStatus', initNodeStatus)
+    log.debug('node:initialize-status', { nodeId: nodeModel.id, status: initNodeStatus })
     node.on('stop', () => {
       if (nodeModel.type === NodeType.local) {
         const pids = node.getPids()
@@ -210,21 +306,75 @@ class Node {
         coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
       })
     })
-    if (
-      initNodeStatus.coordinatorBeacon === StatusResult.success &&
-      initNodeStatus.validator === StatusResult.success &&
-      initNodeStatus.coordinatorValidator === StatusResult.success
-    ) {
-      await node.start()
+
+    node.on('start', () => {
       if (nodeModel.type === NodeType.local) {
         const pids = node.getPids()
         this.nodeModel.update(nodeModel.id, {
           coordinatorPid: pids.coordinatorBeacon,
           coordinatorStatus: pids.coordinatorBeacon
-            ? CoordinatorStatus.running
+            ? CoordinatorStatus.starting
             : CoordinatorStatus.stopped,
           validatorPid: pids.validator,
-          validatorStatus: pids.validator ? ValidatorStatus.running : ValidatorStatus.stopped,
+          validatorStatus: pids.validator ? ValidatorStatus.starting : ValidatorStatus.stopped,
+          coordinatorValidatorPid: pids.coordinatorValidator,
+          coordinatorValidatorStatus: pids.coordinatorValidator
+            ? CoordinatorValidatorStatus.running
+            : CoordinatorValidatorStatus.stopped
+        })
+        return
+      }
+      this.nodeModel.update(nodeModel.id, {
+        coordinatorStatus: CoordinatorStatus.running,
+        validatorStatus: ValidatorStatus.running,
+        coordinatorValidatorStatus: CoordinatorValidatorStatus.running
+      })
+    })
+    if (
+      initNodeStatus.coordinatorBeacon === StatusResult.success &&
+      initNodeStatus.validator === StatusResult.success &&
+      initNodeStatus.coordinatorValidator === StatusResult.success
+    ) {
+      if (!autoStart) {
+        if (nodeModel.type === NodeType.local) {
+          const pids = node.getPids()
+          this.nodeModel.update(nodeModel.id, {
+            coordinatorPid: pids.coordinatorBeacon,
+            coordinatorStatus: CoordinatorStatus.stopped,
+            coordinatorPeersCount: 0,
+            validatorPid: pids.validator,
+            validatorStatus: ValidatorStatus.stopped,
+            validatorPeersCount: 0,
+            coordinatorValidatorPid: pids.coordinatorValidator,
+            coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+          })
+        } else {
+          this.nodeModel.update(nodeModel.id, {
+            coordinatorStatus: CoordinatorStatus.stopped,
+            coordinatorPeersCount: 0,
+            validatorStatus: ValidatorStatus.stopped,
+            validatorPeersCount: 0,
+            coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+          })
+        }
+        return true
+      }
+
+      try {
+        await node.start()
+      } catch (error) {
+        log.error('node:start-failed', { nodeId: nodeModel.id, error: getErrorMessage(error) })
+        return false
+      }
+      if (nodeModel.type === NodeType.local) {
+        const pids = node.getPids()
+        this.nodeModel.update(nodeModel.id, {
+          coordinatorPid: pids.coordinatorBeacon,
+          coordinatorStatus: pids.coordinatorBeacon
+            ? CoordinatorStatus.starting
+            : CoordinatorStatus.stopped,
+          validatorPid: pids.validator,
+          validatorStatus: pids.validator ? ValidatorStatus.starting : ValidatorStatus.stopped,
           coordinatorValidatorPid: pids.coordinatorValidator,
           coordinatorValidatorStatus: pids.coordinatorValidator
             ? CoordinatorValidatorStatus.running
@@ -248,7 +398,11 @@ class Node {
     ids: number[] | bigint[],
     withData = false
   ): Promise<boolean[] | ErrorResults> {
-    log.debug('_delete', ids, withData)
+    const startedAt = Date.now()
+    log.debug('node:delete-requested', {
+      idsCount: ids?.length || 0,
+      withData
+    })
     if (!ids || ids.length == 0) {
       return ErrorResults.NODE_NOT_FOUND
     }
@@ -258,6 +412,7 @@ class Node {
     for (const id of ids) {
       const nodeModel = this.nodeModel.getById(id)
       if (!nodeModel) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'not-found' })
         continue
       }
       if (
@@ -266,20 +421,23 @@ class Node {
           nodeModel.validatorStatus !== ValidatorStatus.stopped ||
           nodeModel.coordinatorValidatorStatus !== CoordinatorValidatorStatus.stopped)
       ) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'node-running' })
         continue
       }
       const countWorkers = this.workerModel.getCount({ nodeId: id })
       if (countWorkers && countWorkers > 0) {
+        log.warn('node:delete-skip', { nodeId: id, reason: 'workers-exist', workers: countWorkers })
         continue
       }
 
       const node =
         nodeModel.type === NodeType.local
-          ? new LocalNode(nodeModel, this.appEnv)
+          ? new LocalNode(nodeModel, this.appEnv, this.binUpdater)
           : new ProviderNode(nodeModel, this.appEnv)
 
       if (withData) {
         if (!(await node.removeData())) {
+          log.error('node:delete-skip', { nodeId: id, reason: 'remove-data-failed' })
           continue
         }
       }
@@ -289,16 +447,36 @@ class Node {
       results[index] = status
     }
 
+    log.info('node:delete-finished', {
+      requested: ids.length,
+      deleted: results.filter(Boolean).length,
+      durationMs: Date.now() - startedAt
+    })
     return results
   }
 
   private async _checkPorts(ports: number[]) {
-    return await Promise.all(ports.map((port) => checkPort(port)))
+    const startedAt = Date.now()
+    const result = await Promise.all(ports.map((port) => checkPort(port)))
+    log.debug('node:check-ports-finished', {
+      portsChecked: ports.length,
+      available: result.filter(Boolean).length,
+      durationMs: Date.now() - startedAt
+    })
+    return result
   }
   private async _finishDownloadSnapshot(
     event: EventBusEvent<EventName.FinishDownloadSnapshot, FinishDownloadSnapshotPayload>
   ) {
-    await this._start(event.payload.nodeId)
+    try {
+      log.debug('node:finish-download-snapshot-event', { nodeId: event.payload.nodeId })
+      await this._start(event.payload.nodeId)
+    } catch (error) {
+      log.error('node:finish-download-snapshot-event-failed', {
+        nodeId: event.payload.nodeId,
+        error: getErrorMessage(error)
+      })
+    }
   }
 }
 

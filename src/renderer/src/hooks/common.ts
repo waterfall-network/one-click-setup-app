@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ export const useCopy = (text?: string): [boolean, () => void] => {
     return false
   }
   useEffect(() => {
-    status && setTimeout(() => setStatus(false), 2500)
+    if (status) setTimeout(() => setStatus(false), 2500)
   }, [status])
   return [status, handleCopy]
 }

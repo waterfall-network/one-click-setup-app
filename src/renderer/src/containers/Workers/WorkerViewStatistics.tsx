@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,13 @@
  */
 import React from 'react'
 import { WorkerViewTabProps } from '@renderer/types/workers'
-import { Layout } from 'antd'
 import { Content } from '../../components/ComingSoon/Content'
 import { TabContent } from '@renderer/ui-kit/Tabs'
 
 export const WorkerViewStatistics: React.FC<WorkerViewTabProps> = () => {
   return (
-    <TabContent>
-      <Layout>
-        <Content />
-      </Layout>
+    <TabContent variant="text">
+      <Content />
     </TabContent>
   )
 }

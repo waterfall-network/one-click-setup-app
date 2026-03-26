@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import React from 'react'
 import { styled } from 'styled-components'
 import { DelegateRulesT } from '@renderer/types/workers'
 import { Text } from '@renderer/ui-kit/Typography'
-import { Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 
 type DelegateRulesPropsT = {
   delegateRules?: DelegateRulesT

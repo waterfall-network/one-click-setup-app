@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  *
  */
-//eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//@ts-ignore
 export const isWindows = window?.os?.platform === 'win'
+export const isMac = window?.os?.platform === 'mac'
 
 export const shuffleArray = (array: any[]) => {
   return array

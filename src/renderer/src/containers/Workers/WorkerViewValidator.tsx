@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@ import React from 'react'
 import { TabContent, TabTextRow } from '@renderer/ui-kit/Tabs'
 import { WorkerViewTabProps } from '@renderer/types/workers'
 import { useCopy } from '../../hooks/common'
-import { Button, Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Button } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
 export const WorkerViewValidator: React.FC<WorkerViewTabProps> = ({ item }) => {
   const [copyStatus, handleCopy] = useCopy(
     item?.validatorAddress ? `0x${item.validatorAddress}` : undefined
   )
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow
         label="Public Key"
         value={

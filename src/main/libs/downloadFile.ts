@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,8 +88,8 @@ class FileDownloader extends EventEmitter {
     this.status = Status.verify
     this.verifyStream = createReadStream(this.filePath)
     const hash = crypto.createHash('sha256')
-    this.verifyStream.on('data', (data) => {
-      hash.update(data)
+    this.verifyStream.on('data', (chunk: string | Buffer) => {
+      hash.update(chunk)
     })
     this.verifyStream.on('end', async () => {
       const calculatedHash = hash.digest('hex')

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import CanvasJSReact from '@canvasjs/react-stockcharts'
 import { getEarningOptions } from '@renderer/helpers/charts'
 import { DataPointsIncome } from '@renderer/types/data'
 import { Title } from '@renderer/ui-kit/Typography'
-import { Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { StockOutlined } from '@ant-design/icons'
 
 const CanvasJSStockChart = CanvasJSReact.CanvasJSStockChart

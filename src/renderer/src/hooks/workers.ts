@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,14 @@ import {
   getAll,
   getById,
   getAllByNodeId,
+  getStats,
   getActionTx,
   remove,
   sendActionTx,
   getDepositDataCount,
   getDelegateRules,
-  getBalance
+  getBalance,
+  getTransactionCount
 } from '../api/worker'
 import { saveTextFile } from '../api/os'
 import { Node } from '../types/node'
@@ -45,7 +47,18 @@ import { ActionTxType } from '../types/workers'
 import { selectFile } from '../api/os'
 import { chunkArray } from '../helpers/common'
 import { ethers } from 'ethers'
-const chunkSize = 10
+
+// Keep mass-action progress smooth by targeting ~1% movement per chunk.
+// Example: 190 workers -> chunk size 2 (~1.05% per progress update).
+// For very small batches we still send at least one operation per chunk.
+// For very large batches we cap chunk size to avoid oversized requests.
+const TARGET_PROGRESS_STEPS = 100
+const MAX_CHUNK_SIZE = 100
+
+const getChunkSize = (totalCount: number): number => {
+  const byProgressStep = Math.ceil(totalCount / TARGET_PROGRESS_STEPS)
+  return Math.min(MAX_CHUNK_SIZE, Math.max(1, byProgressStep))
+}
 
 const addInitialValues = {
   [AddWorkerFields.mnemonic]: [],
@@ -185,40 +198,89 @@ export const useGoWorker = () => {
   const goView = (id: number) => navigate(getViewLink(routes.workers.view, { id: id.toString() }))
   return { goView }
 }
-export const useGetAll = (options?: { refetchInterval?: number }) => {
+export const useGetAll = (options?: {
+  refetchInterval?: number
+  page?: number
+  limit?: number
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}) => {
   const { isLoading, data, error } = useQuery({
-    queryKey: ['workers:all'],
-    queryFn: getAll,
+    queryKey: ['workers:all', options?.page, options?.limit, options?.filters],
+    queryFn: () => getAll(options?.page, options?.limit, options?.filters),
     refetchInterval: options?.refetchInterval
   })
 
-  return { isLoading, data, error }
+  return {
+    isLoading,
+    data: data?.data,
+    total: data?.total || 0,
+    error
+  }
 }
 
-export const useGetAllByNodeId = (id?: string, options?: { refetchInterval?: number }) => {
+export const useGetAllByNodeId = (
+  id?: string,
+  options?: {
+    refetchInterval?: number
+    page?: number
+    limit?: number
+    filters?: {
+      status?: string[]
+      nodeId?: (number | bigint)[]
+      rewardMin?: number
+      rewardMax?: number
+    }
+  }
+) => {
   const { isLoading, data, error } = useQuery({
-    queryKey: ['workers:node', id],
-    queryFn: async () => {
-      if (id) {
-        return await getAllByNodeId(parseInt(id))
-      }
-      return undefined
-    },
+    queryKey: ['workers:node', id, options?.page, options?.limit, options?.filters],
+    queryFn: async () =>
+      await getAllByNodeId(parseInt(id as string), options?.page, options?.limit, options?.filters),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 
-  return { isLoading, data, error }
+  return {
+    isLoading,
+    data: data?.data,
+    total: data?.total || 0,
+    error
+  }
+}
+
+export const useGetStats = (options?: {
+  refetchInterval?: number
+  nodeId?: number | bigint
+  filters?: {
+    status?: string[]
+    nodeId?: (number | bigint)[]
+    rewardMin?: number
+    rewardMax?: number
+  }
+}) => {
+  const { isLoading, data, error } = useQuery({
+    queryKey: ['workers:stats', options?.nodeId, options?.filters],
+    queryFn: () => getStats({ nodeId: options?.nodeId, filters: options?.filters }),
+    refetchInterval: options?.refetchInterval
+  })
+
+  return {
+    isLoading,
+    data,
+    error
+  }
 }
 
 export const useGetById = (id?: string, options?: { refetchInterval?: number }) => {
   const { isLoading, data, error } = useQuery({
     queryKey: ['worker:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    },
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 
@@ -239,8 +301,9 @@ export const useActionTx = (action: ActionTxType | null, id?: string, amount?: s
       if (id && action) {
         return await getActionTx(action, parseInt(id), amount)
       }
-      return undefined
-    }
+      return null
+    },
+    enabled: !!(id && action)
   })
 
   const mutation = useMutation({
@@ -307,11 +370,13 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     address: string
     isCorrect: boolean | null
     balance: string
+    hasPendingTransactions: boolean
   }>({
     key: '',
     address: '',
     isCorrect: null,
-    balance: ''
+    balance: '',
+    hasPendingTransactions: false
   })
   const [status, setStatus] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
@@ -320,11 +385,11 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
   const onClear = () => {
     setError('')
     setCount({ success: 0, failed: 0 })
-    setPk({ key: '', address: '', isCorrect: null, balance: '' })
+    setPk({ key: '', address: '', isCorrect: null, balance: '', hasPendingTransactions: false })
     setStatus(false)
   }
 
-  const onChangePk = async (key: string) => {
+  const onChangePk = async (key: string, nodeId: number | bigint | null) => {
     let address = ''
     let isCorrect = false
     try {
@@ -335,14 +400,24 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       } else {
         isCorrect = true
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
+      console.error('Failed to parse private key')
     }
     let balance = ''
-    if (address) {
-      balance = await getBalance(address)
+    let hasPendingTransactions = false
+    if (address && nodeId) {
+      const [balanceData, nonceData] = await Promise.all([
+        getBalance(nodeId, address),
+        getTransactionCount(nodeId, address)
+      ])
+      if (balanceData.status === 'success' && balanceData.data) {
+        balance = balanceData.data
+      }
+      if (nonceData.status === 'success' && nonceData.data) {
+        hasPendingTransactions = nonceData.data.pending !== nonceData.data.latest
+      }
     }
-    setPk({ key, address, isCorrect, balance })
+    setPk({ key, address, isCorrect, balance, hasPendingTransactions })
   }
   const removeMutation = useMutation({
     mutationFn: async ({ ids }: { ids: (number | bigint)[] }) => {
@@ -354,7 +429,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       return
     }
     setStatus(true)
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await removeMutation.mutateAsync({ ids: chunk })
       if (res?.error) {
@@ -386,7 +461,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
       return
     }
     setStatus(true)
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await activateMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {
@@ -412,7 +487,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     }
     setStatus(true)
 
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await deActivateMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {
@@ -437,7 +512,7 @@ export const useMassAction = (type: ActionTxType | null, from: string[] | null) 
     }
     setStatus(true)
 
-    const chunkedArray = chunkArray(ids, chunkSize)
+    const chunkedArray = chunkArray(ids, getChunkSize(ids.length))
     for (const chunk of chunkedArray) {
       const res = await withdrawMutation.mutateAsync({ ids: chunk, pk: pk.key })
       if (res?.error) {

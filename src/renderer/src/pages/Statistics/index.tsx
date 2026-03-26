@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import { WorkerStatusChart } from '@renderer/components/Statistics/Charts/Worker
 import { StatisticsEarnedTable } from '@renderer/components/Statistics/EarnedTable'
 import { LeaderBoards } from '@renderer/components/Statistics/LeaderBoards'
 import { NodeSelector } from '@renderer/components/Statistics/NodeSelector'
+import { Card } from '@renderer/ui-kit/Card'
 import {
   useGetWorkerBalanceData,
   useGetWorkerEarningData,
@@ -33,10 +34,11 @@ import {
 } from '@renderer/hooks/statistics'
 import { LeaderBoardTableDataTypes } from '@renderer/types/statistics'
 import { Text } from '@renderer/ui-kit/Typography'
-import { Card, DatePicker, DatePickerProps, Divider, Flex, Layout } from 'antd'
-import { RangePickerProps } from 'antd/es/date-picker'
+import { Divider } from '@renderer/ui-kit/Divider'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
+import { DatePickerProps, RangePicker, RangePickerProps } from '@renderer/ui-kit/DatePicker'
 import { useState } from 'react'
-const { RangePicker } = DatePicker
 
 const nodeOptions = [
   { label: 'Node 1', value: '1' },

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 import { PageBody } from '@renderer/components/Page/Body'
 import { PageHeader } from '@renderer/components/Page/Header'
 import { AddNode } from '@renderer/containers/Node/AddNode'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 
 export const AddNodePage = () => {
   return (
     <Layout>
-      <PageHeader title="Add Node" />
+      <PageHeader title="Add Node" subtitle="Set up a node in a guided flow" />
       <PageBody>
         <AddNode />
       </PageBody>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
-import { TableColumnsType } from 'antd'
 import { NodesWorkersDataFields, NodesWorkersDataTypes } from '@renderer/types/node'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
+import { LiveValue } from '@renderer/ui-kit/LiveValue'
 
 export type DataType = NodesWorkersDataTypes & {
   key: React.Key
@@ -27,12 +28,14 @@ export const columns = (generateFN: (id?: string) => void): TableColumnsType<Dat
   {
     title: 'Status',
     dataIndex: NodesWorkersDataFields.status,
-    key: NodesWorkersDataFields.status
+    key: NodesWorkersDataFields.status,
+    render: (value) => <LiveValue value={String(value)}>{value}</LiveValue>
   },
   {
     title: 'Worked Hours',
     dataIndex: NodesWorkersDataFields.workedHours,
-    key: NodesWorkersDataFields.workedHours
+    key: NodesWorkersDataFields.workedHours,
+    render: (value) => <LiveValue value={String(value)}>{value}</LiveValue>
   },
 
   {

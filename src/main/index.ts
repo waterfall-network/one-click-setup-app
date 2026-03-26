@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,14 @@
  */
 import {
   app,
-  shell,
   BrowserWindow,
   Tray,
-  Menu,
   ipcMain,
   globalShortcut,
   powerSaveBlocker,
   dialog
 } from 'electron'
-import { Event, HandlerDetails } from 'electron'
+import { Event } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import log from 'electron-log/main'
@@ -40,9 +38,25 @@ import { runMigrations } from './libs/migrate'
 import StatusWorker from './monitoring/status'
 import SnapshotWorker from './monitoring/snapshot'
 import FsHandle from './libs/FsHandle'
+import Settings from './settings'
+import { createMainWindow } from './windows/createMainWindow'
+import { createUpdateWindow } from './windows/createUpdateWindow'
+import { createStartupSteps } from './startup/steps'
+import { runStartup } from './startup/runner'
+import type { StartupStatus } from './startup/types'
+import { initializeTrayAndHandlers } from './app/initializeTrayAndHandlers'
+import BinUpdater from './libs/binUpdater'
+import { getMain } from './libs/db'
+import SettingsModel from './models/settings'
+import NodeModel from './models/node'
+
+app.commandLine.appendSwitch('no-sandbox')
 
 log.transports.file.level = 'debug'
 autoUpdater.logger = log
+
+const STARTUP_STATUS_CHANNEL = 'startup:status'
+const STARTUP_STEP_DELAY_MS = 100
 
 const eventBus = new EventBus()
 let tray: null | Tray = null
@@ -56,101 +70,63 @@ const appEnv = new AppEnv({
   userData: app.getPath('userData'),
   version: app.getVersion()
 })
-const node = new Node(ipcMain, appEnv, eventBus)
+const mainDb = getMain(appEnv.getMainDBPath())
+const settingsModel = new SettingsModel(mainDb)
+const nodeModel = new NodeModel(mainDb)
+const settings = new Settings(ipcMain, appEnv, eventBus)
+const binUpdater = new BinUpdater(appEnv, settingsModel, nodeModel)
+const node = new Node(ipcMain, appEnv, eventBus, binUpdater)
 const worker = new Worker(ipcMain, appEnv)
 const fsHandle = new FsHandle(ipcMain)
 const statusWorker = new StatusWorker(appEnv, eventBus)
 const snapshotWorker = new SnapshotWorker(appEnv, eventBus)
-// Optional, initialize the logger for any renderer process
-log.initialize({ spyRendererConsole: true })
+
+let updateWindowReady = false
+let pendingStartupStatus: StartupStatus | null = null
+
+// Keep renderer console output out of main process logs to reduce leakage risk.
+log.initialize({ spyRendererConsole: false })
 
 process.on('uncaughtException', (error) => {
   log.error(`Uncaught Exception: ${error.message}`)
   log.error(error.stack)
 })
 
-function createUpdateWindow(): void {
-  updateWindow = new BrowserWindow({
-    // width: 1024,
-    // height: 768,
-    width: 1200,
-    height: 900,
-    icon: icon,
-    center: true,
-    title: 'Waterfall Update',
-    webPreferences: {
-      sandbox: false
-    }
-  })
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    log.debug('ELECTRON_RENDERER_URL', process.env['ELECTRON_RENDERER_URL'])
-    updateWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/update.html`).then(() => {})
-  } else {
-    updateWindow.loadFile(join(__dirname, '../renderer/update.html')).then(() => {})
-  }
+const checkForUpdates = (): void => {
+  autoUpdater.checkForUpdatesAndNotify()
+  log.info('check update')
 }
 
-function createWindow(): void {
-  // Create the browser window.
-  mainWindow = new BrowserWindow({
-    // width: 1024,
-    // height: 768,
-    width: 1200,
-    height: 900,
-    show: false,
-    autoHideMenuBar: true,
-    icon: icon,
-    center: true,
-    title: 'Waterfall',
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#1677ff',
-      symbolColor: '#fff',
-      height: 40
-    },
-    trafficLightPosition: { x: 10, y: 12 },
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
-  mainWindow.on('ready-to-show', () => {
-    if (updateWindow) {
-      updateWindow.close()
-    }
-    if (mainWindow === null) {
-      return
-    }
-    mainWindow.show()
-  })
-
-  mainWindow.on('close', function (event: Event): void {
-    if (!isQuitting) {
-      event.preventDefault()
-      if (mainWindow === null) {
-        return
-      }
-      mainWindow.hide()
-      showExitConfirmation()
-    }
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details: HandlerDetails) => {
-    shell.openExternal(details.url).then(() => {
-      return { action: 'deny' }
-    })
-    return { action: 'deny' }
-  })
-
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/index.html`).then(() => {})
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html')).then(() => {})
+const setUpdateWindowStatus = (status: StartupStatus): void => {
+  pendingStartupStatus = status
+  if (!updateWindow || updateWindow.isDestroyed() || !updateWindowReady) {
+    return
   }
+  updateWindow.webContents.send(STARTUP_STATUS_CHANNEL, status)
+}
+
+const createMainAppWindow = (): void => {
+  const preloadPath = join(__dirname, '../preload/index.js')
+  const indexHtmlPath = join(__dirname, '../renderer/index.html')
+  mainWindow = createMainWindow({
+    icon,
+    preloadPath,
+    indexHtmlPath,
+    isDev: is.dev,
+    rendererUrl: process.env['ELECTRON_RENDERER_URL'],
+    onReadyToShow: () => {
+      if (updateWindow) {
+        updateWindow.close()
+      }
+    },
+    onCloseRequest: (event: Event, window: BrowserWindow) => {
+      if (!isQuitting) {
+        event.preventDefault()
+        window.hide()
+        showExitConfirmation()
+      }
+    }
+  })
 }
 
 const gotTheLock = app.requestSingleInstanceLock()
@@ -161,127 +137,115 @@ if (!gotTheLock) {
   app.setName('Waterfall')
 
   app.on('second-instance', () => {
-    // if have second app
     if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
       mainWindow.show()
       mainWindow.focus()
     }
   })
 
-  // This method will be called when Electron has finished
-  // initialization and is ready to create browser windows.
-  // Some APIs can only be used after this event occurs.
   app.whenReady().then(async () => {
-    // Set app user model id for windows
     electronApp.setAppUserModelId('app.waterfall')
 
-    // Default open or close DevTools by F12 in development
-    // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
 
     if (appEnv.getPlatform() === 'mac') {
-      //   app.dock.hide()
-      app.dock.setIcon(icon)
-    }
-    createUpdateWindow()
-
-    try {
-      await runMigrations()
-      log.debug('runMigrations Done')
-    } catch (e) {
-      log.error('runMigrations', e)
-      return await quit()
+      app.dock?.setIcon(icon)
     }
 
-    autoUpdater.checkForUpdatesAndNotify()
-    log.debug('check update')
-
-    try {
-      await node.initialize()
-      log.debug('node.initialize Done')
-    } catch (e) {
-      log.error('node.initialize', e)
-      return await quit()
-    }
-
-    try {
-      await worker.initialize()
-      log.debug('worker.initialize Done')
-    } catch (e) {
-      log.error('worker.initialize', e)
-      return await quit()
-    }
-
-    try {
-      fsHandle.initialize()
-      log.debug('sHandle.initialize Done')
-    } catch (e) {
-      log.error('fsHandle.initialize', e)
-      return await quit()
-    }
-
-    statusWorker.start()
-    log.debug('statusWorker.postMessage start')
-
-    snapshotWorker.start()
-
-    log.debug('snapshotWorker.postMessage start')
-
-    preventSleepId = powerSaveBlocker.start('prevent-app-suspension')
-
-    tray = new Tray(trayIcon)
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'Show App',
-        click: (): void => {
-          // if (getPlatform() === 'mac') {
-          //   app.show()
-          // }
-          // app.focus()
-          if (mainWindow === null) {
-            return
-          }
-          mainWindow.show()
-          log.debug('Show')
+    const preloadPath = join(__dirname, '../preload/index.js')
+    const updateHtmlPath = join(__dirname, '../renderer/update.html')
+    updateWindowReady = false
+    updateWindow = createUpdateWindow({
+      icon,
+      preloadPath,
+      updateHtmlPath,
+      isDev: is.dev,
+      rendererUrl: process.env['ELECTRON_RENDERER_URL'],
+      onDidFinishLoad: () => {
+        updateWindowReady = true
+        if (pendingStartupStatus) {
+          setUpdateWindowStatus(pendingStartupStatus)
         }
       },
-      {
-        label: 'Check Updates',
-        click: (): void => {
-          // autoUpdater.channel = 'beta'
-          autoUpdater.checkForUpdatesAndNotify()
-          log.debug('check update')
-        }
-      },
-      {
-        label: 'Quit',
-        click: async () => {
+      onClosed: async () => {
+        updateWindowReady = false
+        pendingStartupStatus = null
+        updateWindow = null
+        if (!isQuitting && mainWindow === null) {
+          isQuitting = true
           await quit()
         }
       }
-    ])
+    })
 
-    tray.setContextMenu(contextMenu)
-    tray.setToolTip('Waterfall')
-    ipcMain.handle('app:quit', async () => await quit())
-    ipcMain.handle('app:state', async () => ({
-      version: appEnv.version
-    }))
+    const startupSteps = createStartupSteps({
+      runMigrations: async () => await runMigrations(),
+      syncBinaries: async (updateProgress) => {
+        await binUpdater.syncBinaries(updateProgress)
+      },
+      checkForUpdates,
+      initializeSettings: async () => await settings.initialize(),
+      initializeNode: async () => await node.initialize(),
+      initializeWorker: async () => await worker.initialize(),
+      initializeFsHandle: () => {
+        fsHandle.initialize()
+      },
+      startStatusWorker: () => {
+        statusWorker.start()
+      },
+      startSnapshotWorker: () => {
+        snapshotWorker.start()
+      },
+      configurePowerManagement: () => {
+        preventSleepId = powerSaveBlocker.start('prevent-app-suspension')
+      },
+      finalizeApplicationShell: () => {
+        tray = initializeTrayAndHandlers({
+          trayIcon,
+          ipcMain,
+          appVersion: appEnv.version,
+          getBinariesVersion: () => settingsModel.get()?.binariesVersion ?? '',
+          checkForUpdates,
+          quit,
+          getMainWindow: () => mainWindow
+        })
+      }
+    })
 
-    createWindow()
+    const startupCompleted = await runStartup({
+      steps: startupSteps,
+      delayMs: STARTUP_STEP_DELAY_MS,
+      publishStatus: setUpdateWindowStatus,
+      onStepDone: (step) => {
+        log.info(`${step.title} Done`)
+      },
+      onStepFailed: (step, error) => {
+        log.error(`${step.title} Failed`, error)
+      },
+      doneTitle: 'Startup complete',
+      doneDetail: 'Opening main window.'
+    })
+
+    if (!startupCompleted) {
+      return
+    }
+
+    createMainAppWindow()
 
     app.on('activate', function () {
-      // On macOS, it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
       if (mainWindow === null) {
         return
       }
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainAppWindow()
+      }
     })
+
     globalShortcut.register('CommandOrControl+Shift+I', () => {
       if (mainWindow === null) {
         return
@@ -290,29 +254,22 @@ if (!gotTheLock) {
     })
   })
 
-  // Quit when all windows are closed, except on macOS. There, it's common
-  // for applications and their menu bar to stay active until the user quits
-  // explicitly with Cmd + Q.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
       app.quit()
     }
   })
-
-  // In this file you can include the rest of your app's specific main process
-  // code. You can also put them in separate files and require them here.
 }
 
 const quit = async () => {
+  isQuitting = true
+
   await statusWorker.destroy()
-
   await snapshotWorker.destroy()
-
   await worker.destroy()
-
   await node.destroy()
-
   await fsHandle.destroy()
+  await settings.destroy()
 
   if (preventSleepId !== null) {
     powerSaveBlocker.stop(preventSleepId)
@@ -321,10 +278,19 @@ const quit = async () => {
   if (mainWindow !== null) {
     mainWindow.destroy()
   }
+  if (updateWindow !== null) {
+    updateWindow.destroy()
+  }
+  if (tray !== null) {
+    tray.destroy()
+    tray = null
+  }
+
   globalShortcut.unregisterAll()
   app.quit()
-  log.debug('Quit')
+  log.info('Quit')
 }
+
 const showExitConfirmation = () => {
   const options = {
     icon: icon,

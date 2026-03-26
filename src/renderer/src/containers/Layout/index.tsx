@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 import { LayoutWrapper } from '@renderer/components/Layout/Layout'
 import React, { PropsWithChildren } from 'react'
 import { Header } from './Header'
-import { Footer } from './Footer'
 import { BodyComponent } from '@renderer/components/Layout/Body'
 
 type AppLayoutPropsT = PropsWithChildren
@@ -27,7 +26,7 @@ export const AppLayout: React.FC<AppLayoutPropsT> = ({ children }) => {
     <LayoutWrapper>
       <Header />
       <BodyComponent>{children}</BodyComponent>
-      <Footer />
+      {/* <Footer /> */}
     </LayoutWrapper>
   )
 }

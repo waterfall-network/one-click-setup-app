@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,34 +23,59 @@ import {
   appendFile,
   rm,
   unlink,
+  rename,
+  copyFile,
+  mkdtemp,
+  chmod,
   constants
 } from 'node:fs/promises'
+import * as fs from 'node:fs'
 import { join } from 'path'
 import * as net from 'node:net'
 import * as os from 'node:os'
 import log from 'electron-log/node'
 import * as https from 'node:https'
+import * as http from 'node:http'
+import * as crypto from 'node:crypto'
+import { URL } from 'node:url'
+import { setTimeout as sleep } from 'node:timers/promises'
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export const checkOrCreateDir = async (dirPath: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await access(dirPath, constants.F_OK)
     await access(dirPath, constants.R_OK | constants.W_OK)
+    log.debug('fs:check-or-create-dir:exists', { dirPath, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
     const nodeError = error as NodeJS.ErrnoException
     if (nodeError.code === 'ENOENT') {
       try {
         await mkdir(dirPath, { recursive: true })
+        log.debug('fs:check-or-create-dir:created', {
+          dirPath,
+          durationMs: Date.now() - startedAt
+        })
         return true
-      } catch (mkdirError) {
-        log.error('Not permissions to create dir:', dirPath)
+      } catch {
+        log.error('fs:check-or-create-dir:create-failed', {
+          dirPath,
+          durationMs: Date.now() - startedAt
+        })
         return false
       }
     } else if (nodeError.code === 'EACCES') {
-      log.error('Not permissions to access dir:', dirPath)
+      log.error('fs:check-or-create-dir:access-denied', { dirPath })
       return false
     } else {
-      log.error('Other error:', dirPath)
+      log.error('fs:check-or-create-dir:failed', {
+        dirPath,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
   }
   return false
@@ -77,16 +102,27 @@ export const checkFile = async (filePath: string): Promise<boolean> => {
   try {
     await readFile(filePath, { encoding: 'utf-8' })
     return true
-  } catch (error) {
+  } catch {
     return false
   }
 }
 
 export const appendToFile = async (filePath: string, data: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await appendFile(filePath, data)
+    log.debug('fs:append-to-file:success', {
+      filePath,
+      bytes: data.length,
+      durationMs: Date.now() - startedAt
+    })
     return true
   } catch (error) {
+    log.error('fs:append-to-file:failed', {
+      filePath,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
@@ -109,17 +145,19 @@ const _checkPortHost = async (port: number, address: string): Promise<boolean> =
 }
 export const checkPort = async (port: number): Promise<boolean> => {
   const interfaces = os.networkInterfaces()
-  const checks: Promise<boolean>[] = [_checkPortHost(port, '0.0.0.0')]
+  const addresses: string[] = ['0.0.0.0']
   Object.values(interfaces).forEach((interfaceInfos) => {
     interfaceInfos?.forEach((info) => {
       if (info.family === 'IPv4') {
-        checks.push(_checkPortHost(port, info.address))
+        addresses.push(info.address)
       }
     })
   })
-  return Promise.all(checks).then((results) => {
-    return results.every((isAvailable) => isAvailable)
-  })
+  for (const address of addresses) {
+    const isAvailable = await _checkPortHost(port, address)
+    if (!isAvailable) return false
+  }
+  return true
 }
 
 export const checkSocket = async (ipcPath: string): Promise<boolean> => {
@@ -136,22 +174,56 @@ export const checkSocket = async (ipcPath: string): Promise<boolean> => {
   })
 }
 
+export const waitForSocket = async (
+  ipcPath: string,
+  maxAttempts = 40,
+  intervalMs = 500
+): Promise<boolean> => {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    if (await checkSocket(ipcPath)) {
+      return true
+    }
+    await sleep(intervalMs)
+  }
+  return false
+}
+
 export const deleteFolderRecursive = async (path: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await rm(path, { recursive: true, force: true })
+    log.debug('fs:delete-folder:success', { path, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
-    log.error('deleteFolderRecursive', error)
+    log.error('fs:delete-folder:failed', {
+      path,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
 
 export const deleteFile = async (filePath: string): Promise<boolean> => {
+  const startedAt = Date.now()
   try {
     await unlink(filePath)
+    log.debug('fs:delete-file:deleted', { filePath, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
-    log.error('deleteFile', error)
+    const nodeError = error as NodeJS.ErrnoException
+    if (nodeError.code === 'ENOENT') {
+      log.debug('fs:delete-file:missing', {
+        filePath,
+        durationMs: Date.now() - startedAt
+      })
+      return true
+    }
+    log.error('fs:delete-file:failed', {
+      filePath,
+      error: getErrorMessage(error),
+      durationMs: Date.now() - startedAt
+    })
     return false
   }
 }
@@ -171,6 +243,7 @@ export const deleteFilesByCoordinatorPublicKeys = async (
   publicKeys: PublicKey[]
 ): Promise<RemovePublicKeyResponse[]> => {
   const results: RemovePublicKeyResponse[] = []
+  const startedAt = Date.now()
   try {
     const files = await readdir(dirPath)
     for (const file of files) {
@@ -185,7 +258,10 @@ export const deleteFilesByCoordinatorPublicKeys = async (
           results.push({ id: publicKeyObject.id, status: true })
         }
       } catch (error) {
-        log.error('deleteFilesByCoordinatorPublicKeys', `Error processing file ${file}:`, error)
+        log.error('fs:delete-coordinator-files:process-file-failed', {
+          file,
+          error: getErrorMessage(error)
+        })
       }
     }
     publicKeys.forEach((pk) => {
@@ -194,8 +270,17 @@ export const deleteFilesByCoordinatorPublicKeys = async (
       }
     })
   } catch (error) {
-    log.error('deleteFilesByCoordinatorPublicKeys', 'Error reading directory:', error)
+    log.error('fs:delete-coordinator-files:read-dir-failed', {
+      dirPath,
+      error: getErrorMessage(error)
+    })
   }
+  log.debug('fs:delete-coordinator-files:completed', {
+    dirPath,
+    requested: publicKeys.length,
+    processed: results.length,
+    durationMs: Date.now() - startedAt
+  })
   return results
 }
 
@@ -206,6 +291,7 @@ export const deleteFilesByValidatorPublicKeys = async (
 ): Promise<RemovePublicKeyResponse[]> => {
   const results: RemovePublicKeyResponse[] = []
   const filesToDeleteIndexes: number[] = []
+  const startedAt = Date.now()
 
   try {
     const files = await readdir(dirPath)
@@ -217,11 +303,10 @@ export const deleteFilesByValidatorPublicKeys = async (
           results.push({ id: key.id, status: true })
           filesToDeleteIndexes.push(index)
         } catch (error) {
-          log.error(
-            'deleteFilesByValidatorPublicKeys',
-            `Error deleting file: ${fileToDelete}`,
-            error
-          )
+          log.error('fs:delete-validator-files:delete-file-failed', {
+            file: fileToDelete,
+            error: getErrorMessage(error)
+          })
           results.push({ id: key.id, status: false })
         }
       } else {
@@ -239,8 +324,18 @@ export const deleteFilesByValidatorPublicKeys = async (
       await writeFile(passwordFilePath, passwordsArray.join('\n'))
     }
   } catch (error) {
-    console.error('deleteFilesByValidatorPublicKeys', 'Error processing:', error)
+    log.error('fs:delete-validator-files:failed', {
+      dirPath,
+      error: getErrorMessage(error)
+    })
   }
+  log.debug('fs:delete-validator-files:completed', {
+    dirPath,
+    requested: publicKeys.length,
+    processed: results.length,
+    passwordEntriesRemoved: filesToDeleteIndexes.length,
+    durationMs: Date.now() - startedAt
+  })
   return results
 }
 
@@ -267,7 +362,120 @@ export const getPublicIP = async (): Promise<string> => {
 export const readJSON = async (filePath: string): Promise<string> => {
   try {
     return await readFile(filePath, { encoding: 'utf-8' })
-  } catch (error) {
+  } catch {
     return ''
+  }
+}
+
+export const fetchJSONFromUrl = async <T>(url: string): Promise<T> => {
+  const timeoutMs = 15000
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      redirect: 'follow',
+      signal: controller.signal
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} fetching ${url}`)
+    }
+    return (await response.json()) as T
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export const createTempDir = async (prefix: string): Promise<string> => {
+  return await mkdtemp(join(os.tmpdir(), prefix))
+}
+
+export const copyFileReplace = async (sourcePath: string, targetPath: string): Promise<void> => {
+  await copyFile(sourcePath, targetPath)
+}
+
+export const fileExists = async (filePath: string): Promise<boolean> => {
+  try {
+    await access(filePath, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const computeFileSha512 = async (filePath: string): Promise<string> => {
+  return await new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha512')
+    const stream = fs.createReadStream(filePath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', reject)
+  })
+}
+
+export const downloadToFileAtomic = async (
+  url: string,
+  destPath: string,
+  onProgress?: (received: number, total: number) => void,
+  redirectsLeft = 5
+): Promise<void> => {
+  if (redirectsLeft < 0) {
+    throw new Error(`Too many redirects downloading ${url}`)
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const parsed = new URL(url)
+    const client = parsed.protocol === 'https:' ? https : http
+    const req = client.get(url, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        void downloadToFileAtomic(res.headers.location, destPath, onProgress, redirectsLeft - 1)
+          .then(resolve)
+          .catch(reject)
+        return
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} downloading ${url}`))
+        return
+      }
+
+      const total = parseInt(res.headers['content-length'] ?? '0', 10)
+      let received = 0
+      const tmpPath = `${destPath}.tmp`
+      const stream = fs.createWriteStream(tmpPath)
+
+      res.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        stream.write(chunk)
+        onProgress?.(received, total)
+      })
+
+      res.on('end', () => {
+        stream.end()
+        stream.on('close', () => {
+          void rename(tmpPath, destPath)
+            .then(() => resolve())
+            .catch((err) => {
+              void unlink(tmpPath).catch(() => {})
+              reject(err)
+            })
+        })
+        stream.on('error', (err) => {
+          void unlink(tmpPath).catch(() => {})
+          reject(err)
+        })
+      })
+
+      res.on('error', (err) => {
+        stream.destroy()
+        void unlink(tmpPath).catch(() => {})
+        reject(err)
+      })
+    })
+    req.on('error', reject)
+  })
+}
+
+export const makeFileExecutableIfNeeded = async (filePath: string): Promise<void> => {
+  if (process.platform !== 'win32') {
+    await chmod(filePath, 0o755)
   }
 }

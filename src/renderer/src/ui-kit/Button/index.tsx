@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,16 @@
  *
  */
 import React from 'react'
-import { Button, ButtonProps } from 'antd'
+import { Button as AntdButton, ButtonProps } from 'antd'
 import { SizeType } from 'antd/es/config-provider/SizeContext'
-import { StyledArrowButton, StyledButton, StyledLink, StyledTextButton } from './styles'
+import {
+  StyledArrowButton,
+  StyledBaseButton,
+  StyledButton,
+  StyledIconButton,
+  StyledLink,
+  StyledTextButton
+} from './styles'
 import { ArrowRightOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 
 const IconButton: React.FC<
@@ -27,7 +34,7 @@ const IconButton: React.FC<
     icon: React.ReactNode
     onClick?: (e: React.MouseEvent<HTMLElement, MouseEvent>) => void
   } & ButtonProps
-> = ({ ...props }) => <Button type="primary" shape="circle" size="small" {...props} />
+> = ({ ...props }) => <StyledIconButton type="primary" shape="circle" size="small" {...props} />
 
 const ArrowedButton: React.FC<{
   onClick?: () => void
@@ -51,9 +58,11 @@ const ButtonPrimary: React.FC<ButtonProps> = ({ children, href, ...props }) => {
 }
 
 const ButtonTextPrimary: React.FC<ButtonProps> = ({ children, ...props }) => (
-  <StyledTextButton type="text" {...props}>
-    {children}
-  </StyledTextButton>
+  <StyledTextButton {...props}>{children}</StyledTextButton>
 )
 
-export { ButtonPrimary, IconButton, ArrowedButton, Button, ButtonTextPrimary }
+const Button: React.FC<ButtonProps> = ({ children, ...props }) => (
+  <StyledBaseButton {...props}>{children}</StyledBaseButton>
+)
+
+export { ButtonPrimary, IconButton, ArrowedButton, Button, ButtonTextPrimary, AntdButton }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,48 @@ import { ipcRenderer } from 'electron'
 import { addParams, ActionTxType } from '../main/worker'
 export const worker = {
   genMnemonic: () => ipcRenderer.invoke('worker:genMnemonic'),
-  getAll: () => ipcRenderer.invoke('worker:getAll'),
+  getAll: (params?: {
+    page?: number
+    limit?: number
+    filters?: {
+      status?: string[]
+      nodeId?: (number | bigint)[]
+      rewardMin?: number
+      rewardMax?: number
+    }
+  }) => ipcRenderer.invoke('worker:getAll', params),
   getById: (id: number) => ipcRenderer.invoke('worker:getById', id),
-  getAllByNodeId: (id: number) => ipcRenderer.invoke('worker:getAllByNodeId', id),
+  getAllByNodeId: (
+    id: number,
+    params?: {
+      page?: number
+      limit?: number
+      filters?: {
+        status?: string[]
+        nodeId?: (number | bigint)[]
+        rewardMin?: number
+        rewardMax?: number
+      }
+    }
+  ) => ipcRenderer.invoke('worker:getAllByNodeId', id, params),
+  getCount: (options?: {
+    nodeId?: number | bigint
+    filters?: {
+      status?: string[]
+      nodeId?: (number | bigint)[]
+      rewardMin?: number
+      rewardMax?: number
+    }
+  }) => ipcRenderer.invoke('worker:getCount', options),
+  getStats: (options?: {
+    nodeId?: number | bigint
+    filters?: {
+      status?: string[]
+      nodeId?: (number | bigint)[]
+      rewardMin?: number
+      rewardMax?: number
+    }
+  }) => ipcRenderer.invoke('worker:getStats', options),
   add: (data: addParams) => ipcRenderer.invoke('worker:add', data),
   getActionTx: (action: ActionTxType, id: number, amount?: string) =>
     ipcRenderer.invoke('worker:getActionTx', action, id, amount),
@@ -31,5 +70,8 @@ export const worker = {
 
   getDepositDataCount: (path: string) => ipcRenderer.invoke('worker:getDepositDataCount', path),
   getDelegateRules: (path: string) => ipcRenderer.invoke('worker:getDelegateRules', path),
-  getBalance: (address: string) => ipcRenderer.invoke('worker:getBalance', address)
+  getBalance: (nodeId: number, address: string) =>
+    ipcRenderer.invoke('worker:getBalance', nodeId, address),
+  getTransactionCount: (nodeId: number, address: string) =>
+    ipcRenderer.invoke('worker:getTransactionCount', nodeId, address)
 }

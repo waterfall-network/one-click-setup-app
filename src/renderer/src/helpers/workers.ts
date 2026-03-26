@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -178,7 +178,7 @@ export const getAddWorkerSteps = (node?: Node, mode: 'add' | 'import' = 'add') =
   }
 }
 
-const StatusLabels = {
+export const StatusLabels = {
   [Status.pending_initialized]: 'Pending Initialized',
   [Status.pending_activation]: 'Pending Activation',
   [Status.active]: 'Active',
@@ -187,7 +187,7 @@ const StatusLabels = {
 }
 
 export const getStatusLabel = (worker: Worker) => {
-  return StatusLabels[getStatus(worker)]
+  return StatusLabels[getStatus(worker)] || StatusLabels[Status.pending_initialized]
 }
 export const getStatus = (worker: Worker) => {
   if (
@@ -262,7 +262,7 @@ export const verifyMnemonic = (memo: string, memoHash: string) => {
 
 export const geFromAddress = (type: ActionTxType, worker: Worker): string[] => {
   if (!worker.delegate) {
-    return [`0x${worker.withdrawalAddress.toLowerCase().replace('0x', '')}`]
+    return [normalizeAddress(worker.withdrawalAddress)].filter(Boolean)
   }
 
   try {
@@ -276,16 +276,16 @@ export const geFromAddress = (type: ActionTxType, worker: Worker): string[] => {
       const currentEpoch = worker.node.coordinatorFinalizedEpoch
       if (parseInt(worker.validatorActivationEpoch) + delegate.trial_period * 32 < currentEpoch) {
         if (type === ActionTxType.withdraw) {
-          return delegate.trial_rules.withdrawal.map((a: string) => a.toLowerCase())
+          return delegate.trial_rules.withdrawal.map(normalizeAddress).filter(Boolean)
         } else if (type === ActionTxType.deActivate) {
-          return delegate.trial_rules.exit.map((a: string) => a.toLowerCase())
+          return delegate.trial_rules.exit.map(normalizeAddress).filter(Boolean)
         }
       }
     }
     if (type === ActionTxType.withdraw) {
-      return delegate.rules.withdrawal.map((a: string) => a.toLowerCase())
+      return delegate.rules.withdrawal.map(normalizeAddress).filter(Boolean)
     } else if (type === ActionTxType.deActivate) {
-      return delegate.rules.exit.map((a: string) => a.toLowerCase())
+      return delegate.rules.exit.map(normalizeAddress).filter(Boolean)
     }
   } catch (e) {
     console.error(e)
@@ -300,24 +300,43 @@ export const getMassFromAddress = (
   workers: Worker[]
 ): null | string[] => {
   if (!type || workers.length === 0) return []
-  return getCommonInnerArray(workers.map((w) => geFromAddress(type, w)))
+  if (type === ActionTxType.activate || type === ActionTxType.remove) return []
+  return getSharedAddresses(workers.map((w) => geFromAddress(type, w)))
 }
 
-function arraysEqual(arr1: string[], arr2: string[]): boolean {
-  if (arr1.length !== arr2.length) return false
-  for (let i = 0; i < arr1.length; i++) {
-    if (arr1[i] !== arr2[i]) return false
+function normalizeAddress(raw: string | undefined | null): string {
+  const value = (raw || '').trim().toLowerCase()
+  if (!value) {
+    return ''
   }
-  return true
+
+  return value.startsWith('0x') ? value : `0x${value}`
 }
 
-function getCommonInnerArray(arr: string[][]): string[] | null {
-  if (arr.length === 0) return []
-  const firstArray = arr[0]
-  for (let i = 1; i < arr.length; i++) {
-    if (!arraysEqual(firstArray, arr[i])) {
+function getSharedAddresses(arrays: string[][]): string[] | null {
+  if (arrays.length === 0) return []
+
+  let shared = new Set(arrays[0].filter(Boolean))
+
+  for (let i = 1; i < arrays.length; i++) {
+    const current = new Set(arrays[i].filter(Boolean))
+    shared = new Set(Array.from(shared).filter((address) => current.has(address)))
+    if (shared.size === 0) {
       return null
     }
   }
-  return firstArray
+
+  const result = Array.from(shared)
+  result.sort()
+
+  if (result.length === 0) {
+    return null
+  }
+
+  // Keep deterministic order for UI and equality checks.
+  return result
+}
+
+export const getStakeAmount = (): number => {
+  return parseFloat('32000')
 }

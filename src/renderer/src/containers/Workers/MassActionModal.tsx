@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,19 @@
  *
  */
 import React, { useCallback } from 'react'
-import { Input } from 'antd'
 import { Modal } from '../../ui-kit/Modal'
 import { Alert } from '../../ui-kit/Alert'
 import { useMassAction } from '../../hooks/workers'
 import { Text } from '@renderer/ui-kit/Typography'
-import { styled } from 'styled-components'
-import { Flex, Tooltip, Progress } from 'antd'
+import { keyframes, styled } from 'styled-components'
+import { Flex } from '@renderer/ui-kit/Flex'
 import { ActionTxType } from '../../types/workers'
 import { Worker } from '@renderer/types/workers'
 import { getMassFromAddress } from '../../helpers/workers'
+import { Input } from '@renderer/ui-kit/Input'
+import { Progress } from '@renderer/ui-kit/Progress'
+import { Tooltip } from '@renderer/ui-kit/Tooltip'
+import { useTheme } from 'styled-components'
 
 type ActionModalProps = {
   type: ActionTxType | null
@@ -34,29 +37,33 @@ type ActionModalProps = {
 
 const getTitle = (type, count) => {
   if (type === ActionTxType.activate) {
-    return `Mass Activate ${count} Validators`
+    return `Bulk Activate (${count} validators)`
   } else if (type === ActionTxType.deActivate) {
-    return `Mass Deactivate ${count} Validators`
+    return `Bulk Deactivate (${count} validators)`
   } else if (type === ActionTxType.remove) {
-    return `Mass Remove ${count} Validators`
+    return `Bulk Delete (${count} validators)`
   }
 
-  return `Mass Withdraw ${count} Validators`
+  return `Bulk Withdraw (${count} validators)`
 }
-const getButtonTitle = (type, isClose) => {
+
+const getActionName = (type: ActionTxType) => {
+  if (type === ActionTxType.activate) return 'Activate'
+  if (type === ActionTxType.deActivate) return 'Deactivate'
+  if (type === ActionTxType.remove) return 'Delete'
+  return 'Withdraw'
+}
+
+const getButtonTitle = (type: ActionTxType, isClose: boolean) => {
   if (isClose) {
-    return `Close`
-  } else if (type === ActionTxType.activate) {
-    return `Activate`
-  } else if (type === ActionTxType.deActivate) {
-    return `Deactivate`
-  } else if (type === ActionTxType.remove) {
-    return `Delete`
+    return 'Close'
   }
-  return `Withdraw`
+
+  return getActionName(type)
 }
 
 export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onClose }) => {
+  const theme = useTheme()
   const ids = workers ? workers.map((w) => w.id) : []
   const from = getMassFromAddress(type, workers || [])
   const {
@@ -80,7 +87,10 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
   const handleOk = useCallback(async () => {
     if (count.success + count.failed === ids.length) {
       handleClose()
-    } else if (type === ActionTxType.remove) {
+      return
+    }
+
+    if (type === ActionTxType.remove) {
       await onRemove(handleClose, ids)
     } else if (type === ActionTxType.activate) {
       await onActivate(ids)
@@ -89,9 +99,10 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
     } else if (type === ActionTxType.withdraw) {
       await onWithdraw(ids)
     }
-  }, [type, ids, onRemove, handleClose, count])
+  }, [type, ids, onRemove, onActivate, onDeActivate, onWithdraw, handleClose, count])
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => onChangePk(e.target.value)
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    onChangePk(e.target.value, workers && workers.length > 0 ? workers[0].nodeId : null)
 
   if (!type || !ids || ids.length === 0) {
     return null
@@ -104,11 +115,11 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
     if (pk) {
       try {
         if (type === ActionTxType.withdraw || type === ActionTxType.deActivate) {
-          disabled = !from || !from.includes(pk.address.toLowerCase())
+          disabled = !from || !from.includes(pk.address.toLowerCase()) || pk.hasPendingTransactions
         } else {
-          disabled = false
+          disabled = pk.hasPendingTransactions
         }
-      } catch (e) {
+      } catch {
         disabled = true
       }
     }
@@ -127,54 +138,114 @@ export const MassActionModal: React.FC<ActionModalProps> = ({ type, workers, onC
       width={800}
     >
       {error ? (
-        <Alert message={error} type="error" />
+        <Alert title={error} type="error" />
       ) : (
-        <div>
+        <ModalBody>
+          <AnimatedSection $delay={0}>
+            <SummaryPanel>
+              <SummaryRow>
+                <SummaryLabel size="sm">Operation</SummaryLabel>
+                <Text>{getActionName(type)}</Text>
+              </SummaryRow>
+              <SummaryRow>
+                <SummaryLabel size="sm">Selected validators</SummaryLabel>
+                <Text>{ids.length}</Text>
+              </SummaryRow>
+            </SummaryPanel>
+          </AnimatedSection>
+
           {type === ActionTxType.remove && (
-            <Alert message="Are you sure you want to remove this Validators?" type="error" />
+            <Alert title="Are you sure you want to delete the selected validators?" type="error" />
           )}
-          {from === null && (
-            <Alert message="You have selected incompatible Validators" type="error" />
-          )}
+          {(type === ActionTxType.withdraw || type === ActionTxType.deActivate) &&
+            from === null && (
+              <Alert
+                title="Selected validators are incompatible for this bulk action."
+                type="error"
+              />
+            )}
 
           {from !== null && type !== ActionTxType.remove && type !== ActionTxType.activate && (
-            <TextRow label="From" value={from.join(', ')} />
+            <AnimatedSection $delay={1}>
+              <SectionCard>
+                <FieldLabel>From addresses</FieldLabel>
+                <AddressList>
+                  {from.map((address) => (
+                    <AddressChip key={address}>{address}</AddressChip>
+                  ))}
+                </AddressList>
+              </SectionCard>
+            </AnimatedSection>
           )}
 
           {type !== ActionTxType.remove && (
-            <PKStyle>
-              <StyledInput
-                placeholder="Type Private Key here"
-                onChange={onChange}
-                value={pk.key}
-                type="password"
-                status={pk.isCorrect === false ? 'error' : ''}
-              />
-              {pk.isCorrect === false && (
-                <Text color="red" size="sm">
-                  Incorrect Private Key
-                </Text>
-              )}
-              {pk.address && <TextRow label="Address" value={pk.address} type="small" />}
-              {pk.balance && <TextRow label="Balance" value={`${pk.balance} WATER`} type="small" />}
-            </PKStyle>
+            <AnimatedSection $delay={2}>
+              <SectionCard>
+                <FieldLabel>Signer private key</FieldLabel>
+                <StyledInput
+                  placeholder="Enter private key"
+                  onChange={onChange}
+                  value={pk.key}
+                  type="password"
+                  status={pk.isCorrect === false ? 'error' : ''}
+                />
+                <FieldHint>Used to derive the signer address for this bulk action.</FieldHint>
+
+                {pk.isCorrect === false && (
+                  <Text color="red" size="sm">
+                    Invalid private key
+                  </Text>
+                )}
+
+                {(pk.address || pk.balance) && (
+                  <SignerInfoCard>
+                    {pk.address && (
+                      <SignerInfoRow>
+                        <SignerInfoLabel>Address</SignerInfoLabel>
+                        <SignerAddressValue title={pk.address}>{pk.address}</SignerAddressValue>
+                      </SignerInfoRow>
+                    )}
+                    {pk.balance && (
+                      <SignerInfoRow>
+                        <SignerInfoLabel>Balance</SignerInfoLabel>
+                        <SignerInfoValue>{pk.balance} WATER</SignerInfoValue>
+                      </SignerInfoRow>
+                    )}
+                  </SignerInfoCard>
+                )}
+
+                {pk.hasPendingTransactions && (
+                  <WarningText color="red" size="sm">
+                    Wait for pending transactions to complete before sending new ones.
+                  </WarningText>
+                )}
+              </SectionCard>
+            </AnimatedSection>
           )}
           {(count.success > 0 || count.failed > 0 || status) && (
-            <>
-              <Tooltip
-                title={`${count.success} success / ${count.failed} failed / ${ids.length - count.success - count.failed} in queue`}
-              >
-                <Progress
-                  strokeColor={'red'}
-                  type="line"
-                  size={[400, 10]}
-                  percent={Math.round(((count.success + count.failed) * 100) / ids.length)}
-                  success={{ percent: Math.round((count.success * 100) / ids.length) }}
-                />
-              </Tooltip>
-            </>
+            <AnimatedSection $delay={3}>
+              <ProgressCard>
+                <ProgressHeader>
+                  <FieldLabel>Execution progress</FieldLabel>
+                  <ProgressStats>
+                    {count.success} successful, {count.failed} failed,{' '}
+                    {ids.length - count.success - count.failed} queued
+                  </ProgressStats>
+                </ProgressHeader>
+                <Tooltip
+                  title={`${count.success} successful / ${count.failed} failed / ${ids.length - count.success - count.failed} queued`}
+                >
+                  <StyledProgress
+                    strokeColor={theme.palette.text.blue}
+                    type="line"
+                    percent={Math.round(((count.success + count.failed) * 100) / ids.length)}
+                    success={{ percent: Math.round((count.success * 100) / ids.length) }}
+                  />
+                </Tooltip>
+              </ProgressCard>
+            </AnimatedSection>
           )}
-        </div>
+        </ModalBody>
       )}
     </Modal>
   )
@@ -205,12 +276,159 @@ const TextItem = styled(Flex)<{ type: 'small' | 'default' }>`
   margin-top: ${({ type }) => (type === 'small' ? 0 : 20)}px;
 `
 const StyledInput = styled(Input)`
-  margin-top: 20px;
   width: 100%;
-  max-width: 360px;
 `
 
-const PKStyle = styled(Flex).attrs({ vertical: true })`
-  margin-top: 20px;
-  margin-bottom: 20px;
+const WarningText = styled(Text)`
+  margin-top: 2px;
+`
+
+const ModalBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+`
+
+const sectionReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const AnimatedSection = styled.div<{ $delay: number }>`
+  animation: ${sectionReveal} 180ms ease-out both;
+  animation-delay: ${({ $delay }) => `${$delay * 45}ms`};
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`
+
+const SummaryPanel = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.card.headerBorder};
+  background: ${({ theme }) => theme.palette.semantic.tabs.contentBackground};
+`
+
+const SummaryRow = styled.div`
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const SummaryLabel = styled(Text)`
+  color: ${({ theme }) => theme.palette.text.gray};
+`
+
+const ProgressCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.button.ghostBorder};
+  background: ${({ theme }) => theme.palette.semantic.tabs.contentBackground};
+`
+
+const ProgressHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`
+
+const ProgressStats = styled.div`
+  font-size: 13px;
+  color: ${({ theme }) => theme.palette.text.gray};
+`
+
+const StyledProgress = styled(Progress)`
+  width: 100%;
+  margin: 0;
+`
+
+const SectionCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.card.headerBorder};
+  background: ${({ theme }) => theme.palette.semantic.tabs.contentBackground};
+`
+
+const FieldLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.palette.text.gray};
+`
+
+const FieldHint = styled.div`
+  font-size: 13px;
+  color: ${({ theme }) => theme.palette.text.gray};
+`
+
+const AddressList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`
+
+const AddressChip = styled.div`
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.button.ghostBorder};
+  background: ${({ theme }) => theme.palette.semantic.button.ghostHoverBackground};
+  font-size: 13px;
+  line-height: 1.3;
+  word-break: break-all;
+`
+
+const SignerInfoCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid ${({ theme }) => theme.palette.semantic.card.headerBorder};
+  background: ${({ theme }) => theme.palette.semantic.app.inputBackground};
+`
+
+const SignerInfoRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const SignerInfoLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.palette.text.gray};
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`
+
+const SignerInfoValue = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.palette.text.black};
+`
+
+const SignerAddressValue = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.palette.text.black};
+  line-height: 1.35;
+  word-break: break-all;
 `

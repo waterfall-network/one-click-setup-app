@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 import { useMemo, useState } from 'react'
 import { PageBody } from '@renderer/components/Page/Body'
 import { PageHeader } from '@renderer/components/Page/Header'
-import { Flex, Layout, Popover } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { IconButton } from '@renderer/ui-kit/Button'
+import { Popover } from '@renderer/ui-kit/Popover'
 import {
   PauseOutlined,
   CaretRightOutlined,
@@ -34,8 +36,9 @@ import { NodeViewValidator } from '@renderer/containers/Node/NodeViewValidator'
 import { NodeViewWorkers } from '@renderer/containers/Node/NodeViewWorkers'
 import { NodeViewStatistics } from '@renderer/containers/Node/NodeViewStatistics'
 import { useGetById, useControl } from '@renderer/hooks/node'
-import { Node, DownloadStatus, Action, Type } from '@renderer/types/node'
-import { getActions } from '@renderer/helpers/node'
+import { useMonitoringInterval } from '@renderer/hooks/settings'
+import { Node, DownloadStatus, Action, Type, Status } from '@renderer/types/node'
+import { getActions, getNodeStatus } from '@renderer/helpers/node'
 import { getViewLink } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { RemoveModal } from '../../containers/Node/RemoveModal'
@@ -92,14 +95,22 @@ const getTabs = (node?: Node) => {
 export const NodeViewPage = () => {
   const nodeId = useParams()?.id
   const [removeId, setRemoveId] = useState<string | undefined>(undefined)
-  const { isLoading, data: node, error } = useGetById(nodeId, { refetchInterval: 1000 })
+  const [activeKey, setActiveKey] = useState('1')
+  const monitoringInterval = useMonitoringInterval()
+  const {
+    isLoading,
+    data: node,
+    error
+  } = useGetById(nodeId, {
+    refetchInterval: monitoringInterval
+  })
   const { onStop, onRestart, onStart, status } = useControl(nodeId)
 
   const tabs = useMemo(() => getTabs(node), [node])
-  const [activeKey, setActiveKey] = useState(tabs[0].key)
   const onTabChange = (newActiveKey: string) => setActiveKey(newActiveKey)
 
   const actions = getActions(node)
+  const nodeStatus = node ? getNodeStatus(node) : null
   const breadcrumb = [
     {
       title: 'Nodes',
@@ -119,6 +130,7 @@ export const NodeViewPage = () => {
             {actions[Action.stop] && (
               <Popover content="Stop" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<PauseOutlined />}
                   shape="default"
                   size="middle"
@@ -130,6 +142,7 @@ export const NodeViewPage = () => {
             {actions[Action.start] && (
               <Popover content="Run" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<CaretRightOutlined />}
                   shape="default"
                   size="middle"
@@ -141,6 +154,7 @@ export const NodeViewPage = () => {
             {actions[Action.restart] && (
               <Popover content="Restart" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<ReloadOutlined />}
                   shape="default"
                   size="middle"
@@ -160,7 +174,7 @@ export const NodeViewPage = () => {
               placement="bottom"
             >
               <IconButton
-                disabled={!actions[Action.remove]}
+                disabled={nodeStatus === Status.starting || !actions[Action.remove]}
                 icon={<DeleteOutlined />}
                 shape="default"
                 size="middle"
@@ -172,7 +186,7 @@ export const NodeViewPage = () => {
         }
       />
       <PageBody isLoading={isLoading}>
-        {error && <Alert message={error.message} type="error" />}
+        {error && <Alert title={error.message} type="error" />}
         <Tabs items={tabs} onChange={onTabChange} activeKey={activeKey} />
         <RemoveModal
           id={removeId}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  *
  */
+import React from 'react'
 import { AppLayout } from './containers/Layout'
 import { AppNavigator } from './containers/Navigator/AppNavigator'
-import { ThemeProvider } from 'styled-components'
-import { theme } from './ui-kit/theme'
 import { HashRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AppThemeProvider } from './providers/AppThemeProvider'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,16 +28,23 @@ const queryClient = new QueryClient({
     }
   }
 })
-function App(): JSX.Element {
+
+const AppContent = (): React.JSX.Element => {
+  return (
+    <AppThemeProvider>
+      <AppLayout>
+        <AppNavigator />
+      </AppLayout>
+    </AppThemeProvider>
+  )
+}
+
+function App(): React.JSX.Element {
   return (
     <HashRouter>
-      <ThemeProvider theme={theme}>
-        <QueryClientProvider client={queryClient}>
-          <AppLayout>
-            <AppNavigator />
-          </AppLayout>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
     </HashRouter>
   )
 }

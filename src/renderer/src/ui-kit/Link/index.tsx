@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,29 @@ export const Link: React.FC<LinkProps> = ({ children, ...props }) => {
 
 const StyledLink = styled(RouterLink)`
   text-decoration: none !important;
+  border-bottom: none !important;
   user-select: none !important;
+  color: ${({ theme }) => theme.palette.semantic.link.default};
+  font-weight: 600;
+  transition: color 0.16s ease;
+
   &:hover {
-    border-bottom: none;
+    color: ${({ theme }) => theme.palette.semantic.link.hover};
+    text-decoration: none !important;
+    border-bottom: none !important;
   }
-  color: ${({ theme }) => theme.palette.text.blue};
+
+  &:active {
+    color: ${({ theme }) => theme.palette.semantic.link.active};
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
+
+  &:focus-visible {
+    border-radius: 4px;
+    outline: 2px solid ${({ theme }) => theme.palette.semantic.link.focusRing};
+    outline-offset: 2px;
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
 `

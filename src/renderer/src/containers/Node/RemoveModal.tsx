@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,11 @@
  *
  */
 import React from 'react'
-import { Checkbox } from 'antd'
 import { Modal } from '../../ui-kit/Modal'
 import { Alert } from '../../ui-kit/Alert'
 import { Title, Text } from '../../ui-kit/Typography'
 import { useRemove } from '../../hooks/node'
-import { CheckboxChangeEvent } from 'antd/es/checkbox'
+import { Checkbox, type CheckboxProps } from '@renderer/ui-kit/Checkbox'
 
 type RemoveModalProps = {
   onClose: () => void
@@ -43,7 +42,7 @@ export const RemoveModal: React.FC<RemoveModalProps> = ({ id, onClose, isRemoveF
     await onRemove(handleClose)
   }
 
-  const onChange = (e: CheckboxChangeEvent) => onChangeWithData(e.target.checked)
+  const onChange: CheckboxProps['onChange'] = (e) => onChangeWithData(e.target.checked)
 
   return (
     <Modal
@@ -57,7 +56,7 @@ export const RemoveModal: React.FC<RemoveModalProps> = ({ id, onClose, isRemoveF
       width={800}
     >
       <div>
-        <Alert message="Are you sure you want to remove this Node?" type="error" />
+        <Alert title="Are you sure you want to remove this Node?" type="error" />
         {isRemoveFolder && (
           <Title>
             <Checkbox onChange={onChange} checked={withData}>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-import { Select } from 'antd'
 import React from 'react'
 import { styled } from 'styled-components'
+import { Select } from '@renderer/ui-kit/Select'
 
 type PropsT = {
   options: { label?: string; value?: string }[]

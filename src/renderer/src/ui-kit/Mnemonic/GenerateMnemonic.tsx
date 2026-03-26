@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-import { Input } from 'antd'
 import React from 'react'
 import { styled } from 'styled-components'
+import { Input } from '@renderer/ui-kit/Input'
 
 type GenerateMnemonicPropsT = {
   phrase: string[]
@@ -60,7 +60,7 @@ const PhraseInput = styled(Input)`
   width: 90%;
   text-align: center;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid ${({ theme }) => theme.palette.semantic.mnemonic.inputBorder};
   border-radius: 0;
   outline: none;
   box-shadow: unset !important;

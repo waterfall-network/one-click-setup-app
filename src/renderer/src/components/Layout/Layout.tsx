@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 import React, { PropsWithChildren } from 'react'
 import styled from 'styled-components'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 
 type LayoutProps = PropsWithChildren
 
@@ -26,4 +26,5 @@ export const LayoutWrapper: React.FC<LayoutProps> = ({ children }) => {
 
 const StyledLayout = styled(Layout)`
   min-height: 100vh;
+  background: transparent !important;
 `

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,11 +32,22 @@ import {
 import LocalNode from '../node/local'
 import ProviderNode from '../node/provider'
 import crypto from 'crypto'
-import { getRPC, getStakeAmount, Network } from '../libs/env'
+import { getRPC, getRPCs, getStakeAmount } from '../libs/env'
 import { readJSON } from '../libs/fs'
 import { validateDelegateRules, validateDepositData } from '../helpers/worker'
 import { getWeb3 } from '../libs/web3'
 import { TransactionConfig } from 'web3-core'
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const getRpcLabel = (rpcUrl: string): string => {
+  try {
+    return new URL(rpcUrl).origin
+  } catch {
+    return rpcUrl
+  }
+}
 
 enum ErrorResults {
   NODE_NOT_FOUND = 'Node is Not Found',
@@ -58,6 +69,7 @@ export interface Response<T> {
   message?: ErrorResults
   data?: T
 }
+
 export interface Key {
   depositData: GetDepositDataResponse
   coordinatorKey: GetCoordinatorKeyStoreResponseType
@@ -111,12 +123,51 @@ class Worker {
     this.ipcMain.handle('worker:genMnemonic', () => this._genMnemonic())
     this.ipcMain.handle('worker:add', (_event: IpcMainInvokeEvent, data) => this._add(data))
     this.ipcMain.handle('worker:delete', (_event: IpcMainInvokeEvent, ids) => this._delete(ids))
-    this.ipcMain.handle('worker:getAll', () => this.workerModel.getAll({ withNode: true }))
+    this.ipcMain.handle(
+      'worker:getAll',
+      (
+        _event: IpcMainInvokeEvent,
+        params?: {
+          page?: number
+          limit?: number
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getAll({ withNode: true, ...params })
+    )
     this.ipcMain.handle('worker:getById', (_event: IpcMainInvokeEvent, id) =>
       this.workerModel.getById(id, { withNode: true })
     )
-    this.ipcMain.handle('worker:getAllByNodeId', (_event: IpcMainInvokeEvent, id) =>
-      this.workerModel.getByNodeId(id, { withNode: true })
+    this.ipcMain.handle(
+      'worker:getAllByNodeId',
+      (
+        _event: IpcMainInvokeEvent,
+        id,
+        params?: {
+          page?: number
+          limit?: number
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getByNodeId(id, { withNode: true, ...params })
+    )
+    this.ipcMain.handle(
+      'worker:getCount',
+      (
+        _event: IpcMainInvokeEvent,
+        options?: {
+          nodeId?: number | bigint
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getCount(options)
+    )
+    this.ipcMain.handle(
+      'worker:getStats',
+      (
+        _event: IpcMainInvokeEvent,
+        options?: {
+          nodeId?: number | bigint
+          filters?: { status?: string[]; nodeId?: (number | bigint)[] }
+        }
+      ) => this.workerModel.getStats(options)
     )
     this.ipcMain.handle('worker:getActionTx', (_event: IpcMainInvokeEvent, action, id, amount) =>
       this._getActionTx(action, id, amount)
@@ -130,8 +181,12 @@ class Worker {
     this.ipcMain.handle('worker:sendActionTx', (_event: IpcMainInvokeEvent, action, ids, pk) =>
       this._sendActionTx(action, ids, pk)
     )
-    this.ipcMain.handle('worker:getBalance', (_event: IpcMainInvokeEvent, address) =>
-      this._getBalance(address)
+    this.ipcMain.handle('worker:getBalance', (_event: IpcMainInvokeEvent, nodeId, address) =>
+      this._getBalance(nodeId, address)
+    )
+    this.ipcMain.handle(
+      'worker:getTransactionCount',
+      (_event: IpcMainInvokeEvent, nodeId, address) => this._getTransactionCount(nodeId, address)
     )
 
     return true
@@ -144,11 +199,14 @@ class Worker {
     this.ipcMain.removeHandler('worker:getAll')
     this.ipcMain.removeHandler('worker:getById')
     this.ipcMain.removeHandler('worker:getAllByNodeId')
+    this.ipcMain.removeHandler('worker:getCount')
+    this.ipcMain.removeHandler('worker:getStats')
     this.ipcMain.removeHandler('worker:getActionTx')
     this.ipcMain.removeHandler('worker:getDepositDataCount')
     this.ipcMain.removeHandler('worker:getDelegateRules')
     this.ipcMain.removeHandler('worker:sendActionTx')
     this.ipcMain.removeHandler('worker:getBalance')
+    this.ipcMain.removeHandler('worker:getTransactionCount')
   }
 
   private _genMnemonic() {
@@ -163,7 +221,6 @@ class Worker {
       }
     }
 
-    log.debug(data)
     if (data.depositData && data.delegateRules) {
       return this._addDelegate(data.nodeId, data.depositData, data.delegateRules)
     }
@@ -297,7 +354,7 @@ class Worker {
         }))
       const workers = this.workerModel.insert(newWorkers, nodeModel)
       return { status: 'success', data: workers }
-    } catch (err) {
+    } catch {
       return { status: 'error', data: [], message: ErrorResults.ADD_WORKER_FAILED }
     }
   }
@@ -367,39 +424,82 @@ class Worker {
     }
     return results
   }
+
   private async _sendActionTx(
     action: ActionTxType,
     ids: number[] | bigint[],
     pk: string
   ): Promise<boolean[] | ErrorResults> {
-    log.debug('_sendActionTx', action, ids)
+    log.info('worker:sendActionTx start', { action, requestedWorkers: ids.length })
     if (!action) {
       return ErrorResults.ACTION_NOT_FOUND
     }
     if (!ids || ids.length == 0 || !pk) {
       return ErrorResults.WORKER_NOT_FOUND
     }
-    const results = ids.map(() => false)
 
-    for (const id of ids) {
+    // Load all workers and validate
+    const workersData: Array<{ id: number | bigint; worker: WorkerModelType; index: number }> = []
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i]
       const worker = this.workerModel.getById(id, { withNode: true })
       if (!worker || !worker.node) {
-        log.error('no worker', worker)
+        log.warn('worker:sendActionTx worker not found', { workerId: id })
         continue
       }
-      log.debug(id)
-      try {
-        const web3 = getWeb3(getRPC(worker.node.network))
-        if (!web3 || !web3.currentProvider) {
-          log.error('no web3 currentProvider')
-          continue
-        }
-        const depositAddress = await web3.wat.validator.depositAddress()
-        const account = web3.eth.accounts.privateKeyToAccount(pk)
+      workersData.push({ id, worker, index: i })
+    }
 
+    if (workersData.length === 0) {
+      return ErrorResults.WORKER_NOT_FOUND
+    }
+
+    // All workers should be from the same network (assuming single network)
+    const network = workersData[0].worker.node!.network
+    const rpcEndpoints = getRPCs(network)
+    if (rpcEndpoints.length === 0) {
+      log.error('worker:sendActionTx no RPC endpoints found', { network })
+      return ErrorResults.NODE_NOT_FOUND
+    }
+
+    const primaryWeb3 = getWeb3(getRPC(network))
+    if (!primaryWeb3 || !primaryWeb3.currentProvider) {
+      log.error('worker:sendActionTx no web3 provider', { network })
+      return ErrorResults.NODE_NOT_FOUND
+    }
+
+    const account = primaryWeb3.eth.accounts.privateKeyToAccount(pk)
+    const senderAddress = account.address
+
+    // Get common data once: depositAddress, gasPrice, and initial nonce
+    const [depositAddress, currentGasPrice, baseNonce] = await Promise.all([
+      primaryWeb3.wat.validator.depositAddress(),
+      primaryWeb3.eth.getGasPrice(),
+      primaryWeb3.eth.getTransactionCount(senderAddress, 'pending')
+    ])
+
+    const addMore = primaryWeb3.utils.toBN(currentGasPrice).div(primaryWeb3.utils.toBN(10))
+    const gasPrice = primaryWeb3.utils.toBN(currentGasPrice).add(addMore).toString()
+    log.debug('worker:sendActionTx prepared network context', {
+      action,
+      network,
+      workersToProcess: workersData.length,
+      rpcEndpoints: rpcEndpoints.length,
+      baseNonce,
+      gasPrice
+    })
+
+    // Prepare all transactions in parallel
+    const prepareTx = async (
+      item: { id: number | bigint; worker: WorkerModelType; index: number },
+      nonce: number
+    ) => {
+      try {
+        const { worker } = item
         let data, value
+
         if (action === ActionTxType.activate) {
-          value = web3.utils.toWei(getStakeAmount(worker.node.network).toString(), 'ether')
+          value = primaryWeb3.utils.toWei(getStakeAmount(network).toString(), 'ether')
           log.debug('value', value)
           const depositData: DepositDataType = {
             pubkey: worker.coordinatorPublicKey,
@@ -407,7 +507,6 @@ class Worker {
             withdrawal_address: worker.withdrawalAddress,
             signature: worker.signature
           }
-          log.debug('depositData1', depositData)
           if (worker.delegate) {
             try {
               depositData.delegating_stake = worker.delegate as unknown as DelegatingStakeType
@@ -418,109 +517,153 @@ class Worker {
                 depositData.delegating_stake.trial_rules = depositData.delegating_stake.rules
               }
             } catch (e) {
-              log.error('depositData error', e)
-              continue
+              log.error('worker:sendActionTx invalid delegate data', {
+                workerId: item.id,
+                error: getErrorMessage(e)
+              })
+              return null
             }
           }
-          log.debug('depositData2', depositData)
-          data = await web3.wat.validator.depositData(depositData)
-          log.debug('depositData2', data)
+          data = await primaryWeb3.wat.validator.depositData(depositData)
         } else if (action === ActionTxType.deActivate) {
           value = 0
-          data = await web3.wat.validator.exitData({
+          data = await primaryWeb3.wat.validator.exitData({
             pubkey: worker.coordinatorPublicKey,
             creator_address: worker.validatorAddress
           })
         } else if (action === ActionTxType.withdraw) {
           value = 0
-          data = await web3.wat.validator.withdrawalData({
+          data = await primaryWeb3.wat.validator.withdrawalData({
             creator_address: `0x${worker.validatorAddress}`,
             amount: '0'
           })
         }
-        const nonce = await web3.eth.getTransactionCount(account.address, 'pending')
-        log.debug('nonce', nonce)
+
         const tx: TransactionConfig = {
-          from: account.address,
+          from: senderAddress,
           to: depositAddress,
           value,
           data,
-          nonce
+          nonce,
+          gasPrice
         }
-        tx.gas = await web3.eth.estimateGas(tx)
-        const signedTx = await web3.eth.accounts.signTransaction(tx, pk)
-        log.debug(tx)
-        if (!signedTx?.rawTransaction) {
-          log.error('no signedTx', signedTx)
-          continue
-        }
-        const sendTransaction = (rawTransaction: string) => {
-          log.debug(rawTransaction)
-          return new Promise((resolve, reject) => {
-            if (!web3.currentProvider) {
-              log.error('No web3 provider')
-              reject('No web3 provider')
-              return
-            }
-            const provider: any = web3.currentProvider
-            if (typeof provider.send === 'function') {
-              provider.send(
-                {
-                  jsonrpc: '2.0',
-                  method: 'eth_sendRawTransaction',
-                  params: [rawTransaction],
-                  id: Date.now()
-                },
-                (error: any, result: any) => {
-                  if (error) {
-                    log.error('send eth_sendRawTransaction', error)
-                    reject(error)
-                  } else {
-                    log.debug('send', result)
-                    if (result.error) {
-                      return reject(result.error)
-                    }
-                    resolve(result.result)
-                  }
-                }
-              )
-            } else if (typeof provider.sendAsync === 'function') {
-              provider.sendAsync(
-                {
-                  jsonrpc: '2.0',
-                  method: 'eth_sendRawTransaction',
-                  params: [rawTransaction],
-                  id: Date.now()
-                },
-                (error: any, result: any) => {
-                  if (error) {
-                    log.error('sendAsync eth_sendRawTransaction', error)
-                    reject(error)
-                  } else {
-                    log.debug('sendAsync', result)
-                    if (result.error) {
-                      return reject(result.error)
-                    }
-                    resolve(result.result)
-                  }
-                }
-              )
-            } else {
-              reject(new Error('Unsupported provider'))
-            }
-          })
-        }
-        const hash = await sendTransaction(signedTx.rawTransaction)
-        log.debug('tx-hash', hash)
+        tx.gas = await primaryWeb3.eth.estimateGas(tx)
+
+        return { ...item, tx }
       } catch (e) {
-        log.error(e)
-        continue
+        log.error('worker:sendActionTx prepare tx failed', {
+          workerId: item.id,
+          action,
+          nonce,
+          error: getErrorMessage(e)
+        })
+        return null
       }
-      const index = ids.findIndex((id) => id === worker.id)
-      results[index] = true
     }
 
-    log.debug(results)
+    const txDataPromises = workersData.map((item, index) => prepareTx(item, baseNonce + index))
+    const preparedTxs = await Promise.all(txDataPromises)
+
+    // Send transaction to all RPC endpoints in parallel
+    const sendTransactionToRPC = async (rpcUrl: string, rawTx: string): Promise<string> => {
+      const startedAt = Date.now()
+      const rpc = getRpcLabel(rpcUrl)
+      try {
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_sendRawTransaction',
+            params: [rawTx],
+            id: Date.now()
+          })
+        })
+        if (!response.ok) {
+          log.warn('worker:sendActionTx rpc rejected request', {
+            rpc,
+            status: response.status,
+            durationMs: Date.now() - startedAt
+          })
+          throw new Error(`HTTP ${response.status}`)
+        }
+        const result = await response.json()
+        if (result.error) {
+          log.warn('worker:sendActionTx rpc returned error', {
+            rpc,
+            code: result.error.code,
+            message: result.error.message || 'RPC error',
+            durationMs: Date.now() - startedAt
+          })
+          throw new Error(result.error.message || 'RPC error')
+        }
+        log.debug('worker:sendActionTx rpc accepted tx', {
+          rpc,
+          txHash: result.result,
+          durationMs: Date.now() - startedAt
+        })
+        return result.result
+      } catch (error) {
+        log.error('worker:sendActionTx rpc request failed', {
+          rpc,
+          error: getErrorMessage(error),
+          durationMs: Date.now() - startedAt
+        })
+        throw error
+      }
+    }
+
+    // Send transactions sequentially to maintain correct nonce order
+    const results = ids.map(() => false)
+    for (const preparedTx of preparedTxs) {
+      if (!preparedTx) continue
+
+      try {
+        const signedTx = await primaryWeb3.eth.accounts.signTransaction(preparedTx.tx, pk)
+        if (!signedTx?.rawTransaction) {
+          log.error('worker:sendActionTx no signed transaction', {
+            workerId: preparedTx.id,
+            action
+          })
+          continue
+        }
+        const rawTransaction = signedTx.rawTransaction
+
+        const sendPromises = rpcEndpoints.map((rpcUrl) =>
+          sendTransactionToRPC(rpcUrl, rawTransaction).catch(() => null)
+        )
+
+        const sendResults = await Promise.all(sendPromises)
+        const successful = sendResults.filter((hash) => hash !== null)
+        log.debug(
+          `Sent transaction for worker ${preparedTx.id} to ${successful.length}/${rpcEndpoints.length} RPC endpoints`
+        )
+
+        if (successful.length > 0) {
+          results[preparedTx.index] = true
+        } else {
+          log.error('worker:sendActionTx failed on all RPC endpoints', {
+            workerId: preparedTx.id,
+            action
+          })
+        }
+      } catch (e) {
+        log.error('worker:sendActionTx send failed', {
+          workerId: preparedTx.id,
+          action,
+          error: getErrorMessage(e)
+        })
+      }
+    }
+
+    log.info('worker:sendActionTx completed', {
+      action,
+      total: results.length,
+      success: results.filter(Boolean).length,
+      failed: results.filter((v) => !v).length
+    })
     return results
   }
 
@@ -540,33 +683,56 @@ class Worker {
       return ErrorResults.NODE_NOT_FOUND
     }
 
-    const node =
-      worker.node.type === NodeType.local
-        ? new LocalNode(worker.node, this.appEnv)
-        : new ProviderNode(worker.node, this.appEnv)
-
-    if (!node || !node.web3) {
+    const web3 = getWeb3(getRPC(worker.node.network))
+    if (!web3 || !web3.currentProvider) {
+      log.error('no web3 currentProvider')
       return ErrorResults.NODE_NOT_FOUND
+    }
+    let delegating_stake
+    if (worker.delegate) {
+      try {
+        delegating_stake = worker.delegate as unknown as DelegatingStakeType
+        if (!delegating_stake.trial_period) {
+          delegating_stake.trial_period = '0x0'
+        }
+        if (!delegating_stake.trial_rules) {
+          delegating_stake.trial_rules = delegating_stake.rules
+        }
+      } catch (e) {
+        log.error('depositData error', e)
+        return ErrorResults.DELEGATE_RULES_INVALID
+      }
     }
 
     let hexData, value
+    let from = `0x${worker.withdrawalAddress}`
     if (action === ActionTxType.activate) {
-      hexData = await node.web3.wat.validator.depositData({
+      value = getStakeAmount(worker.node.network)
+      const depositData: DepositDataType = {
         pubkey: worker.coordinatorPublicKey,
         creator_address: worker.validatorAddress,
         withdrawal_address: worker.withdrawalAddress,
         signature: worker.signature
-      })
-      value = getStakeAmount(worker.node.network)
+      }
+      if (delegating_stake) {
+        depositData.delegating_stake = delegating_stake
+      }
+      hexData = await web3.wat.validator.depositData(depositData)
     } else if (action === ActionTxType.deActivate) {
       value = 0
-      hexData = await node.web3.wat.validator.exitData({
+      if (delegating_stake) {
+        from = delegating_stake.rules.exit.join(', ')
+      }
+      hexData = await web3.wat.validator.exitData({
         pubkey: worker.coordinatorPublicKey,
         creator_address: worker.validatorAddress
       })
     } else if (action === ActionTxType.withdraw) {
       value = 0
-      hexData = await node.web3.wat.validator.withdrawalData({
+      if (delegating_stake) {
+        from = delegating_stake.rules.withdrawal.join(', ')
+      }
+      hexData = await web3.wat.validator.withdrawalData({
         creator_address: worker.validatorAddress,
         amount: Web3.utils.toWei(`${amount || '0'}`, 'ether')
       })
@@ -575,8 +741,8 @@ class Worker {
     return {
       hexData,
       value,
-      to: await node.web3.wat.validator.depositAddress(),
-      from: `0x${worker.withdrawalAddress}`
+      to: await web3.wat.validator.depositAddress(),
+      from
     }
   }
 
@@ -585,7 +751,7 @@ class Worker {
       const data = await readJSON(path)
       const jsonData = JSON.parse(data)
       return jsonData.length
-    } catch (err) {
+    } catch {
       return 0
     }
   }
@@ -595,17 +761,41 @@ class Worker {
       const data = await readJSON(path)
       const jsonData = JSON.parse(data)
       return jsonData
-    } catch (err) {
+    } catch {
       return {}
     }
   }
-  private async _getBalance(address: string): Promise<string> {
-    const web3 = getWeb3(getRPC(Network.mainnet))
+
+  private async _getBalance(nodeId: number, address: string): Promise<Response<string>> {
+    const nodeModel = this.nodeModel.getById(nodeId)
+    if (!nodeModel) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const web3 = getWeb3(getRPC(nodeModel.network))
     if (!web3 || !web3.currentProvider) {
-      return ''
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
     }
     const balance = await web3.eth.getBalance(address)
-    return balance ? web3.utils.fromWei(balance, 'ether') : ''
+    return { status: 'success', data: balance ? web3.utils.fromWei(balance, 'ether') : '' }
+  }
+
+  private async _getTransactionCount(
+    nodeId: number,
+    address: string
+  ): Promise<Response<{ pending: number; latest: number }>> {
+    const nodeModel = this.nodeModel.getById(nodeId)
+    if (!nodeModel) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const web3 = getWeb3(getRPC(nodeModel.network))
+    if (!web3 || !web3.currentProvider) {
+      return { status: 'error', message: ErrorResults.NODE_NOT_FOUND }
+    }
+    const [pending, latest] = await Promise.all([
+      web3.eth.getTransactionCount(address, 'pending'),
+      web3.eth.getTransactionCount(address)
+    ])
+    return { status: 'success', data: { pending, latest } }
   }
 }
 
@@ -626,6 +816,7 @@ interface DelegatingStakeType {
     withdrawal: string[]
   }
 }
+
 interface DepositDataType {
   pubkey: string
   creator_address: string

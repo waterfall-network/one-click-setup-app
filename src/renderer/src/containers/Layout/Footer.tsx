@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import { FooterComponent } from '@renderer/components/Layout/Footer'
 import { IconButton } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
-import { Flex, Popover } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
 import {
   // PauseOutlined,
   // CaretRightOutlined,
@@ -29,6 +29,7 @@ import { FOOTER_HEIGHT } from '@renderer/constants/layout'
 import { useFetchState } from '@renderer/hooks/app'
 import { useNavigation } from '../../hooks/navigation'
 import { routes } from '../../constants/navigation'
+import { Popover } from '@renderer/ui-kit/Popover'
 export const Footer = () => {
   const { goRoute } = useNavigation()
   const { isLoading, data: state, error } = useFetchState()
@@ -39,6 +40,7 @@ export const Footer = () => {
 
   return (
     <FooterComponent
+      leftSide={<Text size="sm">{state?.version}</Text>}
       // leftSide={
       //   <Flex justify="space-around" align="center">
       //     <Text color="white" size="sm">
@@ -73,7 +75,6 @@ export const Footer = () => {
       // }
       rightSide={
         <RightInfo gap={20} align="center">
-          <Text size="sm">{state?.version}</Text>
           <Popover
             placement="topRight"
             title={'App Notifications'}

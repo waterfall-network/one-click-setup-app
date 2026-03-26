@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,24 +18,47 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 import path from 'node:path'
 import { node } from './node'
 import { worker } from './worker'
-
+import { settings } from './settings'
 type State = {
   version: string
+  binariesVersion: string
 }
+
+type StartupPhase = 'running' | 'done' | 'error'
+
+type StartupStatus = {
+  phase: StartupPhase
+  title: string
+  detail: string
+  activeStep: number
+  completedSteps: number
+  totalSteps: number
+}
+
+type FileFilter = { name: string; extensions: string[] }
+
 declare global {
   interface Window {
     electron: ElectronAPI
     node: node
     worker: worker
+    settings: settings
     os: {
       platform: 'linux' | 'mac' | 'win' | null
       homedir: string
       selectDirectory: (defaultPath?: string) => Promise<string | null>
-      selectFile: (
-        defaultPath?: string,
-        filters?: { name: string; extensions: string[] }[]
+      selectFile: (defaultPath?: string, filters?: FileFilter[]) => Promise<string | null>
+      selectSavePath: (
+        title?: string,
+        fileName?: string,
+        filters?: FileFilter[]
       ) => Promise<string | null>
-      saveTextFile: (text: string, title?: string, fileName?: string) => Promise<boolean>
+      saveTextFile: (
+        text: string,
+        title?: string,
+        fileName?: string,
+        filters?: FileFilter[]
+      ) => Promise<boolean>
       openExternal: (url: string) => void
       path: path
       fetchJSON: (url: string) => Promise<object>
@@ -43,6 +66,9 @@ declare global {
     app: {
       quit: () => void
       fetchState: () => Promise<State>
+    }
+    startup: {
+      onStatus: (callback: (status: StartupStatus) => void) => () => void
     }
   }
 }

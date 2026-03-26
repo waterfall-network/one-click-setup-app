@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ export enum EventName {
   ResumeDownloadSnapshot = 'ResumeDownloadSnapshot',
   StopDownloadSnapshot = 'StopDownloadSnapshot',
   StartStatusMonitoring = 'StartStatusMonitoring',
-  StopStatusMonitoring = 'StopStatusMonitoring'
+  StopStatusMonitoring = 'StopStatusMonitoring',
+  SettingsUpdated = 'SettingsUpdated'
 }
 
 export interface Event<T extends EventName, P> {
@@ -41,6 +42,13 @@ export type ResumeDownloadSnapshotPayload = {
   nodeId: number
 }
 export type StopDownloadSnapshotPayload = null
+export type SettingsUpdatedPayload = {
+  theme: 'light' | 'dark' | 'system'
+  autoStartApp: boolean
+  autoStartNodes: boolean
+  monitoringInterval: number
+  logLevel: 'debug' | 'info' | 'warn' | 'error'
+}
 
 class EventBus extends EventEmitter {
   public onEvent<T extends EventName, P>(

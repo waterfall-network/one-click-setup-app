@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,11 @@ export const getNodeStatus = (node: Node) => {
   ) {
     return Status.stopped
   } else if (
+    node.coordinatorStatus === CoordinatorStatus.starting ||
+    node.validatorStatus === ValidatorStatus.starting
+  ) {
+    return Status.starting
+  } else if (
     node.coordinatorStatus === CoordinatorStatus.syncing ||
     node.validatorStatus === ValidatorStatus.syncing
   ) {
@@ -53,7 +58,8 @@ const StatusLabel = {
   [DownloadStatus.verifyingPause]: 'Pause Verify',
   [Status.running]: 'Running',
   [Status.stopped]: 'Stopped',
-  [Status.syncing]: 'Syncing'
+  [Status.syncing]: 'Syncing',
+  [Status.starting]: 'Starting'
 }
 
 export const getNodeStatusLabel = (node: Node) => {

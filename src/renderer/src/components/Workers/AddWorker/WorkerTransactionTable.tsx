@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,13 @@
  *
  */
 import React from 'react'
-import { Flex, Input, QRCode, TableColumnsType } from 'antd'
 import { Table } from '@renderer/ui-kit/Table'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 import { WorkerTransactionTableFields, WorkerTransactionTableData } from '@renderer/types/workers'
 import { ButtonPrimary, ButtonTextPrimary } from '@renderer/ui-kit/Button'
+import { Input } from '@renderer/ui-kit/Input'
+import { QRCode } from '@renderer/ui-kit/QRCode'
 
 type DataType = WorkerTransactionTableData & {
   key: React.Key

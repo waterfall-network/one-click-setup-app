@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 import * as crypto from 'crypto'
 import log from 'electron-log/node'
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import Child, { StatusResult } from './child'
 import {
   checkOrCreateDir,
@@ -28,19 +28,24 @@ import {
   deleteFile,
   deleteFilesByCoordinatorPublicKeys,
   deleteFilesByValidatorPublicKeys,
-  getPublicIP
+  getPublicIP,
+  waitForSocket
 } from '../libs/fs'
 import AppEnv from '../libs/appEnv'
 import {
+  Network,
   getLocationPath,
   getCoordinatorNetwork,
   getCoordinatorPath,
   getCoordinatorWalletPath,
   getCoordinatorKeysPath,
+  getCoordinatorBootnode,
   getLogPath,
   getValidatorNetwork,
   getValidatorPath,
   getValidatorPasswordPath,
+  getValidatorAddress,
+  getValidatorBootnode,
   getCoordinatorWalletPasswordPath,
   getCoordinatorKeyPath,
   getValidatorKeystorePath,
@@ -60,15 +65,21 @@ import { isValidatorInfo, isEraInfo } from '../helpers/worker'
 
 import Web3 from 'web3'
 import { Key, PublicKey } from '../worker'
-import { isWatInfo } from '../helpers/node'
+import { isSyncInfo, isWatInfo } from '../helpers/node'
 import { getCurrentDateUTC } from '../helpers/common'
 
 import DownloadFile from '../libs/downloadFile'
 import { clearInterval } from 'node:timers'
 import * as rfs from 'rotating-file-stream'
-import { getWeb3 } from '../libs/web3'
+import BinUpdater from '../libs/binUpdater'
 
 export { StatusResult }
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const truncateValue = (value: string, maxLength = 180): string =>
+  value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value
 
 export type StatusResults = {
   coordinatorBeacon: StatusResult
@@ -82,9 +93,12 @@ export type removeWorkersResponse = {
 }
 
 class LocalNode extends EventEmitter {
+  public static readonly BINARIES_NOT_READY_ERROR =
+    'Node binaries are not ready. Please download them first.'
+
   private readonly appEnv: AppEnv
   private readonly model: Node | null
-  public readonly web3: Web3 | null
+  private readonly binUpdater: BinUpdater | null
 
   private coordinatorBeacon: Child | null
   private coordinatorValidator: Child | null
@@ -94,16 +108,16 @@ class LocalNode extends EventEmitter {
   private startTime: Date | null = null
   private monitoringInterval: NodeJS.Timeout | null = null
   private monitoringLogStream: rfs.RotatingFileStream | null = null
+  private monitoringWorking = false
 
-  constructor(model: Node | undefined, appEnv: AppEnv) {
+  constructor(model: Node | undefined, appEnv: AppEnv, binUpdater: BinUpdater | null = null) {
     super()
     this.appEnv = appEnv
+    this.binUpdater = binUpdater
     this.model = model || null
     this.coordinatorBeacon = null
     this.coordinatorValidator = null
     this.validator = null
-    this.web3 =
-      this.model === null ? null : getWeb3(this.appEnv.getValidatorSocket(this.model.id.toString()))
   }
 
   public async initialize(): Promise<StatusResults> {
@@ -141,7 +155,7 @@ class LocalNode extends EventEmitter {
     this._setCoordinatorValidator()
 
     this.monitoringLogStream = rfs.createStream('monitoring.log', {
-      size: '50M',
+      size: '100M',
       interval: '1d',
       compress: 'gzip',
       maxFiles: 10,
@@ -151,15 +165,43 @@ class LocalNode extends EventEmitter {
   }
 
   public async start(): Promise<StatusResults> {
+    if (!this.binUpdater) {
+      log.warn('local-node:start-blocked', {
+        nodeId: this.model?.id,
+        reason: 'bin-updater-not-configured'
+      })
+      throw new Error(LocalNode.BINARIES_NOT_READY_ERROR)
+    }
+
+    try {
+      await this.binUpdater.downloadBinaries()
+    } catch (error) {
+      log.warn('local-node:start-blocked', {
+        nodeId: this.model?.id,
+        reason: 'binaries-update-failed',
+        error: getErrorMessage(error)
+      })
+      throw new Error(LocalNode.BINARIES_NOT_READY_ERROR)
+    }
+
     const results: StatusResults = {
       coordinatorBeacon: StatusResult.success,
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
+    log.debug(`start`)
     if (this.validator && !this.validator.isRunning()) {
+      await this._cleanupValidatorSocketFile()
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
+    }
+    if (results.validator === StatusResult.success) {
+      const validatorSocketReady = await this._waitForValidatorSocketReady()
+      if (!validatorSocketReady) {
+        log.warn('local:start validator socket not ready before coordinator start', {
+          nodeId: this.model?.id
+        })
+      }
     }
 
     if (this.coordinatorBeacon && !this.coordinatorBeacon.isRunning()) {
@@ -172,7 +214,6 @@ class LocalNode extends EventEmitter {
       log.debug(`start valid: ${results.coordinatorValidator}`)
     }
 
-    this.startTime = new Date()
     this._startMonitoring()
     return results
   }
@@ -183,7 +224,7 @@ class LocalNode extends EventEmitter {
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
+    log.debug(`stop`)
     if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
       results.coordinatorBeacon = await this.coordinatorBeacon.stop()
       log.debug(`stop coord: ${results.coordinatorBeacon}`)
@@ -198,7 +239,6 @@ class LocalNode extends EventEmitter {
       results.validator = await this.validator.stop()
       log.debug(`stop gwat: ${results.validator}`)
     }
-    this.startTime = null
     this._stopMonitoring()
     return results
   }
@@ -209,24 +249,37 @@ class LocalNode extends EventEmitter {
       validator: StatusResult.success,
       coordinatorValidator: StatusResult.success
     }
-
-    if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
-      await this.coordinatorBeacon.stop()
-      log.debug(`stop coord`)
+    if (this.model === null) {
+      return results
+    }
+    log.debug(`restart`)
+    if (this.coordinatorValidator && this.coordinatorValidator.isRunning()) {
+      const res = await this.coordinatorValidator.stop()
+      log.debug(`stop valid: ${res}`)
     }
 
-    if (this.coordinatorValidator && this.coordinatorValidator.isRunning()) {
-      await this.coordinatorValidator.stop()
-      log.debug(`stop valid`)
+    if (this.coordinatorBeacon && this.coordinatorBeacon.isRunning()) {
+      const res = await this.coordinatorBeacon.stop()
+      log.debug(`stop coord: ${res}`)
     }
 
     if (this.validator && this.validator.isRunning()) {
-      await this.validator.stop()
-      log.debug(`stop gwat`)
+      const res = await this.validator.stop()
+      log.debug(`stop gwat: ${res}`)
     }
+    await this._cleanupValidatorSocketFile()
+    await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
     if (this.validator) {
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
+    }
+    if (results.validator === StatusResult.success) {
+      const validatorSocketReady = await this._waitForValidatorSocketReady()
+      if (!validatorSocketReady) {
+        log.warn('local:restart validator socket not ready before coordinator start', {
+          nodeId: this.model?.id
+        })
+      }
     }
     if (this.coordinatorBeacon) {
       results.coordinatorBeacon = await this.coordinatorBeacon.start()
@@ -313,13 +366,11 @@ class LocalNode extends EventEmitter {
     }
 
     try {
-      const response = (await this.runValidatorCommand('eth.syncing')) as string
+      const response = await this.runValidatorCommand('eth.syncing', 'json')
 
-      if (response !== 'false' && response !== '') {
-        const currentSlot = (await this.runValidatorCommand('eth.syncing.currentSlot')) as string
-        const finalizedSlot = (await this.runValidatorCommand(
-          'eth.syncing.finalizedSlot'
-        )) as string
+      if (response && isSyncInfo(response)) {
+        const currentSlot = response.currentSlot
+        const finalizedSlot = response.finalizedSlot
         results.validatorHeadSlot = BigInt(finalizedSlot)
         results.validatorSyncDistance = BigInt(currentSlot) - BigInt(finalizedSlot)
         results.validatorFinalizedSlot = BigInt(finalizedSlot)
@@ -344,6 +395,8 @@ class LocalNode extends EventEmitter {
   }
   public async getWorkerStatus(worker: WorkerModelType) {
     const results: WorkerStatus = {
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,
@@ -581,32 +634,44 @@ class LocalNode extends EventEmitter {
     if (this.model === null || this.coordinatorBeacon !== null) {
       return false
     }
+    const args = [
+      '--accept-terms-of-use',
+      '--disable-peer-scorer',
+      `${getCoordinatorNetwork(this.model.network)}`,
+      `--datadir=${getCoordinatorPath(this.model.locationDir)}`,
+      // `--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`,
+      // `--genesis-state=${this.appEnv.getCoordinatorBeaconGenesisPath(this.model.network)}`,
+      // `--chain-id=${getChainId(this.model.network)}`,
+      // `--network-id=${getChainId(this.model.network)}`,
+      // '--contract-deployment-block=0',
+      // `--deposit-contract=${getValidatorAddress(this.model.network)}`,
+      `--enable-upnp`,
+      `--p2p-host-ip=${this.ip}`,
+      `--p2p-tcp-port=${this.model.coordinatorP2PTcpPort}`,
+      `--p2p-udp-port=${this.model.coordinatorP2PUdpPort}`,
+      `--grpc-gateway-port=${this.model.coordinatorHttpApiPort}`,
+      `--rpc-port=${this.model.coordinatorHttpValidatorApiPort}`,
+      `--http-web3provider=${this.appEnv.getValidatorSocket(this.model.id.toString())}`
+    ]
+    if (this.model.network !== Network.mainnet) {
+      args.push(`--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`)
+      args.push(`--deposit-contract=${getValidatorAddress(this.model.network)}`)
+      args.push(`--min-sync-peers=1`)
+    }
+    if (this.model.network === Network.testnet9) {
+      args.push('--min-sync-peers=1')
+    }
     this.coordinatorBeacon = new Child({
       binPath: this.appEnv.getCoordinatorBeaconBinPath(this.model.network),
-      args: [
-        '--accept-terms-of-use',
-        '--disable-peer-scorer',
-        `${getCoordinatorNetwork(this.model.network)}`,
-        `--datadir=${getCoordinatorPath(this.model.locationDir)}`,
-        // `--bootstrap-node=${getCoordinatorBootnode(this.model.network)}`,
-        // `--genesis-state=${this.appEnv.getCoordinatorBeaconGenesisPath(this.model.network)}`,
-        // `--chain-id=${getChainId(this.model.network)}`,
-        // `--network-id=${getChainId(this.model.network)}`,
-        // '--contract-deployment-block=0',
-        // `--deposit-contract=${getValidatorAddress(this.model.network)}`,
-        `--enable-upnp`,
-        `--p2p-host-ip=${this.ip}`,
-        `--p2p-tcp-port=${this.model.coordinatorP2PTcpPort}`,
-        `--p2p-udp-port=${this.model.coordinatorP2PUdpPort}`,
-        `--grpc-gateway-port=${this.model.coordinatorHttpApiPort}`,
-        `--rpc-port=${this.model.coordinatorHttpValidatorApiPort}`,
-        `--http-web3provider=${this.appEnv.getValidatorSocket(this.model.id.toString())}`
-      ],
+      args: args,
       logPath: getLogPath(this.model.locationDir),
       logName: 'coordinator-beacon.log'
     })
     this.coordinatorBeacon.on('stop', () => {
       this.emit('stop', 'coordinatorBeacon')
+    })
+    this.coordinatorBeacon.on('start', () => {
+      this.emit('start', 'coordinatorBeacon')
     })
 
     return true
@@ -616,24 +681,32 @@ class LocalNode extends EventEmitter {
     if (this.model === null || this.validator !== null) {
       return false
     }
+    const args = [
+      `${getValidatorNetwork(this.model.network)}`,
+      `--datadir=${getValidatorPath(this.model.locationDir)}`,
+      // `--bootnodes=${getValidatorBootnode(this.model.network)}`,
+      // `--networkid=${getChainId(this.model.network)}`,
+      '--creator',
+      '--nat=any',
+      '--syncmode=full',
+      `--port=${this.model.validatorP2PPort}`,
+      `--ipcpath=${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
+      `--password=${getValidatorPasswordPath(this.model.locationDir)}`
+    ]
+    if (this.model.network !== Network.mainnet) {
+      args.push(`--bootnodes=${getValidatorBootnode(this.model.network)}`)
+    }
     this.validator = new Child({
       binPath: this.appEnv.getValidatorBinPath(this.model.network),
-      args: [
-        `${getValidatorNetwork(this.model.network)}`,
-        `--datadir=${getValidatorPath(this.model.locationDir)}`,
-        // `--bootnodes=${getValidatorBootnode(this.model.network)}`,
-        // `--networkid=${getChainId(this.model.network)}`,
-        '--nat=any',
-        '--syncmode=full',
-        `--port=${this.model.validatorP2PPort}`,
-        `--ipcpath=${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
-        `--password=${getValidatorPasswordPath(this.model.locationDir)}`
-      ],
+      args: args,
       logPath: getLogPath(this.model.locationDir),
       logName: 'validator.log'
     })
     this.validator.on('stop', () => {
       this.emit('stop', 'validator')
+    })
+    this.validator.on('start', () => {
+      this.emit('start', 'validator')
     })
     return true
   }
@@ -657,6 +730,9 @@ class LocalNode extends EventEmitter {
     this.coordinatorValidator.on('stop', () => {
       this.emit('stop', 'coordinatorValidator')
     })
+    this.coordinatorValidator.on('start', () => {
+      this.emit('start', 'coordinatorValidator')
+    })
     return true
   }
 
@@ -665,8 +741,17 @@ class LocalNode extends EventEmitter {
       if (!this.model) {
         return resolve(0)
       }
-      exec(
-        `${this.appEnv.getCoordinatorValidatorBinPath(this.model.network)} accounts import  --accept-terms-of-use --keys-dir=${getCoordinatorKeysPath(this.model.locationDir)} --wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)} --wallet-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)} --account-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`,
+      execFile(
+        this.appEnv.getCoordinatorValidatorBinPath(this.model.network),
+        [
+          'accounts',
+          'import',
+          '--accept-terms-of-use',
+          `--keys-dir=${getCoordinatorKeysPath(this.model.locationDir)}`,
+          `--wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)}`,
+          `--wallet-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`,
+          `--account-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`
+        ],
         (err, stdout, stderr) => {
           if (err) {
             return resolve(0)
@@ -838,6 +923,14 @@ class LocalNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    if (this.coordinatorBeacon && !this.coordinatorBeacon.isRunning()) {
+      log.debug('local:runCoordinatorCommand coordinator not running', {
+        nodeId: this.model.id,
+        command: truncateValue(command)
+      })
+      return {}
+    }
+    const startedAt = Date.now()
     try {
       const response = await fetch(
         `http://127.0.0.1:${this.model.coordinatorHttpApiPort}${command}`,
@@ -848,11 +941,27 @@ class LocalNode extends EventEmitter {
         }
       )
       if (!response.ok) {
+        log.warn('local:runCoordinatorCommand non-ok response', {
+          nodeId: this.model.id,
+          command,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
+      log.debug('local:runCoordinatorCommand success', {
+        nodeId: this.model.id,
+        command,
+        durationMs: Date.now() - startedAt
+      })
       return await response.json()
     } catch (error) {
-      // log.debug(error)
+      log.error('local:runCoordinatorCommand failed', {
+        nodeId: this.model.id,
+        command,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }
@@ -861,10 +970,24 @@ class LocalNode extends EventEmitter {
     if (!this.model) {
       return ''
     }
+    if (this.validator && !this.validator.isRunning()) {
+      log.debug('local:runValidatorCommand validator process not running', {
+        nodeId: this.model.id,
+        command: truncateValue(command),
+        format: format || 'plain'
+      })
+      return ''
+    }
+    const startedAt = Date.now()
     const isWorking = await checkSocket(
       `${this.appEnv.getValidatorSocket(this.model.id.toString())}`
     )
     if (!isWorking) {
+      log.warn('local:runValidatorCommand validator socket unavailable', {
+        nodeId: this.model.id,
+        command: truncateValue(command),
+        durationMs: Date.now() - startedAt
+      })
       return ''
     }
     return new Promise((resolve, reject) => {
@@ -872,15 +995,36 @@ class LocalNode extends EventEmitter {
         return reject('')
       }
       const execCommand = format && format === 'json' ? `JSON.stringify(${command})` : command
-      exec(
-        `${this.appEnv.getValidatorBinPath(this.model.network)} --verbosity 0 --exec "${execCommand}" attach ${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
+      execFile(
+        this.appEnv.getValidatorBinPath(this.model.network),
+        [
+          '--verbosity',
+          '0',
+          '--exec',
+          execCommand,
+          'attach',
+          this.appEnv.getValidatorSocket(this.model.id.toString())
+        ],
         (err, stdout, stderr) => {
           if (err) {
-            log.error(err)
+            log.error('local:runValidatorCommand process failed', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: format || 'plain',
+              error: getErrorMessage(err),
+              durationMs: Date.now() - startedAt
+            })
             return reject(err)
           }
           if (stdout) {
             if (stdout.search('Error') !== -1) {
+              log.warn('local:runValidatorCommand returned error output', {
+                nodeId: this.model?.id,
+                command: truncateValue(command),
+                format: format || 'plain',
+                output: truncateValue(stdout),
+                durationMs: Date.now() - startedAt
+              })
               return reject(stdout)
             }
             if (format && format === 'json') {
@@ -889,20 +1033,84 @@ class LocalNode extends EventEmitter {
                 json = JSON.parse(stdout)
                 json = JSON.parse(json)
               } catch (err) {
-                log.error(err)
+                log.error('local:runValidatorCommand json parse failed', {
+                  nodeId: this.model?.id,
+                  command: truncateValue(command),
+                  error: getErrorMessage(err),
+                  durationMs: Date.now() - startedAt
+                })
                 return reject(err)
               }
+              log.debug('local:runValidatorCommand success', {
+                nodeId: this.model?.id,
+                command: truncateValue(command),
+                format: 'json',
+                durationMs: Date.now() - startedAt
+              })
               return resolve(json)
             }
+            log.debug('local:runValidatorCommand success', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: 'plain',
+              durationMs: Date.now() - startedAt
+            })
             return resolve(stdout.replaceAll('\n', '').replaceAll('"', '').trim())
           }
           if (stderr) {
-            log.error(stderr)
+            log.error('local:runValidatorCommand stderr', {
+              nodeId: this.model?.id,
+              command: truncateValue(command),
+              format: format || 'plain',
+              stderr: truncateValue(stderr),
+              durationMs: Date.now() - startedAt
+            })
             return reject(stderr)
           }
         }
       )
     })
+  }
+
+  private async _cleanupValidatorSocketFile(): Promise<void> {
+    if (!this.model) {
+      return
+    }
+    const socketPath = this.appEnv.getValidatorSocket(this.model.id.toString())
+    if (socketPath.startsWith('\\\\.\\pipe\\')) {
+      return
+    }
+    const status = await deleteFile(socketPath)
+    if (!status) {
+      log.warn('local:cleanup-validator-socket failed', {
+        nodeId: this.model.id,
+        socketPath
+      })
+    }
+  }
+
+  private async _waitForValidatorSocketReady(maxAttempts = 40, intervalMs = 500): Promise<boolean> {
+    if (!this.model) {
+      return false
+    }
+    const socketPath = this.appEnv.getValidatorSocket(this.model.id.toString())
+    if (socketPath.startsWith('\\\\.\\pipe\\')) {
+      return true
+    }
+    const status = await waitForSocket(socketPath, maxAttempts, intervalMs)
+    if (status) {
+      log.debug('local:validator-socket-ready', {
+        nodeId: this.model.id,
+        socketPath
+      })
+      return true
+    }
+    log.warn('local:validator-socket-wait-timeout', {
+      nodeId: this.model.id,
+      socketPath,
+      waitedMs: maxAttempts * intervalMs
+    })
+    return false
   }
   public async downloadSnapshot() {
     if (!this.model) {
@@ -966,9 +1174,11 @@ class LocalNode extends EventEmitter {
     if (this.monitoringInterval) {
       return
     }
+    this.startTime = new Date()
     this.monitoringInterval = setInterval(this._monitoring.bind(this), 4000)
   }
   private _stopMonitoring() {
+    this.startTime = null
     if (!this.monitoringInterval) {
       return
     }
@@ -976,9 +1186,13 @@ class LocalNode extends EventEmitter {
     this.monitoringInterval = null
   }
   private async _monitoring() {
+    log.debug('_monitoring start')
     if (this.model === null) {
       return
     }
+    if (this.monitoringWorking) return
+    this.monitoringWorking = true
+    log.debug('monitoringWorking', this.monitoringWorking)
     let ip = ''
     try {
       ip = await getPublicIP()
@@ -986,35 +1200,41 @@ class LocalNode extends EventEmitter {
       log.debug('_monitoring', e)
     }
 
-    const now = new Date()
-    const time = getCurrentDateUTC()
+    try {
+      const now = new Date()
+      const time = getCurrentDateUTC()
 
-    const [peers, sync] = await Promise.all([this.getPeers(), this.getSync()])
+      const [peers, sync] = await Promise.all([this.getPeers(), this.getSync()])
 
-    this.monitoringLogStream?.write(
-      `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} c_distance=${sync?.coordinatorSyncDistance} c_head=${sync?.coordinatorHeadSlot} c_previous_justified=${sync?.coordinatorPreviousJustifiedEpoch} c_current_justified=${sync?.coordinatorCurrentJustifiedEpoch} c_finalized=${sync?.coordinatorFinalizedEpoch} v_distance=${sync?.validatorSyncDistance} v_head=${sync?.validatorHeadSlot} v_finalized=${sync?.validatorFinalizedSlot} ip=${ip} \n`
-    )
-    if (ip !== this.ip) {
       this.monitoringLogStream?.write(
-        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} new=${ip} old=${this.ip} restart change ip\n`
+        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} c_distance=${sync?.coordinatorSyncDistance} c_head=${sync?.coordinatorHeadSlot} c_previous_justified=${sync?.coordinatorPreviousJustifiedEpoch} c_current_justified=${sync?.coordinatorCurrentJustifiedEpoch} c_finalized=${sync?.coordinatorFinalizedEpoch} v_distance=${sync?.validatorSyncDistance} v_head=${sync?.validatorHeadSlot} v_finalized=${sync?.validatorFinalizedSlot} ip=${ip} \n`
       )
-      await this.restart()
+      if (ip && ip !== this.ip) {
+        this.monitoringLogStream?.write(
+          `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} new=${ip} old=${this.ip} restart change ip\n`
+        )
+        await this.restart()
+        this.ip = ip
+        this.monitoringWorking = false
+      } else {
+        const tenMinutesAgo = new Date(now.getTime() - 600000)
+        if (
+          this.startTime &&
+          this.startTime < tenMinutesAgo &&
+          peers &&
+          (peers.coordinatorPeersCount === 0 || peers.validatorPeersCount === 0)
+        ) {
+          this.monitoringLogStream?.write(
+            `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} restart none peers\n`
+          )
+          await this.restart()
+        }
+      }
+    } catch (e) {
+      log.error('_monitoring', e)
     }
-    const fiveMinutesAgo = new Date(now.getTime() - 300000)
-    if (
-      this.startTime &&
-      this.startTime < fiveMinutesAgo &&
-      peers &&
-      (peers.coordinatorPeersCount === 0 || peers.validatorPeersCount === 0)
-    ) {
-      this.monitoringLogStream?.write(
-        `${time} ver=${this.appEnv.version} node_id=${this.model.id.toString()} c_peers=${peers?.coordinatorPeersCount} v_peers=${peers?.validatorPeersCount} restart none peers\n`
-      )
-      await this.stop()
-      await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
-      await this.start()
-    }
-    this.ip = ip
+    this.monitoringWorking = false
+    log.debug('monitoringWorking', this.monitoringWorking)
   }
 }
 

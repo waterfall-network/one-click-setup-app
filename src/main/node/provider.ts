@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,10 @@ import Web3 from 'web3'
 import { isSyncInfo, isWatInfo } from '../helpers/node'
 import { EraInfo, isEraInfo, isValidatorInfo } from '../helpers/worker'
 import { PublicKey } from '../worker'
-import { getWeb3 } from '../libs/web3'
 import { getRPC, Network } from '../libs/env'
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export enum StatusResult {
   success = 'success',
@@ -47,13 +49,11 @@ export type removeWorkersResponse = {
 class ProviderNode extends EventEmitter {
   private readonly appEnv: AppEnv
   private readonly model: Node | null
-  public readonly web3: Web3 | null
 
   constructor(model: Node | undefined, appEnv: AppEnv) {
     super()
     this.appEnv = appEnv
     this.model = model || null
-    this.web3 = getWeb3(getRPC(model ? model.network : Network.mainnet))
   }
 
   public async initialize(): Promise<StatusResults> {
@@ -192,6 +192,8 @@ class ProviderNode extends EventEmitter {
 
   public async getWorkerStatuses(workers: WorkerModelType[]) {
     const results: WorkerStatus[] = workers.map((worker) => ({
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,
@@ -207,7 +209,7 @@ class ProviderNode extends EventEmitter {
       return results
     }
 
-    const batchSize = 50
+    const batchSize = this.model.network === Network.mainnet ? 50 : 1
     try {
       for (let i = 0; i < workers.length; i += batchSize) {
         const batch = workers.slice(i, i + batchSize)
@@ -221,8 +223,12 @@ class ProviderNode extends EventEmitter {
           `/eth/v1/beacon/states/head/validators?${queryString}`
         )
         if (coordinatorResponse?.data) {
-          coordinatorResponse.data.forEach((coordinator, index) => {
-            const resultIndex = i + index
+          coordinatorResponse.data.forEach((coordinator) => {
+            const resultIndex = results.findIndex(
+              (worker) =>
+                `0x${worker.coordinatorPublicKey.toLowerCase()}` ===
+                coordinator.validator.pubkey.toLowerCase()
+            )
             results[resultIndex].coordinatorStatus = coordinator.status
             results[resultIndex].coordinatorBalanceAmount = Web3.utils.fromWei(
               Web3.utils.toWei(coordinator.balance, 'gwei'),
@@ -291,7 +297,8 @@ class ProviderNode extends EventEmitter {
           ).catch(() => null)
           for (let index = 0; index < batch.length; index++) {
             const validatorResponse = validatorResponses[index]
-            const resultIndex = i + index // Adjust the index to match the original array
+            const resultIndex = i + index
+
             try {
               const validatorBalanceAmount = validatorsBalanceAmount
                 ? validatorsBalanceAmount[index]
@@ -355,6 +362,8 @@ class ProviderNode extends EventEmitter {
   }
   public async getWorkerStatus(worker: WorkerModelType) {
     const results: WorkerStatus = {
+      coordinatorPublicKey: worker.coordinatorPublicKey,
+      validatorAddress: worker.validatorAddress,
       coordinatorStatus: worker.coordinatorStatus,
       coordinatorBalanceAmount: worker.coordinatorBalanceAmount,
       coordinatorActivationEpoch: worker.coordinatorActivationEpoch,
@@ -476,6 +485,8 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    const startedAt = Date.now()
+    const network = this.model.network
     try {
       const response = await fetch(
         `${getRPC(this.model ? this.model.network : Network.mainnet)}/coordinator/${command}`,
@@ -486,11 +497,27 @@ class ProviderNode extends EventEmitter {
         }
       )
       if (!response.ok) {
+        log.warn('provider:runCoordinatorCommand non-ok response', {
+          network,
+          command,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
+      log.debug('provider:runCoordinatorCommand success', {
+        network,
+        command,
+        durationMs: Date.now() - startedAt
+      })
       return await response.json()
     } catch (error) {
-      // log.debug(error)
+      log.error('provider:runCoordinatorCommand failed', {
+        network,
+        command,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }
@@ -501,6 +528,12 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return []
     }
+    if (!Array.isArray(req) || req.length === 0) {
+      return []
+    }
+    const startedAt = Date.now()
+    const network = this.model.network
+    const methods = req.map((item) => item.method)
     try {
       const response = await fetch(getRPC(this.model ? this.model.network : Network.mainnet), {
         headers: {
@@ -517,12 +550,41 @@ class ProviderNode extends EventEmitter {
         method: 'POST'
       })
       if (!response.ok) {
+        log.warn('provider:runValidatorCommands non-ok response', {
+          network,
+          batchSize: req.length,
+          methods,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return []
       }
       const result = await response.json()
+      if (!Array.isArray(result)) {
+        log.error('provider:runValidatorCommands invalid batch response', {
+          network,
+          batchSize: req.length,
+          methods,
+          responseType: typeof result,
+          durationMs: Date.now() - startedAt
+        })
+        return []
+      }
+      log.debug('provider:runValidatorCommands success', {
+        network,
+        batchSize: req.length,
+        methods,
+        durationMs: Date.now() - startedAt
+      })
       return result.map((r) => r.result)
     } catch (error) {
-      // log.debug(error)
+      log.error('provider:runValidatorCommands failed', {
+        network,
+        batchSize: req.length,
+        methods,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return []
   }
@@ -534,6 +596,8 @@ class ProviderNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    const startedAt = Date.now()
+    const network = this.model.network
     try {
       const response = await fetch(getRPC(this.model ? this.model.network : Network.mainnet), {
         headers: {
@@ -548,12 +612,31 @@ class ProviderNode extends EventEmitter {
         method: 'POST'
       })
       if (!response.ok) {
+        log.warn('provider:runValidatorCommand non-ok response', {
+          network,
+          method,
+          paramsCount: params.length,
+          status: response.status,
+          durationMs: Date.now() - startedAt
+        })
         return {}
       }
       const result = await response.json()
+      log.debug('provider:runValidatorCommand success', {
+        network,
+        method,
+        paramsCount: params.length,
+        durationMs: Date.now() - startedAt
+      })
       return result.result
     } catch (error) {
-      // log.debug(error)
+      log.error('provider:runValidatorCommand failed', {
+        network,
+        method,
+        paramsCount: params.length,
+        error: getErrorMessage(error),
+        durationMs: Date.now() - startedAt
+      })
     }
     return {}
   }

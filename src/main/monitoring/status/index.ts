@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,12 @@
  *
  */
 import { Worker } from 'node:worker_threads'
-import EventBus, { EventName, Event, FinishDownloadSnapshotPayload } from '../../libs/EventBus'
+import EventBus, {
+  EventName,
+  Event,
+  FinishDownloadSnapshotPayload,
+  SettingsUpdatedPayload
+} from '../../libs/EventBus'
 import AppEnv from '../../libs/appEnv'
 import workerPath from './worker?modulePath'
 
@@ -34,17 +39,35 @@ class Status {
     })
     this.eventBus = eventBus
     this._sendToEventBus = this._sendToEventBus.bind(this)
+    this._updateSettings = this._updateSettings.bind(this)
     this.onListeners()
   }
   private onListeners() {
     this.worker.on('message', this._sendToEventBus)
+    this.eventBus.onEvent<EventName.SettingsUpdated, SettingsUpdatedPayload>(
+      EventName.SettingsUpdated,
+      this._updateSettings
+    )
   }
   private offListeners() {
     this.worker.off('message', this._sendToEventBus)
+    this.eventBus.offEvent<EventName.SettingsUpdated, SettingsUpdatedPayload>(
+      EventName.SettingsUpdated,
+      this._updateSettings
+    )
   }
 
   private _sendToEventBus(event: Event<EventName, FinishDownloadSnapshotPayload>) {
     this.eventBus.emitEvent(event.type, event.payload)
+  }
+  private _updateSettings(event: Event<EventName.SettingsUpdated, SettingsUpdatedPayload>) {
+    this.worker.postMessage({
+      type: EventName.SettingsUpdated,
+      payload: {
+        monitoringInterval: event.payload.monitoringInterval,
+        logLevel: event.payload.logLevel
+      }
+    })
   }
 
   public start() {

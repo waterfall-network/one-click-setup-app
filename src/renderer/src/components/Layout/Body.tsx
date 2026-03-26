@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 import React, { PropsWithChildren } from 'react'
-import { Layout } from 'antd'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { styled } from 'styled-components'
 
 type BodyPropsT = PropsWithChildren

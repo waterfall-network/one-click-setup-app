@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  * limitations under the License.
  *
  */
-import { TableColumnsType } from 'antd'
 import { NodesListDataTypes, NodesListDataFields, Node } from '@renderer/types/node'
 import { getDateTime } from '@renderer/helpers/date'
 import { getNodeStatusLabel } from '@renderer/helpers/node'
+import { TableColumnsType } from '@renderer/ui-kit/Table'
 
 export type DataType = Node &
   NodesListDataTypes & {

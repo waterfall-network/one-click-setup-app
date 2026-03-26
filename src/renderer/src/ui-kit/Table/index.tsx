@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,156 @@
  */
 import { Table as AntdTable, TableProps } from 'antd'
 import React from 'react'
-import { styled } from 'styled-components'
+import { css, keyframes, styled } from 'styled-components'
+import { Spin } from '@renderer/ui-kit/Spin'
 
 export { type TableProps }
-export const Table: React.FC<TableProps> = ({ ...props }) => {
+export type { TableColumnsType } from 'antd'
+
+type AppTableProps = TableProps<any> & {
+  disableRowAnimation?: boolean
+  deferMount?: boolean
+  deferPlaceholderMinHeight?: number
+}
+
+export const Table: React.FC<AppTableProps> = ({
+  pagination,
+  disableRowAnimation,
+  deferMount = true,
+  deferPlaceholderMinHeight = 280,
+  ...props
+}) => {
+  const shouldDisableRowAnimation = disableRowAnimation ?? true
+  const [isReady, setIsReady] = React.useState(!deferMount)
+
+  React.useEffect(() => {
+    if (!deferMount) {
+      setIsReady(true)
+      return
+    }
+
+    setIsReady(false)
+    const rafId = requestAnimationFrame(() => {
+      setIsReady(true)
+    })
+
+    return () => cancelAnimationFrame(rafId)
+  }, [deferMount])
+
+  if (!isReady) {
+    return (
+      <TableWrapper $disableRowAnimation={shouldDisableRowAnimation}>
+        <Spin spinning tip="Loading" size="large">
+          <DeferredPlaceholder $minHeight={deferPlaceholderMinHeight} />
+        </Spin>
+      </TableWrapper>
+    )
+  }
+
   return (
-    <TableWrapper>
-      <StyledTable pagination={false} {...props} />
+    <TableWrapper $disableRowAnimation={shouldDisableRowAnimation}>
+      <StyledTable
+        pagination={pagination !== undefined ? pagination : false}
+        {...(props as React.ComponentProps<typeof StyledTable>)}
+      />
     </TableWrapper>
   )
 }
 
-const TableWrapper = styled.div`
-  table {
-    border: 1px solid #ebeaea;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
+const rowReveal = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`
+
+const TableWrapper = styled.div<{ $disableRowAnimation?: boolean }>`
+  .ant-table-wrapper {
+    width: 100%;
+  }
+
+  .ant-table-container {
+    border: 1px solid ${({ theme }) => theme.palette.semantic.table.border};
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .ant-table {
+    background: transparent;
+  }
+
+  .ant-table-thead > tr > th {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-bottom-color: ${({ theme }) => theme.palette.semantic.table.headerSplit};
+  }
+
+  .ant-table-tbody > tr > td {
+    border-bottom-color: ${({ theme }) => theme.palette.semantic.table.rowBorder};
+    transition: background 0.22s ease;
+  }
+
+  ${({ $disableRowAnimation }) =>
+    $disableRowAnimation
+      ? css`
+          .ant-table-tbody > tr {
+            animation: none;
+          }
+        `
+      : css`
+          .ant-table-tbody > tr {
+            animation: ${rowReveal} 170ms ease-out both;
+          }
+
+          .ant-table-tbody > tr:nth-child(1) {
+            animation-delay: 0ms;
+          }
+          .ant-table-tbody > tr:nth-child(2) {
+            animation-delay: 15ms;
+          }
+          .ant-table-tbody > tr:nth-child(3) {
+            animation-delay: 30ms;
+          }
+          .ant-table-tbody > tr:nth-child(4) {
+            animation-delay: 45ms;
+          }
+          .ant-table-tbody > tr:nth-child(5) {
+            animation-delay: 60ms;
+          }
+          .ant-table-tbody > tr:nth-child(6) {
+            animation-delay: 75ms;
+          }
+          .ant-table-tbody > tr:nth-child(7) {
+            animation-delay: 90ms;
+          }
+          .ant-table-tbody > tr:nth-child(8) {
+            animation-delay: 105ms;
+          }
+          .ant-table-tbody > tr:nth-child(9) {
+            animation-delay: 120ms;
+          }
+          .ant-table-tbody > tr:nth-child(10) {
+            animation-delay: 135ms;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .ant-table-tbody > tr {
+              animation: none;
+            }
+          }
+        `}
+
+  .ant-table-pagination {
+    margin: 14px 4px 0 !important;
   }
 `
 const StyledTable = styled(AntdTable)``
+
+const DeferredPlaceholder = styled.div<{ $minHeight: number }>`
+  min-height: ${({ $minHeight }) => `${$minHeight}px`};
+`

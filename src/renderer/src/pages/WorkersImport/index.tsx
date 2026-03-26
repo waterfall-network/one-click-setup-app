@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ import { useState } from 'react'
 import { SearchKeys } from '@renderer/constants/navigation'
 import { useSearchParams } from 'react-router-dom'
 import { getImportWorkersSteps } from '@renderer/helpers/workers'
-import { Flex, Layout } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Layout } from '@renderer/ui-kit/Layout'
 import { PageHeader } from '@renderer/components/Page/Header'
 import { ArrowedButton } from '@renderer/ui-kit/Button'
 import { PageBody } from '@renderer/components/Page/Body'

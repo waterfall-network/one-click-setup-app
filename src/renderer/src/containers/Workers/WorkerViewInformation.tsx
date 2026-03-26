@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
  */
 import React from 'react'
 import { TabContent, TabTextRow } from '@renderer/ui-kit/Tabs'
-import { Button, Flex } from 'antd'
+import { Flex } from '@renderer/ui-kit/Flex'
+import { Button } from '@renderer/ui-kit/Button'
 import { Text } from '@renderer/ui-kit/Typography'
 import { WorkerViewTabProps } from '@renderer/types/workers'
 import { getStatusLabel } from '../../helpers/workers'
@@ -34,7 +35,7 @@ export const WorkerViewInformation: React.FC<WorkerViewTabProps> = ({ item }) =>
     item?.signature ? `0x${item.signature}` : undefined
   )
   return (
-    <TabContent>
+    <TabContent variant="text">
       <TabTextRow label="ID" value={item?.id ? item?.id.toString() : '-'} />
       <TabTextRow
         label="Index"

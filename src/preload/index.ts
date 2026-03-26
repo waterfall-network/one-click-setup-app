@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 /// <reference types="./index.d.ts" />
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { platform, homedir } from 'node:os'
 import path from 'node:path'
@@ -23,20 +23,48 @@ import https from 'node:https'
 
 import { node } from './node'
 import { worker } from './worker'
+import { settings } from './settings'
+
+const STARTUP_STATUS_CHANNEL = 'startup:status'
+
+type StartupPhase = 'running' | 'done' | 'error'
+
+interface StartupStatus {
+  phase: StartupPhase
+  title: string
+  detail: string
+  activeStep: number
+  completedSteps: number
+  totalSteps: number
+}
+
+type FileFilter = { name: string; extensions: string[] }
 
 const selectDirectory = (defaultPath?: string) =>
   ipcRenderer.invoke('os:selectDirectory', defaultPath)
-const selectFile = (defaultPath?: string, filters?: { name: string; extensions: string[] }[]) =>
+const selectFile = (defaultPath?: string, filters?: FileFilter[]) =>
   ipcRenderer.invoke('os:selectFile', defaultPath, filters)
+const selectSavePath = (title?: string, fileName?: string, filters?: FileFilter[]) =>
+  ipcRenderer.invoke('os:selectSavePath', title, fileName, filters)
 
-const saveTextFile = (text: string, title?: string, fileName?: string) =>
-  ipcRenderer.invoke('os:saveTextFile', text, title, fileName)
+const saveTextFile = (text: string, title?: string, fileName?: string, filters?: FileFilter[]) =>
+  ipcRenderer.invoke('os:saveTextFile', text, title, fileName, filters)
 
 const openExternal = (url: string) => ipcRenderer.invoke('os:openExternal', url)
 
 const quit = () => ipcRenderer.invoke('app:quit')
 
 const fetchState = () => ipcRenderer.invoke('app:state')
+
+const onStartupStatus = (callback: (status: StartupStatus) => void): (() => void) => {
+  const listener = (_event: IpcRendererEvent, status: StartupStatus): void => {
+    callback(status)
+  }
+  ipcRenderer.on(STARTUP_STATUS_CHANNEL, listener)
+  return () => {
+    ipcRenderer.removeListener(STARTUP_STATUS_CHANNEL, listener)
+  }
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -46,15 +74,20 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', { ...electronAPI })
     contextBridge.exposeInMainWorld('node', node)
     contextBridge.exposeInMainWorld('worker', worker)
+    contextBridge.exposeInMainWorld('settings', settings)
     contextBridge.exposeInMainWorld('app', {
       quit,
       fetchState
+    })
+    contextBridge.exposeInMainWorld('startup', {
+      onStatus: onStartupStatus
     })
     contextBridge.exposeInMainWorld('os', {
       platform: getPlatform(),
       homedir: getHomeDir(),
       selectDirectory: selectDirectory,
       selectFile: selectFile,
+      selectSavePath: selectSavePath,
       saveTextFile: saveTextFile,
       openExternal: openExternal,
       path,
@@ -64,25 +97,24 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // Fallback when context isolation is disabled (legacy)
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
   window.node = node
-  // @ts-ignore (define in dts)
   window.worker = worker
-  // @ts-ignore (define in dts)
+  window.settings = settings
   window.os = {
     platform: getPlatform(),
     homedir: getHomeDir(),
     selectDirectory: selectDirectory,
     selectFile: selectFile,
+    selectSavePath: selectSavePath,
     saveTextFile: saveTextFile,
     openExternal: openExternal,
     path,
     fetchJSON
   }
-  // @ts-ignore (define in dts)
   window.app = { quit, fetchState }
+  window.startup = { onStatus: onStartupStatus }
 }
 
 function getPlatform(): 'linux' | 'mac' | 'win' | null {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import { addParams, getViewLink } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { AddNodeFields, Network, NewNode, Ports, Type } from '@renderer/types/node'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -112,11 +112,37 @@ export const useAddNode = (type: Type.local | Type.provider, network) => {
       queryClient.setQueryData(['node:checkPorts'], data)
     }
   })
+  const { mutate: mutateCheckPorts, mutateAsync: mutateCheckPortsAsync } = mutationCheckPorts
+
+  const portsToCheck = useMemo(
+    () =>
+      Object.keys(initialPorts).reduce(
+        (prev, curr) => (values[curr] ? { [curr]: values[curr], ...prev } : prev),
+        {}
+      ),
+    [
+      values[AddNodeFields.coordinatorHttpApiPort],
+      values[AddNodeFields.coordinatorHttpValidatorApiPort],
+      values[AddNodeFields.coordinatorP2PTcpPort],
+      values[AddNodeFields.coordinatorP2PUdpPort],
+      values[AddNodeFields.validatorP2PPort],
+      values[AddNodeFields.validatorHttpApiPort],
+      values[AddNodeFields.validatorWsApiPort]
+    ]
+  )
   const handleChange = (field: AddNodeFields) => (value?: string | number | null) => {
     if (field === AddNodeFields.type && value) {
       navigate(addParams(routes.nodes.create, { type: value as Type.local | Type.provider }))
       setValues(() => getInitialValues(value as Type.local | Type.provider, network))
       return
+    }
+    if (field === AddNodeFields.network && value && snapshots) {
+      setValues((prev) => ({
+        ...prev,
+        [AddNodeFields.downloadUrl]: snapshots[value].url,
+        [AddNodeFields.downloadHash]: snapshots[value].hash,
+        [AddNodeFields.downloadSize]: snapshots[value].size
+      }))
     }
     setValues((prev) => ({ ...prev, [field]: value }))
   }
@@ -140,14 +166,21 @@ export const useAddNode = (type: Type.local | Type.provider, network) => {
   }, [values, setValues])
 
   const onCheckPorts = useCallback(async () => {
-    const ports = Object.keys(initialPorts).reduce(
-      (prev, curr) => (values[curr] ? { [curr]: values[curr], ...prev } : prev),
-      {}
-    )
+    const ports = portsToCheck
     if (Object.values(ports).length > 0) {
-      await mutationCheckPorts.mutateAsync({ ports })
+      await mutateCheckPortsAsync({ ports })
     }
-  }, [values])
+  }, [portsToCheck, mutateCheckPortsAsync])
+
+  useEffect(() => {
+    if (Object.values(portsToCheck).length === 0) {
+      return
+    }
+    const timeout = setTimeout(() => {
+      mutateCheckPorts({ ports: portsToCheck })
+    }, 250)
+    return () => clearTimeout(timeout)
+  }, [portsToCheck, mutateCheckPorts])
 
   const onSelectSnapshot = useCallback(() => {
     if (!snapshots) return
@@ -214,12 +247,8 @@ export const useGetAll = (options?: { refetchInterval?: number }) => {
 export const useGetById = (id?: string, options?: { refetchInterval?: number }) => {
   const { isLoading, data, error } = useQuery({
     queryKey: ['node:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    },
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id,
     refetchInterval: options?.refetchInterval
   })
 
@@ -293,12 +322,8 @@ export const useRemove = (id?: string) => {
     error: errorNode
   } = useQuery({
     queryKey: ['node:one', id],
-    queryFn: async () => {
-      if (id) {
-        return await getById(parseInt(id))
-      }
-      return undefined
-    }
+    queryFn: async () => await getById(parseInt(id as string)),
+    enabled: !!id
   })
 
   const removeMutation = useMutation({

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024   Blue Wave Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
  *
  */
 import React, { PropsWithChildren } from 'react'
-import { Card } from 'antd'
 import { styled } from 'styled-components'
 import { ButtonPrimary } from '@renderer/ui-kit/Button'
+import { Card } from '@renderer/ui-kit/Card'
+import { Text } from '@renderer/ui-kit/Typography'
 
 type FormPropsT = PropsWithChildren & {
   title: string
@@ -27,10 +28,12 @@ type FormPropsT = PropsWithChildren & {
   goNextTitle?: string
   goPrevTitle?: string
   isLoading?: boolean
+  showActionsDivider?: boolean
 }
 
 export const NodeAddForm: React.FC<FormPropsT> = ({
   children,
+  title,
   canGoNext = true,
   goNext,
   goPrev,
@@ -39,16 +42,15 @@ export const NodeAddForm: React.FC<FormPropsT> = ({
   isLoading
 }) => {
   return (
-    <StyledCard type="inner">
+    <StyledCard title={<CardTitle>{title}</CardTitle>}>
       <Body>{children}</Body>
       <Actions>
-        <ButtonPrimary onClick={goPrev} ghost={!goPrev} disabled={!goPrev}>
+        <ButtonPrimary onClick={goPrev} ghost disabled={!goPrev}>
           {goPrevTitle}
         </ButtonPrimary>
         <ButtonPrimary
           onClick={goNext}
           disabled={!canGoNext}
-          ghost={!canGoNext}
           loading={isLoading ? isLoading : false}
         >
           {goNextTitle}
@@ -59,17 +61,23 @@ export const NodeAddForm: React.FC<FormPropsT> = ({
 }
 
 const StyledCard = styled(Card)`
-  margin-top: 40px;
+  margin-top: 26px;
+`
+
+const CardTitle = styled(Text)`
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 `
 
 const Body = styled.div`
-  padding-top: 20px;
+  padding-top: 4px;
 `
 
 const Actions = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 26px;
   gap: 15px;
 `
