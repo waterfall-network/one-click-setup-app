@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ interface InitializeTrayAndHandlersParams {
   trayIcon: string
   ipcMain: IpcMain
   appVersion: string
+  getBinariesVersion: () => string
   checkForUpdates: () => void
   quit: () => Promise<void>
   getMainWindow: () => BrowserWindow | null
@@ -30,6 +31,7 @@ export const initializeTrayAndHandlers = ({
   trayIcon,
   ipcMain,
   appVersion,
+  getBinariesVersion,
   checkForUpdates,
   quit,
   getMainWindow
@@ -64,7 +66,8 @@ export const initializeTrayAndHandlers = ({
   tray.setToolTip('Waterfall')
   ipcMain.handle('app:quit', async () => await quit())
   ipcMain.handle('app:state', async () => ({
-    version: appVersion
+    version: appVersion,
+    binariesVersion: getBinariesVersion()
   }))
 
   return tray

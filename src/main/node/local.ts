@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  */
 import * as crypto from 'crypto'
 import log from 'electron-log/node'
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import Child, { StatusResult } from './child'
 import {
   checkOrCreateDir,
@@ -70,6 +70,7 @@ import { getCurrentDateUTC } from '../helpers/common'
 import DownloadFile from '../libs/downloadFile'
 import { clearInterval } from 'node:timers'
 import * as rfs from 'rotating-file-stream'
+import BinUpdater from '../libs/binUpdater'
 
 export { StatusResult }
 
@@ -91,8 +92,12 @@ export type removeWorkersResponse = {
 }
 
 class LocalNode extends EventEmitter {
+  public static readonly BINARIES_NOT_READY_ERROR =
+    'Node binaries are not ready. Please download them first.'
+
   private readonly appEnv: AppEnv
   private readonly model: Node | null
+  private readonly binUpdater: BinUpdater | null
 
   private coordinatorBeacon: Child | null
   private coordinatorValidator: Child | null
@@ -104,9 +109,10 @@ class LocalNode extends EventEmitter {
   private monitoringLogStream: rfs.RotatingFileStream | null = null
   private monitoringWorking = false
 
-  constructor(model: Node | undefined, appEnv: AppEnv) {
+  constructor(model: Node | undefined, appEnv: AppEnv, binUpdater: BinUpdater | null = null) {
     super()
     this.appEnv = appEnv
+    this.binUpdater = binUpdater
     this.model = model || null
     this.coordinatorBeacon = null
     this.coordinatorValidator = null
@@ -158,6 +164,25 @@ class LocalNode extends EventEmitter {
   }
 
   public async start(): Promise<StatusResults> {
+    if (!this.binUpdater) {
+      log.warn('local-node:start-blocked', {
+        nodeId: this.model?.id,
+        reason: 'bin-updater-not-configured'
+      })
+      throw new Error(LocalNode.BINARIES_NOT_READY_ERROR)
+    }
+
+    try {
+      await this.binUpdater.downloadBinaries()
+    } catch (error) {
+      log.warn('local-node:start-blocked', {
+        nodeId: this.model?.id,
+        reason: 'binaries-update-failed',
+        error: getErrorMessage(error)
+      })
+      throw new Error(LocalNode.BINARIES_NOT_READY_ERROR)
+    }
+
     const results: StatusResults = {
       coordinatorBeacon: StatusResult.success,
       validator: StatusResult.success,
@@ -698,8 +723,17 @@ class LocalNode extends EventEmitter {
       if (!this.model) {
         return resolve(0)
       }
-      exec(
-        `${this.appEnv.getCoordinatorValidatorBinPath(this.model.network)} accounts import  --accept-terms-of-use --keys-dir=${getCoordinatorKeysPath(this.model.locationDir)} --wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)} --wallet-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)} --account-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`,
+      execFile(
+        this.appEnv.getCoordinatorValidatorBinPath(this.model.network),
+        [
+          'accounts',
+          'import',
+          '--accept-terms-of-use',
+          `--keys-dir=${getCoordinatorKeysPath(this.model.locationDir)}`,
+          `--wallet-dir=${getCoordinatorWalletPath(this.model.locationDir)}`,
+          `--wallet-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`,
+          `--account-password-file=${getCoordinatorWalletPasswordPath(this.model.locationDir)}`
+        ],
         (err, stdout, stderr) => {
           if (err) {
             return resolve(0)
@@ -928,8 +962,16 @@ class LocalNode extends EventEmitter {
         return reject('')
       }
       const execCommand = format && format === 'json' ? `JSON.stringify(${command})` : command
-      exec(
-        `${this.appEnv.getValidatorBinPath(this.model.network)} --verbosity 0 --exec "${execCommand}" attach ${this.appEnv.getValidatorSocket(this.model.id.toString())}`,
+      execFile(
+        this.appEnv.getValidatorBinPath(this.model.network),
+        [
+          '--verbosity',
+          '0',
+          '--exec',
+          execCommand,
+          'attach',
+          this.appEnv.getValidatorSocket(this.model.id.toString())
+        ],
         (err, stdout, stderr) => {
           if (err) {
             log.error('local:runValidatorCommand process failed', {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -397,6 +397,22 @@ class NodeModel {
       id
     })
     return !!res.changes
+  }
+
+  hasConfiguredNodes(): boolean {
+    if (!this.db) {
+      return false
+    }
+    const res = this.db.prepare('SELECT 1 FROM nodes LIMIT 1').get()
+    return !!res
+  }
+
+  hasConfiguredNodesByType(type: Type): boolean {
+    if (!this.db) {
+      return false
+    }
+    const res = this.db.prepare('SELECT 1 FROM nodes WHERE type = ? LIMIT 1').get(type)
+    return !!res
   }
 }
 export default NodeModel

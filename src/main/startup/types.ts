@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,5 +29,8 @@ export interface StartupStatus {
 export interface StartupStep {
   title: string
   detail: string
-  run: () => Promise<void> | void
+  /** Called by the runner to execute the step.
+   *  updateProgress can be used to stream live detail text to the startup UI
+   *  without waiting for the next step boundary. */
+  run: (updateProgress: (detail: string) => void) => Promise<unknown> | void
 }

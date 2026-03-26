@@ -22,10 +22,6 @@ files:
   - '!node_modules/bcrypto/build/**/*.{mk,Makefile}'
 buildDependenciesFromSource: true
 extraResources:
-  - from: 'resources/bin/${os}/${arch}'
-    to: 'bin'
-    filter:
-      - '**/*'
   - from: 'resources/genesis'
     to: 'genesis'
     filter:

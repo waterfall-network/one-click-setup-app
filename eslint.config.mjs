@@ -22,7 +22,7 @@ import tanstackQuery from '@tanstack/eslint-plugin-query'
 import eslintConfigPrettier from 'eslint-config-prettier'
 
 export default [
-  { ignores: ['node_modules/', 'dist/', 'out/', '.gitignore'] },
+  { ignores: ['node_modules/', 'dist/', 'out/', 'tmp/**', '.gitignore'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

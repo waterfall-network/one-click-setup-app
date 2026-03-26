@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@ import type { StartupStep } from './types'
 
 interface CreateStartupStepsParams {
   runMigrations: () => Promise<unknown>
+  /** Verifies / downloads managed node binaries into the app data directory.
+   *  Receives an updateProgress callback.
+   *  A no-op when there are no local nodes configured. */
+  syncBinaries: (updateProgress: (detail: string) => void) => Promise<unknown>
   checkForUpdates: () => void
   initializeSettings: () => Promise<unknown>
   initializeNode: () => Promise<unknown>
@@ -32,6 +36,7 @@ interface CreateStartupStepsParams {
 
 export const createStartupSteps = ({
   runMigrations,
+  syncBinaries,
   checkForUpdates,
   initializeSettings,
   initializeNode,
@@ -46,6 +51,12 @@ export const createStartupSteps = ({
     title: 'Preparing database',
     detail: 'Running data migrations.',
     run: async () => await runMigrations()
+  },
+  {
+    title: 'Updating node binaries',
+    detail: 'Checking node binaries…',
+    // updateProgress is provided by the runner and streams live detail text to the UI.
+    run: async (updateProgress) => await syncBinaries(updateProgress)
   },
   {
     title: 'Checking for updates',

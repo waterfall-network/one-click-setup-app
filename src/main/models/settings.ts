@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ interface SettingsRow {
   autoStartNodes: number
   monitoringInterval: number
   logLevel: LogLevel
+  binariesVersion: string
   createdAt: string
   updatedAt: string
 }
@@ -53,12 +54,21 @@ export interface Settings {
   autoStartNodes: boolean
   monitoringInterval: number
   logLevel: LogLevel
+  binariesVersion: string
   createdAt: string
   updatedAt: string
 }
 
 export type UpdateSettings = Partial<
-  Pick<Settings, 'theme' | 'autoStartApp' | 'autoStartNodes' | 'monitoringInterval' | 'logLevel'>
+  Pick<
+    Settings,
+    | 'theme'
+    | 'autoStartApp'
+    | 'autoStartNodes'
+    | 'monitoringInterval'
+    | 'logLevel'
+    | 'binariesVersion'
+  >
 >
 
 class SettingsModel {
@@ -151,6 +161,13 @@ class SettingsModel {
         return false
       }
       updateData.logLevel = data.logLevel
+    }
+
+    if (data.binariesVersion !== undefined) {
+      if (typeof data.binariesVersion !== 'string') {
+        return false
+      }
+      updateData.binariesVersion = data.binariesVersion
     }
 
     const keys = Object.keys(updateData)

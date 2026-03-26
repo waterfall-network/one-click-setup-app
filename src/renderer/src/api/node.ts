@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  *
  */
 import { Node, NewNode } from '@renderer/types/node'
-
 import { LAST_SNAPSHOT_URL } from '@renderer/constants/env'
 import { Snapshots } from '../types/node'
 import { isSnapshots } from '../helpers/node'

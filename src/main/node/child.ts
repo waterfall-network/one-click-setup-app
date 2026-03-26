@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  *
  */
-import { spawn, exec, ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, execFile, ChildProcessWithoutNullStreams } from 'node:child_process'
 import util from 'node:util'
 import log from 'electron-log/node'
 import { EventEmitter } from 'node:events'
 import * as rfs from 'rotating-file-stream'
 
-const execPromise = util.promisify(exec)
+const execFilePromise = util.promisify(execFile)
 export enum StatusResult {
   success = 'success',
   fail = 'fail'
@@ -154,7 +154,7 @@ class Child extends EventEmitter {
   public async exec() {
     const startedAt = Date.now()
     try {
-      const result = await execPromise(`${this.binPath} ${this.args.join(' ')}`)
+      const result = await execFilePromise(this.binPath, this.args)
       log.debug('child:exec-success', {
         binPath: this.binPath,
         durationMs: Date.now() - startedAt

@@ -1,5 +1,5 @@
 /*
- * Copyright 2026   Digital Clever Solution Inc.
+ * Copyright 2026 Digital Clever Solution Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ import path from 'node:path'
 import { node } from './node'
 import { worker } from './worker'
 import { settings } from './settings'
-
 type State = {
   version: string
+  binariesVersion: string
 }
 
 type StartupPhase = 'running' | 'done' | 'error'
