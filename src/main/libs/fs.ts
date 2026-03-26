@@ -38,6 +38,7 @@ import * as https from 'node:https'
 import * as http from 'node:http'
 import * as crypto from 'node:crypto'
 import { URL } from 'node:url'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -173,6 +174,20 @@ export const checkSocket = async (ipcPath: string): Promise<boolean> => {
   })
 }
 
+export const waitForSocket = async (
+  ipcPath: string,
+  maxAttempts = 40,
+  intervalMs = 500
+): Promise<boolean> => {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    if (await checkSocket(ipcPath)) {
+      return true
+    }
+    await sleep(intervalMs)
+  }
+  return false
+}
+
 export const deleteFolderRecursive = async (path: string): Promise<boolean> => {
   const startedAt = Date.now()
   try {
@@ -193,9 +208,17 @@ export const deleteFile = async (filePath: string): Promise<boolean> => {
   const startedAt = Date.now()
   try {
     await unlink(filePath)
-    log.debug('fs:delete-file:success', { filePath, durationMs: Date.now() - startedAt })
+    log.debug('fs:delete-file:deleted', { filePath, durationMs: Date.now() - startedAt })
     return true
   } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException
+    if (nodeError.code === 'ENOENT') {
+      log.debug('fs:delete-file:missing', {
+        filePath,
+        durationMs: Date.now() - startedAt
+      })
+      return true
+    }
     log.error('fs:delete-file:failed', {
       filePath,
       error: getErrorMessage(error),

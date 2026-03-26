@@ -28,7 +28,8 @@ import {
   deleteFile,
   deleteFilesByCoordinatorPublicKeys,
   deleteFilesByValidatorPublicKeys,
-  getPublicIP
+  getPublicIP,
+  waitForSocket
 } from '../libs/fs'
 import AppEnv from '../libs/appEnv'
 import {
@@ -190,8 +191,17 @@ class LocalNode extends EventEmitter {
     }
     log.debug(`start`)
     if (this.validator && !this.validator.isRunning()) {
+      await this._cleanupValidatorSocketFile()
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
+    }
+    if (results.validator === StatusResult.success) {
+      const validatorSocketReady = await this._waitForValidatorSocketReady()
+      if (!validatorSocketReady) {
+        log.warn('local:start validator socket not ready before coordinator start', {
+          nodeId: this.model?.id
+        })
+      }
     }
 
     if (this.coordinatorBeacon && !this.coordinatorBeacon.isRunning()) {
@@ -257,10 +267,19 @@ class LocalNode extends EventEmitter {
       const res = await this.validator.stop()
       log.debug(`stop gwat: ${res}`)
     }
+    await this._cleanupValidatorSocketFile()
     await deleteFile(getValidatorNodeKeyPath(this.model.locationDir))
     if (this.validator) {
       results.validator = await this.validator.start()
       log.debug(`start gwat: ${results.validator}`)
+    }
+    if (results.validator === StatusResult.success) {
+      const validatorSocketReady = await this._waitForValidatorSocketReady()
+      if (!validatorSocketReady) {
+        log.warn('local:restart validator socket not ready before coordinator start', {
+          nodeId: this.model?.id
+        })
+      }
     }
     if (this.coordinatorBeacon) {
       results.coordinatorBeacon = await this.coordinatorBeacon.start()
@@ -1051,6 +1070,47 @@ class LocalNode extends EventEmitter {
         }
       )
     })
+  }
+
+  private async _cleanupValidatorSocketFile(): Promise<void> {
+    if (!this.model) {
+      return
+    }
+    const socketPath = this.appEnv.getValidatorSocket(this.model.id.toString())
+    if (socketPath.startsWith('\\\\.\\pipe\\')) {
+      return
+    }
+    const status = await deleteFile(socketPath)
+    if (!status) {
+      log.warn('local:cleanup-validator-socket failed', {
+        nodeId: this.model.id,
+        socketPath
+      })
+    }
+  }
+
+  private async _waitForValidatorSocketReady(maxAttempts = 40, intervalMs = 500): Promise<boolean> {
+    if (!this.model) {
+      return false
+    }
+    const socketPath = this.appEnv.getValidatorSocket(this.model.id.toString())
+    if (socketPath.startsWith('\\\\.\\pipe\\')) {
+      return true
+    }
+    const status = await waitForSocket(socketPath, maxAttempts, intervalMs)
+    if (status) {
+      log.debug('local:validator-socket-ready', {
+        nodeId: this.model.id,
+        socketPath
+      })
+      return true
+    }
+    log.warn('local:validator-socket-wait-timeout', {
+      nodeId: this.model.id,
+      socketPath,
+      waitedMs: maxAttempts * intervalMs
+    })
+    return false
   }
   public async downloadSnapshot() {
     if (!this.model) {

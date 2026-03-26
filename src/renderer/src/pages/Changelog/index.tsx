@@ -92,6 +92,11 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Fix,
         description: 'Added node starting state with disabled control actions during startup'
+      },
+      {
+        type: ChangeType.Fix,
+        description:
+          'Improved Linux local node startup by waiting for validator IPC readiness before coordinator start'
       }
     ]
   },

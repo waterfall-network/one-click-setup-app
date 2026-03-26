@@ -134,9 +134,10 @@ class AppEnv {
     const platform = this.getPlatform()
     if (platform === 'win') {
       return `\\\\.\\pipe\\wf-${num}.ipc`
-    } else {
-      return path.resolve(`/tmp/wf-${num}.ipc`)
     }
+    const linuxRuntimeDir =
+      platform === 'linux' && process.env.XDG_RUNTIME_DIR ? process.env.XDG_RUNTIME_DIR : '/tmp'
+    return path.resolve(path.join(linuxRuntimeDir, `wf-${num}.ipc`))
   }
 }
 
