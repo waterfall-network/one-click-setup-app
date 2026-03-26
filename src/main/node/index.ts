@@ -147,6 +147,13 @@ class Node {
     }
     let result: StatusResults
     try {
+      if (startNodeModel?.type === NodeType.local) {
+        this.nodeModel.update(startNodeModel.id, {
+          coordinatorStatus: CoordinatorStatus.starting,
+          validatorStatus: ValidatorStatus.starting,
+          coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+        })
+      }
       result = await this.nodes[id.toString()].start()
     } catch (error) {
       if (
@@ -211,8 +218,44 @@ class Node {
       })
       return ErrorResults.NODE_NOT_CREATED
     }
-    const result = await this._addNode(nodeModel)
+    const result = await this._addNode(nodeModel, false)
     if (result) {
+      if (nodeModel.type === NodeType.local) {
+        this.nodeModel.update(nodeModel.id, {
+          coordinatorStatus: CoordinatorStatus.starting,
+          validatorStatus: ValidatorStatus.starting,
+          coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+        })
+        const nodeId = Number(nodeModel.id)
+        if (!Number.isNaN(nodeId)) {
+          void (async () => {
+            try {
+              const startResult = await this._start(nodeId)
+              if (startResult === false || typeof startResult === 'string') {
+                this.nodeModel.update(nodeModel.id, {
+                  coordinatorStatus: CoordinatorStatus.stopped,
+                  validatorStatus: ValidatorStatus.stopped,
+                  coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+                })
+                log.warn('node:add-background-start-incomplete', {
+                  nodeId: nodeModel.id,
+                  result: startResult
+                })
+              }
+            } catch (error) {
+              this.nodeModel.update(nodeModel.id, {
+                coordinatorStatus: CoordinatorStatus.stopped,
+                validatorStatus: ValidatorStatus.stopped,
+                coordinatorValidatorStatus: CoordinatorValidatorStatus.stopped
+              })
+              log.error('node:add-background-start-failed', {
+                nodeId: nodeModel.id,
+                error: getErrorMessage(error)
+              })
+            }
+          })()
+        }
+      }
       log.info('node:add-finished', { nodeId: nodeModel.id, durationMs: Date.now() - startedAt })
       return nodeModel
     }
@@ -270,10 +313,10 @@ class Node {
         this.nodeModel.update(nodeModel.id, {
           coordinatorPid: pids.coordinatorBeacon,
           coordinatorStatus: pids.coordinatorBeacon
-            ? CoordinatorStatus.running
+            ? CoordinatorStatus.starting
             : CoordinatorStatus.stopped,
           validatorPid: pids.validator,
-          validatorStatus: pids.validator ? ValidatorStatus.running : ValidatorStatus.stopped,
+          validatorStatus: pids.validator ? ValidatorStatus.starting : ValidatorStatus.stopped,
           coordinatorValidatorPid: pids.coordinatorValidator,
           coordinatorValidatorStatus: pids.coordinatorValidator
             ? CoordinatorValidatorStatus.running
@@ -328,10 +371,10 @@ class Node {
         this.nodeModel.update(nodeModel.id, {
           coordinatorPid: pids.coordinatorBeacon,
           coordinatorStatus: pids.coordinatorBeacon
-            ? CoordinatorStatus.running
+            ? CoordinatorStatus.starting
             : CoordinatorStatus.stopped,
           validatorPid: pids.validator,
-          validatorStatus: pids.validator ? ValidatorStatus.running : ValidatorStatus.stopped,
+          validatorStatus: pids.validator ? ValidatorStatus.starting : ValidatorStatus.stopped,
           coordinatorValidatorPid: pids.coordinatorValidator,
           coordinatorValidatorStatus: pids.coordinatorValidator
             ? CoordinatorValidatorStatus.running

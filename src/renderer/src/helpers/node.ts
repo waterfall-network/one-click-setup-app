@@ -36,6 +36,11 @@ export const getNodeStatus = (node: Node) => {
   ) {
     return Status.stopped
   } else if (
+    node.coordinatorStatus === CoordinatorStatus.starting ||
+    node.validatorStatus === ValidatorStatus.starting
+  ) {
+    return Status.starting
+  } else if (
     node.coordinatorStatus === CoordinatorStatus.syncing ||
     node.validatorStatus === ValidatorStatus.syncing
   ) {
@@ -53,7 +58,8 @@ const StatusLabel = {
   [DownloadStatus.verifyingPause]: 'Pause Verify',
   [Status.running]: 'Running',
   [Status.stopped]: 'Stopped',
-  [Status.syncing]: 'Syncing'
+  [Status.syncing]: 'Syncing',
+  [Status.starting]: 'Starting'
 }
 
 export const getNodeStatusLabel = (node: Node) => {

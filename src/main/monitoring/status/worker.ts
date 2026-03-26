@@ -171,6 +171,20 @@ class StatusMonitoring {
           })
           continue
         }
+        if (
+          nodeModel.type === NodeType.local &&
+          (nodeModel.coordinatorStatus === CoordinatorStatus.starting ||
+            nodeModel.validatorStatus === ValidatorStatus.starting) &&
+          !nodeModel.coordinatorPid &&
+          !nodeModel.validatorPid
+        ) {
+          skippedNodes++
+          log.debug('status-monitoring:node-skip', {
+            nodeId: nodeModel.id,
+            reason: 'starting-without-pids'
+          })
+          continue
+        }
 
         processedNodes++
         const nodeStartedAt = Date.now()

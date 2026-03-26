@@ -41,7 +41,8 @@ export enum Type {
 export enum CoordinatorStatus {
   stopped = 'stopped',
   running = 'running',
-  syncing = 'syncing'
+  syncing = 'syncing',
+  starting = 'starting'
 }
 
 export enum CoordinatorValidatorStatus {
@@ -52,7 +53,8 @@ export enum CoordinatorValidatorStatus {
 export enum ValidatorStatus {
   stopped = 'stopped',
   running = 'running',
-  syncing = 'syncing'
+  syncing = 'syncing',
+  starting = 'starting'
 }
 
 export enum DownloadStatus {

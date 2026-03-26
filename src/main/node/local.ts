@@ -905,6 +905,13 @@ class LocalNode extends EventEmitter {
     if (!this.model) {
       return {}
     }
+    if (this.coordinatorBeacon && !this.coordinatorBeacon.isRunning()) {
+      log.debug('local:runCoordinatorCommand coordinator not running', {
+        nodeId: this.model.id,
+        command: truncateValue(command)
+      })
+      return {}
+    }
     const startedAt = Date.now()
     try {
       const response = await fetch(
@@ -943,6 +950,14 @@ class LocalNode extends EventEmitter {
 
   public async runValidatorCommand(command: string, format?: 'json'): Promise<string | object> {
     if (!this.model) {
+      return ''
+    }
+    if (this.validator && !this.validator.isRunning()) {
+      log.debug('local:runValidatorCommand validator process not running', {
+        nodeId: this.model.id,
+        command: truncateValue(command),
+        format: format || 'plain'
+      })
       return ''
     }
     const startedAt = Date.now()

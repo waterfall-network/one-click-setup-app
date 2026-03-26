@@ -88,6 +88,10 @@ const changelogData: ChangelogVersion[] = [
       {
         type: ChangeType.Fix,
         description: 'Added staged binary downloads with hash verification before install'
+      },
+      {
+        type: ChangeType.Fix,
+        description: 'Added node starting state with disabled control actions during startup'
       }
     ]
   },

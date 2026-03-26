@@ -37,8 +37,8 @@ import { NodeViewWorkers } from '@renderer/containers/Node/NodeViewWorkers'
 import { NodeViewStatistics } from '@renderer/containers/Node/NodeViewStatistics'
 import { useGetById, useControl } from '@renderer/hooks/node'
 import { useMonitoringInterval } from '@renderer/hooks/settings'
-import { Node, DownloadStatus, Action, Type } from '@renderer/types/node'
-import { getActions } from '@renderer/helpers/node'
+import { Node, DownloadStatus, Action, Type, Status } from '@renderer/types/node'
+import { getActions, getNodeStatus } from '@renderer/helpers/node'
 import { getViewLink } from '@renderer/helpers/navigation'
 import { routes } from '@renderer/constants/navigation'
 import { RemoveModal } from '../../containers/Node/RemoveModal'
@@ -110,6 +110,7 @@ export const NodeViewPage = () => {
   const onTabChange = (newActiveKey: string) => setActiveKey(newActiveKey)
 
   const actions = getActions(node)
+  const nodeStatus = node ? getNodeStatus(node) : null
   const breadcrumb = [
     {
       title: 'Nodes',
@@ -129,6 +130,7 @@ export const NodeViewPage = () => {
             {actions[Action.stop] && (
               <Popover content="Stop" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<PauseOutlined />}
                   shape="default"
                   size="middle"
@@ -140,6 +142,7 @@ export const NodeViewPage = () => {
             {actions[Action.start] && (
               <Popover content="Run" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<CaretRightOutlined />}
                   shape="default"
                   size="middle"
@@ -151,6 +154,7 @@ export const NodeViewPage = () => {
             {actions[Action.restart] && (
               <Popover content="Restart" placement="bottom">
                 <IconButton
+                  disabled={nodeStatus === Status.starting}
                   icon={<ReloadOutlined />}
                   shape="default"
                   size="middle"
@@ -170,7 +174,7 @@ export const NodeViewPage = () => {
               placement="bottom"
             >
               <IconButton
-                disabled={!actions[Action.remove]}
+                disabled={nodeStatus === Status.starting || !actions[Action.remove]}
                 icon={<DeleteOutlined />}
                 shape="default"
                 size="middle"
